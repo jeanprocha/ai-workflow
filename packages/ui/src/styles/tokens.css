@@ -1,0 +1,132 @@
+/*
+ * Design tokens do Workflow AI Platform (ver style.md).
+ * Fonte unica de verdade — qualquer app do monorepo importa este arquivo
+ * e mapeia os tokens para seu proprio sistema de utilitarios (Tailwind @theme, etc).
+ * Convencao: .dark = tema padrao (dark-first); .light = override.
+ */
+
+:root,
+.dark {
+  --background: #0d0e12;
+  --foreground: #e6e8eb;
+
+  --card: #14161b;
+  --card-foreground: #e6e8eb;
+  --popover: #1b1e24;
+  --popover-foreground: #e6e8eb;
+
+  --primary: #5b7cfa;
+  --primary-foreground: #f7f8fa;
+  --secondary: #20242b;
+  --secondary-foreground: #e6e8eb;
+
+  --muted: #14161b;
+  --muted-foreground: #9ba1aa;
+  --accent: #20242b;
+  --accent-foreground: #e6e8eb;
+
+  --destructive: #f2555a;
+  --destructive-foreground: #f7f8fa;
+
+  --border: #262a31;
+  --border-strong: #343a43;
+  --input: #262a31;
+  --ring: #5b7cfa;
+
+  --text-muted: #5e646e;
+  --accent-subtle: rgb(91 124 250 / 0.12);
+
+  --success: #3dd68c;
+  --success-subtle: rgb(61 214 140 / 0.12);
+  --warning: #f0b429;
+  --warning-subtle: rgb(240 180 41 / 0.12);
+  --danger: #f2555a;
+  --danger-subtle: rgb(242 85 90 / 0.12);
+  --running: var(--primary);
+  --queued: var(--text-muted);
+
+  --node-trigger: #f0b429;
+  --node-logic: #9ba1aa;
+  --node-ai: #5b7cfa;
+  --node-database: #3dd68c;
+  --node-api: #5bc8fa;
+  --node-file: #c495fa;
+  --node-communication: #f2778d;
+}
+
+.light {
+  --background: #f7f8fa;
+  --foreground: #17181c;
+
+  --card: #ffffff;
+  --card-foreground: #17181c;
+  --popover: #ffffff;
+  --popover-foreground: #17181c;
+
+  --primary: #3d5bf5;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f1f4;
+  --secondary-foreground: #17181c;
+
+  --muted: #ffffff;
+  --muted-foreground: #5c6370;
+  --accent: #f0f1f4;
+  --accent-foreground: #17181c;
+
+  --destructive: #d93036;
+  --destructive-foreground: #ffffff;
+
+  --border: #e4e6ea;
+  --border-strong: #cdd1d8;
+  --input: #e4e6ea;
+  --ring: #3d5bf5;
+
+  --text-muted: #9aa0ab;
+  --accent-subtle: rgb(61 91 245 / 0.08);
+
+  --success: #218358;
+  --success-subtle: rgb(33 131 88 / 0.1);
+  --warning: #ad6800;
+  --warning-subtle: rgb(173 104 0 / 0.1);
+  --danger: #d93036;
+  --danger-subtle: rgb(217 48 54 / 0.1);
+  --running: var(--primary);
+  --queued: var(--text-muted);
+
+  --node-trigger: #ad6800;
+  --node-logic: #5c6370;
+  --node-ai: #3d5bf5;
+  --node-database: #218358;
+  --node-api: #0e7ca8;
+  --node-file: #8145c9;
+  --node-communication: #c42a52;
+}
+
+@keyframes wf-pulse-travel {
+  0% {
+    left: -6px;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes wf-pulse-breathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}

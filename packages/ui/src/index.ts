@@ -1,3 +1,4 @@
-// Design system (design tokens, componentes shadcn/ui customizados).
-// Conteudo real entra na Fase 1 do plan.md.
-export {};
+export * from "./components/pulse";
+export * from "./components/status-badge";
+export * from "./components/metric-card";
+export * from "./components/empty-state";
