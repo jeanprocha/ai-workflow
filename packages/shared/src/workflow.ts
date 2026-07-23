@@ -1,4 +1,4 @@
-import type { WorkflowGraph } from "./graph";
+import type { WorkflowGraph } from "./graph.js";
 
 export type WorkflowStatus = "draft" | "active" | "archived";
 

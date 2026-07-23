@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/nav";
 import { ThemeToggle } from "./theme-toggle";
+import { UserMenu } from "./user-menu";
 
 export interface TopbarProps {
   onSearchClick: () => void;
@@ -32,6 +33,7 @@ export function Topbar({ onSearchClick }: TopbarProps) {
           </kbd>
         </button>
         <ThemeToggle />
+        <UserMenu />
       </div>
     </header>
   );

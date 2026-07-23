@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -47,10 +48,12 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">
-        <TooltipProvider delay={400}>
-          {children}
-          <Toaster />
-        </TooltipProvider>
+        <Providers>
+          <TooltipProvider delay={400}>
+            {children}
+            <Toaster />
+          </TooltipProvider>
+        </Providers>
       </body>
     </html>
   );

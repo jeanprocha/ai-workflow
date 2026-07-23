@@ -1,6 +1,6 @@
-// Fase 0: apenas a fundação do schema.
-// Os modelos reais (users, workspaces, workflows...) entram na Fase 2 em diante,
-// seguindo o modelo de dados descrito em plan.md secao 3.
+// Modelo de dados do Workflow AI Platform (ver plan.md secao 3).
+// Multi-tenancy por workspace desde a Fase 2 (ADR-006): todo recurso de
+// negocio abaixo carrega workspace_id.
 
 generator client {
   provider        = "prisma-client-js"
@@ -11,4 +11,126 @@ datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
   extensions = [vector]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  memberships      WorkspaceMember[]
+  createdVersions  WorkflowVersion[]
+
+  @@map("users")
+}
+
+enum WorkspaceRole {
+  owner
+  admin
+  member
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members     WorkspaceMember[]
+  workflows   Workflow[]
+  credentials Credential[]
+  variables   Variable[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  workspaceId String        @map("workspace_id")
+  userId      String        @map("user_id")
+  role        WorkspaceRole @default(member)
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+enum WorkflowStatus {
+  draft
+  active
+  archived
+}
+
+model Workflow {
+  id                String         @id @default(uuid())
+  workspaceId       String         @map("workspace_id")
+  name              String
+  description       String?
+  status            WorkflowStatus @default(draft)
+  currentVersionId  String?        @unique @map("current_version_id")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  versions       WorkflowVersion[] @relation("WorkflowVersions")
+  currentVersion WorkflowVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+
+  @@index([workspaceId])
+  @@map("workflows")
+}
+
+model WorkflowVersion {
+  id            String   @id @default(uuid())
+  workflowId    String   @map("workflow_id")
+  versionNumber Int      @map("version_number")
+  graph         Json
+  createdById   String   @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  workflow    Workflow    @relation("WorkflowVersions", fields: [workflowId], references: [id], onDelete: Cascade)
+  createdBy   User        @relation(fields: [createdById], references: [id])
+  currentOf   Workflow?   @relation("CurrentVersion")
+
+  @@unique([workflowId, versionNumber])
+  @@map("workflow_versions")
+}
+
+model Credential {
+  id            String   @id @default(uuid())
+  workspaceId   String   @map("workspace_id")
+  provider      String
+  name          String
+  encryptedData String   @map("encrypted_data")
+  lastFour      String?  @map("last_four")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("credentials")
+}
+
+enum VariableScope {
+  global
+  environment
+  runtime
+}
+
+model Variable {
+  id          String        @id @default(uuid())
+  workspaceId String        @map("workspace_id")
+  key         String
+  value       String
+  isSecret    Boolean       @default(false) @map("is_secret")
+  scope       VariableScope @default(global)
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, key])
+  @@map("variables")
 }
