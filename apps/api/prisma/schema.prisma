@@ -72,12 +72,15 @@ model Workflow {
   description       String?
   status            WorkflowStatus @default(draft)
   currentVersionId  String?        @unique @map("current_version_id")
+  /** Sincronizado a cada save do grafo: id do node trigger.webhook, se houver. */
+  webhookId         String?        @unique @map("webhook_id")
   createdAt         DateTime       @default(now()) @map("created_at")
   updatedAt         DateTime       @updatedAt @map("updated_at")
 
   workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   versions       WorkflowVersion[] @relation("WorkflowVersions")
   currentVersion WorkflowVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  executions     Execution[]
 
   @@index([workspaceId])
   @@map("workflows")
@@ -94,6 +97,7 @@ model WorkflowVersion {
   workflow    Workflow    @relation("WorkflowVersions", fields: [workflowId], references: [id], onDelete: Cascade)
   createdBy   User        @relation(fields: [createdById], references: [id])
   currentOf   Workflow?   @relation("CurrentVersion")
+  executions  Execution[]
 
   @@unique([workflowId, versionNumber])
   @@map("workflow_versions")
@@ -133,4 +137,91 @@ model Variable {
 
   @@unique([workspaceId, key])
   @@map("variables")
+}
+
+enum ExecutionStatus {
+  queued
+  running
+  success
+  failed
+  canceled
+}
+
+enum TriggerType {
+  manual
+  webhook
+  cron
+  event
+}
+
+model Execution {
+  id                String          @id @default(uuid())
+  workflowId        String          @map("workflow_id")
+  versionId         String          @map("version_id")
+  status            ExecutionStatus @default(queued)
+  triggerType       TriggerType     @map("trigger_type")
+  inputPayload      Json?           @map("input_payload")
+  outputPayload     Json?           @map("output_payload")
+  durationMs        Int?            @map("duration_ms")
+  tokensTotal       Int             @default(0) @map("tokens_total")
+  costUsd           Float           @default(0) @map("cost_usd")
+  startedAt         DateTime        @default(now()) @map("started_at")
+  finishedAt        DateTime?       @map("finished_at")
+  error             String?
+  parentExecutionId String?         @map("parent_execution_id")
+
+  workflow Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  version  WorkflowVersion @relation(fields: [versionId], references: [id])
+  steps    ExecutionStep[]
+  logs     ExecutionLog[]
+  parent   Execution?      @relation("Replay", fields: [parentExecutionId], references: [id])
+  replays  Execution[]     @relation("Replay")
+
+  @@index([workflowId])
+  @@map("executions")
+}
+
+model ExecutionStep {
+  id          String          @id @default(uuid())
+  executionId String          @map("execution_id")
+  nodeId      String          @map("node_id")
+  nodeType    String          @map("node_type")
+  status      ExecutionStatus
+  input       Json?
+  output      Json?
+  error       String?
+  durationMs  Int?            @map("duration_ms")
+  tokens      Int?
+  model       String?
+  costUsd     Float?          @map("cost_usd")
+  startedAt   DateTime        @default(now()) @map("started_at")
+  finishedAt  DateTime?       @map("finished_at")
+  attempt     Int             @default(1)
+
+  execution Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@map("execution_steps")
+}
+
+enum LogLevel {
+  debug
+  info
+  warn
+  error
+}
+
+model ExecutionLog {
+  id          String   @id @default(uuid())
+  executionId String   @map("execution_id")
+  nodeId      String?  @map("node_id")
+  level       LogLevel @default(info)
+  event       String
+  payload     Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  execution Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@map("execution_logs")
 }

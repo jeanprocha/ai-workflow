@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { EmptyState } from "@workflow/ui";
 import { Button } from "@/components/ui/button";
 
@@ -14,9 +15,7 @@ export default function ExecutionsPage() {
       <EmptyState
         title="Nenhuma execucao ainda"
         description="Execute um fluxo para ver o historico, os logs e o custo de IA aqui."
-        action={
-          <Button render={<a href="/flows" />}>Ver fluxos</Button>
-        }
+        action={<Button render={<Link href="/flows" />}>Ver fluxos</Button>}
       />
     </div>
   );

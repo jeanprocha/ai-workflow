@@ -3,7 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import type { Prisma } from '@prisma/client';
+import type { WorkflowGraph } from '@workflow/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
@@ -11,6 +13,37 @@ import { workflowGraphSchema, EMPTY_GRAPH } from './graph.schema';
 
 function toJsonInput(graph: unknown): Prisma.InputJsonValue {
   return graph as Prisma.InputJsonValue;
+}
+
+/**
+ * Garante um webhookId estavel para o node trigger.webhook (se houver),
+ * gerando um na primeira vez que o node e salvo. Sincronizado com a coluna
+ * workflows.webhook_id para permitir lookup O(1) em POST /hooks/:webhookId.
+ */
+function ensureWebhookId(graph: WorkflowGraph): {
+  graph: WorkflowGraph;
+  webhookId: string | null;
+} {
+  const webhookNode = graph.nodes.find(
+    (node) => node.type === 'trigger.webhook',
+  );
+  if (!webhookNode) return { graph, webhookId: null };
+
+  const existing = webhookNode.config?.webhookId;
+  const webhookId =
+    typeof existing === 'string' && existing ? existing : randomUUID();
+
+  return {
+    webhookId,
+    graph: {
+      ...graph,
+      nodes: graph.nodes.map((node) =>
+        node.id === webhookNode.id
+          ? { ...node, config: { ...node.config, webhookId } }
+          : node,
+      ),
+    },
+  };
 }
 
 @Injectable()
@@ -87,19 +120,20 @@ export class WorkflowsService {
       orderBy: { versionNumber: 'desc' },
     });
     const nextVersionNumber = (lastVersion?.versionNumber ?? 0) + 1;
+    const { graph, webhookId } = ensureWebhookId(parsed.data);
 
     return this.prisma.$transaction(async (tx) => {
       const version = await tx.workflowVersion.create({
         data: {
           workflowId: id,
           versionNumber: nextVersionNumber,
-          graph: toJsonInput(parsed.data),
+          graph: toJsonInput(graph),
           createdById: userId,
         },
       });
       return tx.workflow.update({
         where: { id: workflow.id },
-        data: { currentVersionId: version.id },
+        data: { currentVersionId: version.id, webhookId },
         include: { currentVersion: true },
       });
     });

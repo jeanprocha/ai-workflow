@@ -10,6 +10,8 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
 import { CredentialsModule } from './credentials/credentials.module';
 import { VariablesModule } from './variables/variables.module';
 import { WorkflowsModule } from './workflows/workflows.module';
+import { ExecutionsModule } from './executions/executions.module';
+import { HooksModule } from './hooks/hooks.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { WorkflowsModule } from './workflows/workflows.module';
     CredentialsModule,
     VariablesModule,
     WorkflowsModule,
+    ExecutionsModule,
+    HooksModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],

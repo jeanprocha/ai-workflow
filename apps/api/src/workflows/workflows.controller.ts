@@ -13,17 +13,22 @@ import { WorkflowsService } from './workflows.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { SaveGraphDto } from './dto/save-graph.dto';
+import { RunWorkflowDto } from './dto/run-workflow.dto';
 import { WorkspaceGuard } from '../workspaces/guards/workspace.guard';
 import { CurrentWorkspace } from '../workspaces/decorators/current-workspace.decorator';
 import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../auth/decorators/current-user.decorator';
+import { ExecutionsService } from '../executions/executions.service';
 
 @Controller('workflows')
 @UseGuards(WorkspaceGuard)
 export class WorkflowsController {
-  constructor(private readonly workflowsService: WorkflowsService) {}
+  constructor(
+    private readonly workflowsService: WorkflowsService,
+    private readonly executionsService: ExecutionsService,
+  ) {}
 
   @Get()
   list(@CurrentWorkspace() workspaceId: string) {
@@ -70,6 +75,20 @@ export class WorkflowsController {
       id,
       user.userId,
       dto.graph,
+    );
+  }
+
+  @Post(':id/run')
+  run(
+    @CurrentWorkspace() workspaceId: string,
+    @Param('id') id: string,
+    @Body() dto: RunWorkflowDto,
+  ) {
+    return this.executionsService.trigger(
+      workspaceId,
+      id,
+      'manual',
+      dto.input ?? {},
     );
   }
 }

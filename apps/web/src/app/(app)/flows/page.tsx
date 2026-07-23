@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { MoreHorizontal, Plus } from "lucide-react";
 import type { Workflow } from "@workflow/shared";
@@ -250,7 +251,7 @@ export default function FlowsPage() {
           description="Crie seu primeiro fluxo ou comece por um template."
           action={<Button onClick={() => setCreateOpen(true)}>Criar fluxo</Button>}
           secondaryAction={
-            <Button variant="outline" render={<a href="/templates" />}>
+            <Button variant="outline" render={<Link href="/templates" />}>
               Ver templates
             </Button>
           }
@@ -260,33 +261,36 @@ export default function FlowsPage() {
       {!!workflows?.length && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {workflows.map((workflow) => (
-            <div
+            <Link
               key={workflow.id}
-              className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
+              href={`/flows/${workflow.id}`}
+              className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-border-strong"
             >
               <div className="flex items-start justify-between gap-2">
                 <h3 className="text-sm font-medium text-foreground">{workflow.name}</h3>
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={<Button variant="ghost" size="icon-sm" />}
-                  >
-                    <MoreHorizontal className="h-4 w-4" strokeWidth={1.5} />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setRenameTarget(workflow)}>
-                      Renomear
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleStatus(workflow)}>
-                      {workflow.status === "active" ? "Arquivar" : "Ativar"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => setDeleteTarget(workflow)}
+                <div onClick={(event) => event.preventDefault()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={<Button variant="ghost" size="icon-sm" />}
                     >
-                      Excluir
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      <MoreHorizontal className="h-4 w-4" strokeWidth={1.5} />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setRenameTarget(workflow)}>
+                        Renomear
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => toggleStatus(workflow)}>
+                        {workflow.status === "active" ? "Arquivar" : "Ativar"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => setDeleteTarget(workflow)}
+                      >
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
               <span
                 className={
@@ -299,7 +303,7 @@ export default function FlowsPage() {
               <p className="mt-auto text-xs text-muted-foreground">
                 Atualizado {new Date(workflow.updatedAt).toLocaleDateString("pt-BR")}
               </p>
-            </div>
+            </Link>
           ))}
         </div>
       )}

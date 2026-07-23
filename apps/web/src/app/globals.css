@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@workflow/ui/tokens.css";
+@import "@xyflow/react/dist/style.css";
 
 @source "../../../../packages/ui/src";
 

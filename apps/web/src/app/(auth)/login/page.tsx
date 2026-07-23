@@ -2,6 +2,7 @@
 
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,9 +71,9 @@ function LoginForm() {
 
       <p className="text-center text-sm text-muted-foreground">
         Nao tem conta?{" "}
-        <a href="/register" className="text-primary hover:underline">
+        <Link href="/register" className="text-primary hover:underline">
           Criar conta
-        </a>
+        </Link>
       </p>
     </form>
   );
