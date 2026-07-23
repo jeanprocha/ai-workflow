@@ -1,0 +1,14 @@
+// Fase 0: apenas a fundação do schema.
+// Os modelos reais (users, workspaces, workflows...) entram na Fase 2 em diante,
+// seguindo o modelo de dados descrito em plan.md secao 3.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
