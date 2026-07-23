@@ -11,6 +11,11 @@ const nodeCategorySchema = z.enum([
   'communication',
 ]);
 
+const nodeRetryPolicySchema = z.object({
+  attempts: z.number().int().min(1).max(10),
+  backoffMs: z.number().int().min(0),
+});
+
 const workflowNodeSchema = z.object({
   id: z.string(),
   type: z.string(),
@@ -18,6 +23,7 @@ const workflowNodeSchema = z.object({
   label: z.string(),
   position: z.object({ x: z.number(), y: z.number() }),
   config: z.record(z.string(), z.unknown()),
+  retry: nodeRetryPolicySchema.optional(),
 });
 
 const workflowEdgeSchema = z.object({

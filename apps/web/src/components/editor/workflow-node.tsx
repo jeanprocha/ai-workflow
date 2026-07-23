@@ -1,7 +1,7 @@
 import { createElement, memo } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import { Check, X } from "lucide-react";
-import type { NodeCategory } from "@workflow/shared";
+import type { NodeCategory, NodeRetryPolicy } from "@workflow/shared";
 import { Pulse } from "@workflow/ui";
 import { getNodeIcon } from "@/lib/node-icons";
 import { getCatalogEntry } from "@/lib/node-catalog";
@@ -22,6 +22,7 @@ export type WorkflowNodeData = {
   nodeType: string;
   category: NodeCategory;
   config: Record<string, unknown>;
+  retry?: NodeRetryPolicy;
   status?: NodeRunStatus;
 };
 
@@ -39,8 +40,14 @@ function subtitleFor(nodeType: string, config: Record<string, unknown>): string 
         : null;
     case "logic.log":
       return typeof config.message === "string" && config.message ? config.message : null;
+    case "logic.delay":
+      return `${String(config.ms ?? 1000)}ms`;
+    case "api.graphql":
+      return typeof config.url === "string" && config.url ? config.url : null;
     default:
-      return null;
+      return typeof config.credential === "string" && config.credential
+        ? `conexao: ${config.credential}`
+        : null;
   }
 }
 
@@ -61,16 +68,22 @@ function StatusDot({ status }: { status?: NodeRunStatus }) {
   return null;
 }
 
+function outputHandleColor(output: string): string {
+  if (output === "true") return "!bg-success";
+  if (output === "false" || output === "default") return "!bg-border-strong";
+  return "!bg-primary";
+}
+
 function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) {
   const entry = getCatalogEntry(data.nodeType);
   const isTrigger = data.category === "trigger";
-  const isIf = data.nodeType === "logic.if";
+  const outputs = entry?.outputs ?? ["default"];
   const subtitle = subtitleFor(data.nodeType, data.config);
 
   return (
     <div
       className={
-        "w-60 rounded-lg border bg-popover text-popover-foreground shadow-sm transition-colors " +
+        "relative w-60 rounded-lg border bg-popover text-popover-foreground shadow-sm transition-colors " +
         (data.status === "running"
           ? "border-primary"
           : selected
@@ -103,25 +116,28 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) 
         </div>
       )}
 
-      {isIf ? (
-        <>
-          <Handle
-            type="source"
-            position={Position.Right}
-            id="true"
-            style={{ top: "35%" }}
-            className="!bg-success"
-          />
-          <Handle
-            type="source"
-            position={Position.Right}
-            id="false"
-            style={{ top: "65%" }}
-            className="!bg-danger"
-          />
-        </>
-      ) : (
+      {outputs.length <= 1 ? (
         <Handle type="source" position={Position.Right} className="!bg-border-strong" />
+      ) : (
+        <>
+          {outputs.map((output, index) => (
+            <Handle
+              key={output}
+              type="source"
+              position={Position.Right}
+              id={output}
+              style={{ top: `${((index + 1) / (outputs.length + 1)) * 100}%` }}
+              className={outputHandleColor(output)}
+            />
+          ))}
+          <div className="pointer-events-none absolute inset-y-1.5 right-2.5 flex flex-col justify-between">
+            {outputs.map((output) => (
+              <span key={output} className="font-mono text-[9px] text-muted-foreground">
+                {output}
+              </span>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

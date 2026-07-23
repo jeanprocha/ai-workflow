@@ -1,5 +1,6 @@
-import { createElement } from "react";
+import { createElement, useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
+import type { NodeRetryPolicy } from "@workflow/shared";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +11,9 @@ import type { WorkflowFlowNode } from "./workflow-node";
 
 export interface ConfigPanelProps {
   node: WorkflowFlowNode;
+  retry?: NodeRetryPolicy;
   onChange: (config: Record<string, unknown>) => void;
+  onRetryChange: (retry: NodeRetryPolicy | undefined) => void;
   onClose: () => void;
 }
 
@@ -205,7 +208,173 @@ function SetVariablesFields({
   );
 }
 
-export function ConfigPanel({ node, onChange, onClose }: ConfigPanelProps) {
+function DelayFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  return (
+    <Field label="Duracao (ms)">
+      <Input
+        type="number"
+        value={(config.ms as number) ?? 1000}
+        onChange={(event) => onChange({ ...config, ms: Number(event.target.value) })}
+      />
+    </Field>
+  );
+}
+
+function SwitchFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const cases = (config.cases as unknown[]) ?? [];
+
+  function setCase(index: number, value: string) {
+    const next = [...cases];
+    next[index] = value;
+    onChange({ ...config, cases: next });
+  }
+
+  return (
+    <>
+      <Field label="Valor" hint="Ex: {{ $input.tipo }}">
+        <Input
+          value={String(config.value ?? "")}
+          onChange={(event) => onChange({ ...config, value: event.target.value })}
+        />
+      </Field>
+      <Field label="Casos (ate 4)" hint="O primeiro caso igual ao valor dispara o output correspondente (0-3).">
+        <div className="space-y-1.5">
+          {[0, 1, 2, 3].map((index) => (
+            <Input
+              key={index}
+              value={String(cases[index] ?? "")}
+              onChange={(event) => setCase(index, event.target.value)}
+              placeholder={`Caso ${index}`}
+            />
+          ))}
+        </div>
+      </Field>
+    </>
+  );
+}
+
+function NoConfigNote({ text }: { text: string }) {
+  return <p className="text-sm text-muted-foreground">{text}</p>;
+}
+
+function JsonConfigFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const [text, setText] = useState(() => JSON.stringify(config, null, 2));
+  const [error, setError] = useState<string | null>(null);
+
+  function handleChange(value: string) {
+    setText(value);
+    try {
+      const parsed = JSON.parse(value) as Record<string, unknown>;
+      setError(null);
+      onChange(parsed);
+    } catch {
+      setError("JSON invalido — as alteracoes nao sao salvas ate corrigir.");
+    }
+  }
+
+  return (
+    <Field
+      label="Configuracao (JSON)"
+      hint="Campos deste node em JSON. Valores de texto suportam expressoes {{ }}."
+    >
+      <Textarea
+        value={text}
+        onChange={(event) => handleChange(event.target.value)}
+        rows={14}
+        className="font-mono text-xs"
+      />
+      {error && <p className="text-xs text-danger">{error}</p>}
+    </Field>
+  );
+}
+
+function RetrySection({
+  retry,
+  onRetryChange,
+}: {
+  retry?: NodeRetryPolicy;
+  onRetryChange: (retry: NodeRetryPolicy | undefined) => void;
+}) {
+  const enabled = !!retry;
+
+  return (
+    <section className="space-y-2 rounded-md border border-border p-3">
+      <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(event) =>
+            onRetryChange(event.target.checked ? { attempts: 3, backoffMs: 1000 } : undefined)
+          }
+          className="h-4 w-4 rounded border-border-strong"
+        />
+        Tentar novamente em caso de erro
+      </label>
+      {enabled && retry && (
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Tentativas">
+            <Input
+              type="number"
+              min={1}
+              max={10}
+              value={retry.attempts}
+              onChange={(event) =>
+                onRetryChange({ ...retry, attempts: Number(event.target.value) })
+              }
+            />
+          </Field>
+          <Field label="Intervalo (ms)">
+            <Input
+              type="number"
+              min={0}
+              value={retry.backoffMs}
+              onChange={(event) =>
+                onRetryChange({ ...retry, backoffMs: Number(event.target.value) })
+              }
+            />
+          </Field>
+        </div>
+      )}
+    </section>
+  );
+}
+
+const JSON_FALLBACK_TYPES = new Set([
+  "database.postgres",
+  "database.mysql",
+  "database.redis",
+  "database.mongodb",
+  "api.graphql",
+  "file.csv",
+  "file.pdf",
+  "file.docx",
+  "file.txt",
+  "file.json",
+  "communication.email",
+  "communication.slack",
+  "communication.discord",
+  "communication.telegram",
+]);
+
+export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: ConfigPanelProps) {
   const entry = getCatalogEntry(node.data.nodeType);
   const config = node.data.config;
 
@@ -267,7 +436,31 @@ export function ConfigPanel({ node, onChange, onClose }: ConfigPanelProps) {
             />
           </Field>
         )}
+
+        {node.data.nodeType === "logic.delay" && <DelayFields config={config} onChange={onChange} />}
+
+        {node.data.nodeType === "logic.switch" && <SwitchFields config={config} onChange={onChange} />}
+
+        {node.data.nodeType === "logic.merge" && (
+          <NoConfigNote text="Sem configuracao — este node so dispara quando todos os caminhos anteriores completarem, juntando os resultados num array." />
+        )}
+
+        {node.data.nodeType === "logic.parallel" && (
+          <NoConfigNote text="Sem configuracao — conecte ate 3 caminhos para rodarem em paralelo com o mesmo dado de entrada." />
+        )}
+
+        {JSON_FALLBACK_TYPES.has(node.data.nodeType) && (
+          <JsonConfigFields config={config} onChange={onChange} />
+        )}
+
+        {!isTriggerType(node.data.nodeType) && (
+          <RetrySection retry={retry} onRetryChange={onRetryChange} />
+        )}
       </div>
     </aside>
   );
+}
+
+function isTriggerType(nodeType: string): boolean {
+  return nodeType.startsWith("trigger.");
 }

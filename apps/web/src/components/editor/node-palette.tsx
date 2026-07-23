@@ -3,7 +3,9 @@ import { NODE_CATALOG, CATEGORY_LABELS, type NodeCatalogEntry } from "@/lib/node
 import { getNodeIcon } from "@/lib/node-icons";
 import type { NodeCategory } from "@workflow/shared";
 
-function groupByCategory(entries: NodeCatalogEntry[]): Array<[NodeCategory, NodeCatalogEntry[]]> {
+function groupByCategory(
+  entries: readonly NodeCatalogEntry[],
+): Array<[NodeCategory, NodeCatalogEntry[]]> {
   const groups = new Map<NodeCategory, NodeCatalogEntry[]>();
   for (const entry of entries) {
     const list = groups.get(entry.category) ?? [];

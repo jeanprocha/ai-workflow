@@ -55,6 +55,6 @@ export const ifNode: NodeDefinition<Config> = {
   execute: (ctx) => {
     const result = evaluate(ctx.config.left, ctx.config.operator, ctx.config.right);
     ctx.log("if.evaluated", { left: ctx.config.left, operator: ctx.config.operator, right: ctx.config.right, result });
-    return { output: { result }, branch: result ? "true" : "false" };
+    return { output: { result }, branches: [result ? "true" : "false"] };
   },
 };

@@ -8,6 +8,7 @@ import type {
 } from '@workflow/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExecutionEventsService } from '../execution-events/execution-events.service';
+import { CryptoService } from '../crypto/crypto.service';
 
 const NODE_TIMEOUT_MS = 30_000;
 
@@ -15,6 +16,24 @@ function toJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
+interface NodeStepResult {
+  nodeId: string;
+  ok: boolean;
+  output?: unknown;
+  branches?: string[];
+  varsPatch?: Record<string, unknown>;
+  error?: string;
+}
+
+/**
+ * Engine de execucao (v1 — ADR-005: worker no processo da API).
+ *
+ * Percorre o grafo em "ondas": todos os nodes prontos numa onda executam
+ * concorrentemente (Promise.all), o que da execucao paralela real ao node
+ * Parallel (e a qualquer fan-out). Um node do tipo logic.merge so entra na
+ * proxima onda quando TODAS as suas edges de entrada tiverem completado
+ * (join), recebendo um array com os outputs acumulados como input.
+ */
 @Injectable()
 export class EngineService {
   private readonly logger = new Logger(EngineService.name);
@@ -22,12 +41,13 @@ export class EngineService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: ExecutionEventsService,
+    private readonly crypto: CryptoService,
   ) {}
 
   async run(executionId: string): Promise<void> {
     const execution = await this.prisma.execution.findUniqueOrThrow({
       where: { id: executionId },
-      include: { version: true },
+      include: { version: true, workflow: true },
     });
 
     await this.prisma.execution.update({
@@ -36,15 +56,18 @@ export class EngineService {
     });
     this.events.emit({ type: 'execution.started', executionId });
 
+    const workspaceId = execution.workflow.workspaceId;
     const graph = execution.version.graph as unknown as WorkflowGraph;
     const nodesById = new Map<string, WorkflowNode>(
       graph.nodes.map((node) => [node.id, node]),
     );
     const outgoing = new Map<string, WorkflowEdge[]>();
+    const incomingCount = new Map<string, number>();
     for (const edge of graph.edges) {
       const list = outgoing.get(edge.source) ?? [];
       list.push(edge);
       outgoing.set(edge.source, list);
+      incomingCount.set(edge.target, (incomingCount.get(edge.target) ?? 0) + 1);
     }
 
     const triggerNode = graph.nodes.find((node) => node.category === 'trigger');
@@ -59,111 +82,86 @@ export class EngineService {
       overallStatus = 'failed';
       failureError = 'O fluxo nao possui um node trigger.';
     } else {
-      const queue: Array<{ nodeId: string; input: unknown }> = [
-        { nodeId: triggerNode.id, input: execution.inputPayload },
-      ];
       const executed = new Set<string>();
+      const mergeBuffers = new Map<string, unknown[]>();
+      let currentWave = new Map<string, unknown>([
+        [triggerNode.id, execution.inputPayload],
+      ]);
 
-      while (queue.length > 0) {
-        const next = queue.shift();
-        if (!next) break;
-        const { nodeId, input } = next;
-        if (executed.has(nodeId)) continue;
-        executed.add(nodeId);
+      while (currentWave.size > 0) {
+        const waveItems = [...currentWave.entries()].filter(
+          ([nodeId]) => !executed.has(nodeId),
+        );
+        if (waveItems.length === 0) break;
+        for (const [nodeId] of waveItems) executed.add(nodeId);
 
-        const node = nodesById.get(nodeId);
-        if (!node) continue;
+        const results = await Promise.all(
+          waveItems.map(([nodeId, input]) => {
+            const node = nodesById.get(nodeId);
+            if (!node) {
+              return Promise.resolve<NodeStepResult>({
+                nodeId,
+                ok: false,
+                error: `Node ${nodeId} nao encontrado no grafo.`,
+              });
+            }
+            return this.executeNodeWithRetry({
+              executionId,
+              node,
+              input,
+              vars,
+              nodeOutputs,
+              workspaceId,
+            });
+          }),
+        );
 
-        const definition = getNodeDefinition(node.type);
-        if (!definition) {
-          overallStatus = 'failed';
-          failureError = `Node type desconhecido: ${node.type}`;
-          await this.recordStep(
-            executionId,
-            node,
-            'failed',
-            input,
-            null,
-            failureError,
-            0,
-          );
-          break;
-        }
-
-        const resolvedConfig = resolveExpressions(node.config, {
-          input,
-          vars,
-          nodeOutputs,
-        });
-        this.events.emit({ type: 'step.started', executionId, nodeId });
-        const startedAt = Date.now();
-
-        try {
-          const result = await this.withTimeout(
-            Promise.resolve(
-              definition.execute({
-                config: resolvedConfig as never,
-                input,
-                vars,
-                log: (event, payload) => {
-                  void this.recordLog(executionId, nodeId, event, payload);
-                },
-              }),
-            ),
-            NODE_TIMEOUT_MS,
-          );
-
-          const durationMs = Date.now() - startedAt;
-          nodeOutputs[nodeId] = result.output;
-          lastOutput = result.output;
-          if (result.varsPatch) vars = { ...vars, ...result.varsPatch };
-
-          await this.recordStep(
-            executionId,
-            node,
-            'success',
-            input,
-            result.output,
-            null,
-            durationMs,
-          );
-          this.events.emit({
-            type: 'step.completed',
-            executionId,
-            nodeId,
-            status: 'success',
-            output: result.output,
-          });
-
-          for (const edge of outgoing.get(nodeId) ?? []) {
-            if (edge.sourceHandle && edge.sourceHandle !== result.branch)
-              continue;
-            queue.push({ nodeId: edge.target, input: result.output });
+        let waveFailed = false;
+        for (const result of results) {
+          if (result.ok) {
+            nodeOutputs[result.nodeId] = result.output;
+            lastOutput = result.output;
+            if (result.varsPatch) vars = { ...vars, ...result.varsPatch };
+          } else {
+            waveFailed = true;
+            failureError = result.error ?? 'Erro desconhecido.';
           }
-        } catch (error) {
-          const durationMs = Date.now() - startedAt;
-          const message =
-            error instanceof Error ? error.message : String(error);
-          await this.recordStep(
-            executionId,
-            node,
-            'failed',
-            input,
-            null,
-            message,
-            durationMs,
-          );
-          this.events.emit({
-            type: 'step.completed',
-            executionId,
-            nodeId,
-            status: 'failed',
-            error: message,
-          });
+        }
+
+        if (waveFailed) {
+          // Fail-fast (v1): uma falha em qualquer node da onda para a execucao
+          // inteira, mesmo que branches irmas independentes tivessem sucesso.
+          // Replay parcial a partir do node falho fica para a Fase 6.
           overallStatus = 'failed';
-          failureError = message;
           break;
         }
+
+        const nextWave = new Map<string, unknown>();
+        for (const result of results) {
+          if (!result.ok) continue;
+          for (const edge of outgoing.get(result.nodeId) ?? []) {
+            if (
+              edge.sourceHandle &&
+              !(result.branches ?? []).includes(edge.sourceHandle)
+            )
+              continue;
+            if (executed.has(edge.target)) continue;
+
+            const targetNode = nodesById.get(edge.target);
+            if (targetNode?.type === 'logic.merge') {
+              const buffer = mergeBuffers.get(edge.target) ?? [];
+              buffer.push(result.output);
+              mergeBuffers.set(edge.target, buffer);
+              const required = incomingCount.get(edge.target) ?? 1;
+              if (buffer.length >= required) {
+                nextWave.set(edge.target, buffer.slice());
+              }
+            } else {
+              nextWave.set(edge.target, result.output);
+            }
+          }
+        }
+        currentWave = nextWave;
       }
     }
 
@@ -185,6 +183,133 @@ export class EngineService {
     });
   }
 
+  private async executeNodeWithRetry(params: {
+    executionId: string;
+    node: WorkflowNode;
+    input: unknown;
+    vars: Record<string, unknown>;
+    nodeOutputs: Record<string, unknown>;
+    workspaceId: string;
+  }): Promise<NodeStepResult> {
+    const { executionId, node, input, vars, nodeOutputs, workspaceId } = params;
+
+    const definition = getNodeDefinition(node.type);
+    if (!definition) {
+      const message = `Node type desconhecido: ${node.type}`;
+      await this.recordStep(
+        executionId,
+        node,
+        'failed',
+        input,
+        null,
+        message,
+        0,
+        1,
+      );
+      return { nodeId: node.id, ok: false, error: message };
+    }
+
+    const resolvedConfig = resolveExpressions(node.config, {
+      input,
+      vars,
+      nodeOutputs,
+    });
+    const attempts = node.retry?.attempts ?? 1;
+    const backoffMs = node.retry?.backoffMs ?? 0;
+
+    let lastError = 'Erro desconhecido.';
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      this.events.emit({ type: 'step.started', executionId, nodeId: node.id });
+      const startedAt = Date.now();
+
+      try {
+        const result = await this.withTimeout(
+          Promise.resolve(
+            definition.execute({
+              config: resolvedConfig as never,
+              input,
+              vars,
+              log: (event, payload) => {
+                void this.recordLog(executionId, node.id, event, payload);
+              },
+              getCredential: (name) => this.getCredential(workspaceId, name),
+            }),
+          ),
+          NODE_TIMEOUT_MS,
+        );
+
+        const durationMs = Date.now() - startedAt;
+        await this.recordStep(
+          executionId,
+          node,
+          'success',
+          input,
+          result.output,
+          null,
+          durationMs,
+          attempt,
+        );
+        this.events.emit({
+          type: 'step.completed',
+          executionId,
+          nodeId: node.id,
+          status: 'success',
+          output: result.output,
+        });
+        return {
+          nodeId: node.id,
+          ok: true,
+          output: result.output,
+          branches: result.branches,
+          varsPatch: result.varsPatch,
+        };
+      } catch (error) {
+        const durationMs = Date.now() - startedAt;
+        const message = error instanceof Error ? error.message : String(error);
+        lastError = message;
+        await this.recordStep(
+          executionId,
+          node,
+          'failed',
+          input,
+          null,
+          message,
+          durationMs,
+          attempt,
+        );
+        this.events.emit({
+          type: 'step.completed',
+          executionId,
+          nodeId: node.id,
+          status: 'failed',
+          error: message,
+        });
+
+        if (attempt < attempts) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, backoffMs * attempt),
+          );
+        }
+      }
+    }
+
+    return { nodeId: node.id, ok: false, error: lastError };
+  }
+
+  private async getCredential(
+    workspaceId: string,
+    name: string,
+  ): Promise<string> {
+    const credential = await this.prisma.credential.findFirst({
+      where: { workspaceId, name },
+    });
+    if (!credential) {
+      throw new Error(`Credencial "${name}" nao encontrada neste workspace.`);
+    }
+    return this.crypto.decrypt(credential.encryptedData);
+  }
+
   private async recordStep(
     executionId: string,
     node: WorkflowNode,
@@ -193,6 +318,7 @@ export class EngineService {
     output: unknown,
     error: string | null,
     durationMs: number,
+    attempt: number,
   ) {
     await this.prisma.executionStep.create({
       data: {
@@ -205,6 +331,7 @@ export class EngineService {
           output === undefined || output === null ? undefined : toJson(output),
         error,
         durationMs,
+        attempt,
         startedAt: new Date(Date.now() - durationMs),
         finishedAt: new Date(),
       },

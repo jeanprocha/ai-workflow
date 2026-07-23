@@ -10,12 +10,18 @@ export interface NodeExecutionContext<Config = Record<string, unknown>> {
   vars: Record<string, unknown>;
   /** Log estruturado — persistido em execution_logs. */
   log: (event: string, payload?: unknown) => void;
+  /** Busca o valor descriptografado de uma credencial do workspace pelo nome. */
+  getCredential: (name: string) => Promise<string>;
 }
 
 export interface NodeExecutionResult {
   output: unknown;
-  /** Nome do branch de saida tomado (ex.: "true"/"false" no node If). Edges sem sourceHandle sempre disparam. */
-  branch?: string;
+  /**
+   * Nomes dos branches de saida disparados (ex.: ["true"] no If, ["1","2","3"]
+   * no Parallel — todos ao mesmo tempo). Edges sem sourceHandle sempre disparam,
+   * independente deste campo.
+   */
+  branches?: string[];
   /** Mutacoes nas variaveis de runtime (mescladas no contexto da execucao). */
   varsPatch?: Record<string, unknown>;
 }

@@ -18,7 +18,7 @@ import {
   type Viewport,
 } from "@xyflow/react";
 import { nanoid } from "nanoid";
-import type { WorkflowGraph } from "@workflow/shared";
+import type { NodeRetryPolicy, WorkflowGraph } from "@workflow/shared";
 import { NODE_TYPES, type WorkflowFlowNode } from "./workflow-node";
 import { NodePalette } from "./node-palette";
 import { ConfigPanel } from "./config-panel";
@@ -40,6 +40,7 @@ function graphToFlow(graph: WorkflowGraph): { nodes: WorkflowFlowNode[]; edges: 
         nodeType: node.type,
         category: node.category,
         config: node.config,
+        retry: node.retry,
       },
     })),
     edges: graph.edges.map((edge) => ({
@@ -65,6 +66,7 @@ function flowToGraph(
       label: node.data.label,
       position: node.position,
       config: node.data.config,
+      retry: node.data.retry,
     })),
     edges: edges.map((edge) => ({
       id: edge.id,
@@ -191,6 +193,16 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
     });
   }
 
+  function updateSelectedNodeRetry(retry: NodeRetryPolicy | undefined) {
+    setNodes((current) => {
+      const next = current.map((node) =>
+        node.id === selectedNodeId ? { ...node, data: { ...node.data, retry } } : node,
+      );
+      scheduleSave(next, edges);
+      return next;
+    });
+  }
+
   const nodesWithStatus = nodes.map((node) => ({
     ...node,
     data: { ...node.data, status: nodeStatuses[node.id] },
@@ -229,8 +241,11 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
         </div>
         {selectedNode && (
           <ConfigPanel
+            key={selectedNode.id}
             node={selectedNode}
+            retry={selectedNode.data.retry}
             onChange={updateSelectedNodeConfig}
+            onRetryChange={updateSelectedNodeRetry}
             onClose={() => setSelectedNodeId(null)}
           />
         )}
