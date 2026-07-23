@@ -5,7 +5,6 @@ import {
   ListChecks,
   BookOpen,
   LayoutTemplate,
-  Store,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -25,6 +24,5 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Executions", href: "/executions", icon: ListChecks, showLiveIndicator: true },
   { label: "Knowledge", href: "/knowledge", icon: BookOpen },
   { label: "Templates", href: "/templates", icon: LayoutTemplate },
-  { label: "Marketplace", href: "/marketplace", icon: Store },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
