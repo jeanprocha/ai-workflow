@@ -41,6 +41,7 @@ import { aiVisionMeta } from "./definitions/ai-vision.meta.js";
 import { aiOcrMeta } from "./definitions/ai-ocr.meta.js";
 import { aiEmbeddingsMeta } from "./definitions/ai-embeddings.meta.js";
 import { agentNode } from "./definitions/agent.js";
+import { knowledgeSearchNode } from "./definitions/knowledge-search.js";
 
 export interface NodeCatalogEntry {
   type: string;
@@ -106,6 +107,7 @@ export const NODE_CATALOG: readonly NodeCatalogEntry[] = [
   aiOcrMeta,
   aiEmbeddingsMeta,
   agentNode,
+  knowledgeSearchNode,
 ].map(toEntry);
 
 export function getCatalogEntry(type: string): NodeCatalogEntry | undefined {

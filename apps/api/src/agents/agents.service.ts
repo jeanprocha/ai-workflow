@@ -3,6 +3,7 @@ import { getProvider, type ChatMessage } from '@workflow/ai';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CryptoService } from '../crypto/crypto.service';
+import { KnowledgeService } from '../knowledge/knowledge.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { buildAgentTools } from './tools';
@@ -21,6 +22,7 @@ export class AgentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly knowledge: KnowledgeService,
   ) {}
 
   list(workspaceId: string) {
@@ -52,6 +54,7 @@ export class AgentsService {
         credential: dto.credential ?? '',
         temperature: dto.temperature ?? 0.7,
         tools: dto.tools ?? [],
+        knowledgeBaseId: dto.knowledgeBaseId,
       },
     });
   }
@@ -91,6 +94,8 @@ export class AgentsService {
       crypto: this.crypto,
       workspaceId,
       agentId: agent.id,
+      knowledge: this.knowledge,
+      knowledgeBaseId: agent.knowledgeBaseId,
     });
     const tools = enabledToolNames
       .map((name) => toolset[name])

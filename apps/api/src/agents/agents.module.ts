@@ -3,9 +3,10 @@ import { AgentsController } from './agents.controller';
 import { AgentsService } from './agents.service';
 import { CryptoModule } from '../crypto/crypto.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
 
 @Module({
-  imports: [CryptoModule, WorkspacesModule],
+  imports: [CryptoModule, WorkspacesModule, KnowledgeModule],
   controllers: [AgentsController],
   providers: [AgentsService],
   exports: [AgentsService],

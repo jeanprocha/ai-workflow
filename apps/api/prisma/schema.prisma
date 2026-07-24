@@ -37,11 +37,12 @@ model Workspace {
   name      String
   createdAt DateTime @default(now()) @map("created_at")
 
-  members     WorkspaceMember[]
-  workflows   Workflow[]
-  credentials Credential[]
-  variables   Variable[]
-  agents      Agent[]
+  members        WorkspaceMember[]
+  workflows      Workflow[]
+  credentials    Credential[]
+  variables      Variable[]
+  agents         Agent[]
+  knowledgeBases KnowledgeBase[]
 
   @@map("workspaces")
 }
@@ -245,12 +246,15 @@ model Agent {
   credential   String   @default("")
   temperature  Float    @default(0.7)
   /** Nomes das tools habilitadas: ["http", "calculator", "sql", "knowledge_base"]. */
-  tools        Json     @default("[]")
-  outputSchema Json?    @map("output_schema")
-  createdAt    DateTime @default(now()) @map("created_at")
+  tools           Json     @default("[]")
+  outputSchema    Json?    @map("output_schema")
+  /** Base de conhecimento usada pela tool "knowledge_base", se habilitada. */
+  knowledgeBaseId String?  @map("knowledge_base_id")
+  createdAt       DateTime @default(now()) @map("created_at")
 
-  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  memories  AgentMemory[]
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  memories      AgentMemory[]
+  knowledgeBase KnowledgeBase? @relation(fields: [knowledgeBaseId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
   @@map("agents")
@@ -280,4 +284,67 @@ model AgentMemory {
 
   @@unique([agentId, key])
   @@map("agent_memories")
+}
+
+/// Fase 7 (RAG). Embeddings gerados por OpenAI/Gemini/Ollama — Anthropic nao
+/// tem API de embeddings publica. v1 fixa a dimensao do vetor em 1536
+/// (text-embedding-3-small da OpenAI); outros providers ficam para depois.
+model KnowledgeBase {
+  id           String   @id @default(uuid())
+  workspaceId  String   @map("workspace_id")
+  name         String
+  description  String?
+  provider     String   @default("openai")
+  model        String   @default("text-embedding-3-small")
+  credential   String   @default("")
+  chunkSize    Int      @default(1000) @map("chunk_size")
+  chunkOverlap Int      @default(150) @map("chunk_overlap")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  documents Document[]
+  agents    Agent[]
+
+  @@index([workspaceId])
+  @@map("knowledge_bases")
+}
+
+enum DocumentStatus {
+  processing
+  ready
+  failed
+}
+
+model Document {
+  id              String         @id @default(uuid())
+  knowledgeBaseId String         @map("knowledge_base_id")
+  name            String
+  sourceType      String         @map("source_type")
+  status          DocumentStatus @default(processing)
+  error           String?
+  chunkCount      Int            @default(0) @map("chunk_count")
+  /** Texto bruto extraido, mantido para reprocessamento/debug. */
+  rawText         String?        @map("raw_text")
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  chunks        Chunk[]
+
+  @@index([knowledgeBaseId])
+  @@map("documents")
+}
+
+model Chunk {
+  id         String                       @id @default(uuid())
+  documentId String                       @map("document_id")
+  content    String
+  metadata   Json?
+  /** Vetor pgvector — manipulado via $queryRaw/$executeRaw (tipo Unsupported). */
+  embedding  Unsupported("vector(1536)")?
+  createdAt  DateTime                     @default(now()) @map("created_at")
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("chunks")
 }

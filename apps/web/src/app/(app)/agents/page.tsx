@@ -34,6 +34,7 @@ import {
   type Agent,
   type CreateAgentInput,
 } from "@/hooks/use-agents";
+import { useKnowledgeBases } from "@/hooks/use-knowledge";
 import { ApiError } from "@/lib/api-client";
 
 const AVAILABLE_TOOLS = [
@@ -68,6 +69,7 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     tools: [],
   });
   const createAgent = useCreateAgent();
+  const { data: knowledgeBases } = useKnowledgeBases();
 
   function toggleTool(key: string) {
     const tools = form.tools ?? [];
@@ -198,6 +200,26 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
               ))}
             </div>
           </div>
+          {isToolChecked("knowledge_base") && (
+            <div className="space-y-1.5">
+              <Label htmlFor="agent-kb">Base de conhecimento</Label>
+              <select
+                id="agent-kb"
+                value={form.knowledgeBaseId ?? ""}
+                onChange={(event) =>
+                  setForm({ ...form, knowledgeBaseId: event.target.value || undefined })
+                }
+                className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm"
+              >
+                <option value="">Selecione uma base</option>
+                {knowledgeBases?.map((kb) => (
+                  <option key={kb.id} value={kb.id}>
+                    {kb.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

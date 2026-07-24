@@ -11,6 +11,7 @@ export interface Agent {
   credential: string;
   temperature: number;
   tools: string[];
+  knowledgeBaseId: string | null;
   createdAt: string;
 }
 
@@ -23,6 +24,7 @@ export interface CreateAgentInput {
   credential?: string;
   temperature?: number;
   tools?: string[];
+  knowledgeBaseId?: string;
 }
 
 export interface AgentChatResponse {

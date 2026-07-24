@@ -3,6 +3,7 @@ import { Client } from 'pg';
 import { evaluateMathExpression } from './calculator';
 import type { CryptoService } from '../crypto/crypto.service';
 import type { PrismaService } from '../prisma/prisma.service';
+import type { KnowledgeService } from '../knowledge/knowledge.service';
 
 export interface AgentTool {
   definition: ToolDefinition;
@@ -33,6 +34,8 @@ export function buildAgentTools(deps: {
   crypto: CryptoService;
   workspaceId: string;
   agentId?: string;
+  knowledge?: KnowledgeService;
+  knowledgeBaseId?: string | null;
 }): Record<string, AgentTool> {
   return {
     calculator: {
@@ -128,18 +131,37 @@ export function buildAgentTools(deps: {
     knowledge_base: {
       definition: {
         name: 'knowledge_base',
-        description: 'Busca informacoes na base de conhecimento do workspace.',
+        description:
+          'Busca trechos relevantes na base de conhecimento configurada para este agente.',
         parameters: {
           type: 'object',
           properties: { query: { type: 'string' } },
           required: ['query'],
         },
       },
-      execute: () =>
-        Promise.resolve({
-          result:
-            'Knowledge Base ainda nao disponivel — chega na Fase 7 (RAG) do roadmap.',
-        }),
+      execute: async (args) => {
+        if (!deps.knowledge || !deps.knowledgeBaseId) {
+          return {
+            error:
+              'Este agente nao tem uma base de conhecimento configurada. Escolha uma na criacao/edicao do agente.',
+          };
+        }
+        const kb = await deps.knowledge.getKnowledgeBaseForAgent(
+          deps.workspaceId,
+          deps.knowledgeBaseId,
+        );
+        const results = await deps.knowledge.searchInternal(kb, {
+          query: asString(args.query),
+          topK: 5,
+        });
+        return {
+          resultados: results.map((result) => ({
+            documento: result.documentName,
+            trecho: result.content,
+            similaridade: Number(result.similarity.toFixed(3)),
+          })),
+        };
+      },
     },
 
     memory_get: {

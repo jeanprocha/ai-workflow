@@ -3,9 +3,10 @@ import { EngineService } from './engine.service';
 import { ExecutionEventsService } from '../execution-events/execution-events.service';
 import { CryptoModule } from '../crypto/crypto.module';
 import { AgentsModule } from '../agents/agents.module';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
 
 @Module({
-  imports: [CryptoModule, AgentsModule],
+  imports: [CryptoModule, AgentsModule, KnowledgeModule],
   providers: [EngineService, ExecutionEventsService],
   exports: [EngineService, ExecutionEventsService],
 })

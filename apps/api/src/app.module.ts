@@ -16,6 +16,7 @@ import { HooksModule } from './hooks/hooks.module';
 import { AgentsModule } from './agents/agents.module';
 import { TemplatesModule } from './templates/templates.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     AgentsModule,
     TemplatesModule,
     AnalyticsModule,
+    KnowledgeModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],

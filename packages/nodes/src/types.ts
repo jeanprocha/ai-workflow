@@ -17,6 +17,18 @@ export interface NodeExecutionContext<Config = Record<string, unknown>> {
     agentId: string,
     message: string,
   ) => Promise<{ content: string; tokens: number; costUsd: number }>;
+  /** Busca semantica numa base de conhecimento do workspace (node Knowledge Search). */
+  searchKnowledge: (
+    knowledgeBaseId: string,
+    query: string,
+    opts?: { topK?: number; threshold?: number },
+  ) => Promise<
+    Array<{
+      documentName: string;
+      content: string;
+      similarity: number;
+    }>
+  >;
 }
 
 export interface NodeExecutionResult {

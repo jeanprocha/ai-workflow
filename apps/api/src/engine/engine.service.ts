@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ExecutionEventsService } from '../execution-events/execution-events.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { AgentsService } from '../agents/agents.service';
+import { KnowledgeService } from '../knowledge/knowledge.service';
 
 const NODE_TIMEOUT_MS = 30_000;
 
@@ -51,6 +52,7 @@ export class EngineService {
     private readonly events: ExecutionEventsService,
     private readonly crypto: CryptoService,
     private readonly agents: AgentsService,
+    private readonly knowledge: KnowledgeService,
   ) {}
 
   async run(
@@ -303,6 +305,18 @@ export class EngineService {
                   tokens: result.tokensTotal,
                   costUsd: result.costUsd,
                 };
+              },
+              searchKnowledge: async (knowledgeBaseId, query, opts) => {
+                const results = await this.knowledge.search(
+                  workspaceId,
+                  knowledgeBaseId,
+                  { query, topK: opts?.topK, threshold: opts?.threshold },
+                );
+                return results.map((result) => ({
+                  documentName: result.documentName,
+                  content: result.content,
+                  similarity: result.similarity,
+                }));
               },
             }),
           ),

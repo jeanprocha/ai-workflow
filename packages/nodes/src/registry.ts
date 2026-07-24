@@ -32,6 +32,7 @@ import { aiVisionNode } from "./definitions/ai-vision.js";
 import { aiOcrNode } from "./definitions/ai-ocr.js";
 import { aiEmbeddingsNode } from "./definitions/ai-embeddings.js";
 import { agentNode } from "./definitions/agent.js";
+import { knowledgeSearchNode } from "./definitions/knowledge-search.js";
 
 export const NODE_DEFINITIONS: readonly NodeDefinition<never>[] = [
   manualTriggerNode,
@@ -67,6 +68,7 @@ export const NODE_DEFINITIONS: readonly NodeDefinition<never>[] = [
   aiOcrNode,
   aiEmbeddingsNode,
   agentNode,
+  knowledgeSearchNode,
 ] as unknown as NodeDefinition<never>[];
 
 const registry = new Map<string, NodeDefinition<never>>(

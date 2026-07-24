@@ -44,4 +44,8 @@ export class CreateAgentDto {
   @IsArray()
   @IsString({ each: true })
   tools?: string[];
+
+  @IsOptional()
+  @IsString()
+  knowledgeBaseId?: string;
 }
