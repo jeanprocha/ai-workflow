@@ -12,8 +12,10 @@ import { CryptoService } from '../crypto/crypto.service';
 import { AgentsService } from '../agents/agents.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { McpService } from '../mcp/mcp.service';
+import { NodeSandboxRunner } from './sandbox/node-sandbox-runner';
 
-const NODE_TIMEOUT_MS = 30_000;
+const NODE_TIMEOUT_MS = Number(process.env.NODE_SANDBOX_TIMEOUT_MS ?? 30_000);
+const NODE_MEMORY_LIMIT_MB = Number(process.env.NODE_SANDBOX_MEMORY_MB ?? 256);
 
 function toJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
@@ -36,7 +38,9 @@ interface NodeStepResult {
 }
 
 /**
- * Engine de execucao (v1 — ADR-005: worker no processo da API).
+ * Engine de execucao (ADR-005 v3: cada node roda isolado num worker_thread via
+ * NodeSandboxRunner — timeout duro e limite de memoria, nao apenas uma race de
+ * Promise). Roda no processo do worker (apps/api/src/worker), nao na API.
  *
  * Percorre o grafo em "ondas": todos os nodes prontos numa onda executam
  * concorrentemente (Promise.all), o que da execucao paralela real ao node
@@ -55,6 +59,7 @@ export class EngineService {
     private readonly agents: AgentsService,
     private readonly knowledge: KnowledgeService,
     private readonly mcp: McpService,
+    private readonly sandbox: NodeSandboxRunner,
   ) {}
 
   async run(
@@ -285,49 +290,62 @@ export class EngineService {
       this.events.emit({ type: 'step.started', executionId, nodeId: node.id });
       const startedAt = Date.now();
 
-      try {
-        const result = await this.withTimeout(
-          Promise.resolve(
-            definition.execute({
-              config: resolvedConfig as never,
-              input,
-              vars,
-              log: (event, payload) => {
-                void this.recordLog(executionId, node.id, event, payload);
+      const result = await this.sandbox.run(
+        node.type,
+        resolvedConfig,
+        input,
+        vars,
+        {
+          log: (event, payload) => {
+            void this.recordLog(executionId, node.id, event, payload);
+          },
+          getCredential: (name) => this.getCredential(workspaceId, name),
+          callAgent: async (agentId, message) => {
+            const agentResult = await this.agents.chat(
+              workspaceId,
+              agentId,
+              message,
+            );
+            return {
+              content: agentResult.content,
+              tokens: agentResult.tokensTotal,
+              costUsd: agentResult.costUsd,
+            };
+          },
+          searchKnowledge: async (knowledgeBaseId, query, opts) => {
+            const knowledgeOpts = (opts ?? {}) as {
+              topK?: number;
+              threshold?: number;
+            };
+            const results = await this.knowledge.search(
+              workspaceId,
+              knowledgeBaseId,
+              {
+                query,
+                topK: knowledgeOpts.topK,
+                threshold: knowledgeOpts.threshold,
               },
-              getCredential: (name) => this.getCredential(workspaceId, name),
-              callAgent: async (agentId, message) => {
-                const result = await this.agents.chat(
-                  workspaceId,
-                  agentId,
-                  message,
-                );
-                return {
-                  content: result.content,
-                  tokens: result.tokensTotal,
-                  costUsd: result.costUsd,
-                };
-              },
-              searchKnowledge: async (knowledgeBaseId, query, opts) => {
-                const results = await this.knowledge.search(
-                  workspaceId,
-                  knowledgeBaseId,
-                  { query, topK: opts?.topK, threshold: opts?.threshold },
-                );
-                return results.map((result) => ({
-                  documentName: result.documentName,
-                  content: result.content,
-                  similarity: result.similarity,
-                }));
-              },
-              callMcpTool: (mcpServerId, toolName, args) =>
-                this.mcp.callTool(workspaceId, mcpServerId, toolName, args),
-            }),
-          ),
-          NODE_TIMEOUT_MS,
-        );
+            );
+            return results.map((item) => ({
+              documentName: item.documentName,
+              content: item.content,
+              similarity: item.similarity,
+            }));
+          },
+          callMcpTool: (mcpServerId, toolName, args) =>
+            this.mcp.callTool(
+              workspaceId,
+              mcpServerId,
+              toolName,
+              args as Record<string, unknown>,
+            ),
+        },
+        { timeoutMs: NODE_TIMEOUT_MS, memoryLimitMb: NODE_MEMORY_LIMIT_MB },
+      );
 
-        const durationMs = Date.now() - startedAt;
+      const durationMs = Date.now() - startedAt;
+
+      if (result.ok) {
         await this.recordStep({
           executionId,
           node,
@@ -354,33 +372,32 @@ export class EngineService {
           varsPatch: result.varsPatch,
           usage: result.usage,
         };
-      } catch (error) {
-        const durationMs = Date.now() - startedAt;
-        const message = error instanceof Error ? error.message : String(error);
-        lastError = message;
-        await this.recordStep({
-          executionId,
-          node,
-          status: 'failed',
-          input,
-          output: null,
-          error: message,
-          durationMs,
-          attempt,
-        });
-        this.events.emit({
-          type: 'step.completed',
-          executionId,
-          nodeId: node.id,
-          status: 'failed',
-          error: message,
-        });
+      }
 
-        if (attempt < attempts) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, backoffMs * attempt),
-          );
-        }
+      const message = result.error ?? 'Erro desconhecido.';
+      lastError = message;
+      await this.recordStep({
+        executionId,
+        node,
+        status: 'failed',
+        input,
+        output: null,
+        error: message,
+        durationMs,
+        attempt,
+      });
+      this.events.emit({
+        type: 'step.completed',
+        executionId,
+        nodeId: node.id,
+        status: 'failed',
+        error: message,
+      });
+
+      if (attempt < attempts) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, backoffMs * attempt),
+        );
       }
     }
 
@@ -491,23 +508,5 @@ export class EngineService {
     } catch (error) {
       this.logger.warn(`Falha ao gravar log de execucao: ${String(error)}`);
     }
-  }
-
-  private withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error(`Node excedeu o timeout de ${timeoutMs}ms.`)),
-        timeoutMs,
-      );
-      promise
-        .then((value) => {
-          clearTimeout(timer);
-          resolve(value);
-        })
-        .catch((error: unknown) => {
-          clearTimeout(timer);
-          reject(error instanceof Error ? error : new Error(String(error)));
-        });
-    });
   }
 }

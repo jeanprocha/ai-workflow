@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { HealthController } from './health/health.controller';
+import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CacheModule } from './cache/cache.module';
+import { ExecutionEventsModule } from './execution-events/execution-events.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { WorkspacesModule } from './workspaces/workspaces.module';
@@ -25,6 +26,8 @@ import { SearchModule } from './search/search.module';
   imports: [
     PrismaModule,
     CacheModule,
+    ExecutionEventsModule,
+    HealthModule,
     AuthModule,
     WorkspacesModule,
     CredentialsModule,
@@ -40,7 +43,7 @@ import { SearchModule } from './search/search.module';
     SchedulerModule,
     SearchModule,
   ],
-  controllers: [AppController, HealthController],
+  controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
 export class AppModule {}

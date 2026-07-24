@@ -21,6 +21,7 @@
     "@anthropic-ai/sdk": "^0.114.0",
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "ioredis": "^5.11.1",
     "openai": "^6.49.0",
     "zod": "^4.4.3"
   }

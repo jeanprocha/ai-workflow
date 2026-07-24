@@ -9,7 +9,9 @@ interface ScheduleJobData {
   workspaceId: string;
 }
 
-@Processor(SCHEDULES_QUEUE)
+@Processor(SCHEDULES_QUEUE, {
+  concurrency: Number(process.env.SCHEDULES_CONCURRENCY ?? 5),
+})
 export class ScheduleProcessor extends WorkerHost {
   private readonly logger = new Logger(ScheduleProcessor.name);
 

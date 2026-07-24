@@ -10,7 +10,9 @@ interface RunJobData {
   replayInput?: unknown;
 }
 
-@Processor(EXECUTIONS_QUEUE)
+@Processor(EXECUTIONS_QUEUE, {
+  concurrency: Number(process.env.EXECUTIONS_CONCURRENCY ?? 5),
+})
 export class ExecutionsProcessor extends WorkerHost {
   private readonly logger = new Logger(ExecutionsProcessor.name);
 

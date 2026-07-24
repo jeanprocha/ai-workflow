@@ -1,15 +1,17 @@
 import { Module } from '@nestjs/common';
 import { ExecutionsController } from './executions.controller';
 import { ExecutionsService } from './executions.service';
-import { ExecutionsProcessor } from './executions.processor';
 import { QueueModule } from '../queue/queue.module';
-import { EngineModule } from '../engine/engine.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 
+/**
+ * So produtor (enfileira jobs). O consumo roda no worker (Fase 10) —
+ * ver ExecutionsProcessor, registrado em apps/api/src/worker/worker.module.ts.
+ */
 @Module({
-  imports: [QueueModule, EngineModule, WorkspacesModule],
+  imports: [QueueModule, WorkspacesModule],
   controllers: [ExecutionsController],
-  providers: [ExecutionsService, ExecutionsProcessor],
+  providers: [ExecutionsService],
   exports: [ExecutionsService],
 })
 export class ExecutionsModule {}

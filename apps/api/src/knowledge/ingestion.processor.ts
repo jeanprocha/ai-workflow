@@ -8,7 +8,9 @@ interface IngestJobData {
   documentId: string;
 }
 
-@Processor(INGESTION_QUEUE)
+@Processor(INGESTION_QUEUE, {
+  concurrency: Number(process.env.INGESTION_CONCURRENCY ?? 2),
+})
 export class IngestionProcessor extends WorkerHost {
   private readonly logger = new Logger(IngestionProcessor.name);
 

@@ -3,7 +3,9 @@ import { Logger } from '@nestjs/common';
 import { MCP_HEALTH_QUEUE } from '../queue/queue.module';
 import { McpService } from './mcp.service';
 
-@Processor(MCP_HEALTH_QUEUE)
+@Processor(MCP_HEALTH_QUEUE, {
+  concurrency: Number(process.env.MCP_HEALTH_CONCURRENCY ?? 1),
+})
 export class McpHealthProcessor extends WorkerHost {
   private readonly logger = new Logger(McpHealthProcessor.name);
 

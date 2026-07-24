@@ -20,3 +20,15 @@ Usar **Server-Sent Events (SSE)** por execução (`GET /executions/:id/stream`) 
 
 - Reconexão de SSE é responsabilidade do cliente (`EventSource` nativo já faz isso); a API precisa suportar replay de eventos perdidos via `Last-Event-ID` quando isso importar.
 - Se features futuras exigirem bidirecional (ex.: Copilot com colaboração ao vivo, Fase 11), reavaliar para WebSocket nesse ponto específico, sem migrar o restante do produto.
+
+## Atualização (Fase 10, ver ADR-008)
+
+Com o motor de execução rodando num processo de worker separado da API
+(ADR-008), o `EventEmitter` em processo do `ExecutionEventsService` deixou de
+bastar — eventos emitidos no worker nunca chegariam aos clientes SSE
+conectados na API. `ExecutionEventsService` passou a publicar/assinar via
+Redis pub/sub (um canal `execution-events:<executionId>` por execução),
+mantendo a mesma interface pública (`emit`/`subscribe`/`toObservable`), então
+`ExecutionsController` e `EngineService` não precisaram mudar. Validado
+ao vivo nesta fase: um processo separado assinando o canal recebeu, em ordem,
+todos os eventos publicados por um worker rodando uma execução real.
