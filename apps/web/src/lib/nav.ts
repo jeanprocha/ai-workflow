@@ -5,6 +5,7 @@ import {
   ListChecks,
   BookOpen,
   LayoutTemplate,
+  BarChart3,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +23,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Flows", href: "/flows", icon: Workflow },
   { label: "Agents", href: "/agents", icon: Bot },
   { label: "Executions", href: "/executions", icon: ListChecks, showLiveIndicator: true },
+  { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Knowledge", href: "/knowledge", icon: BookOpen },
   { label: "Templates", href: "/templates", icon: LayoutTemplate },
   { label: "Settings", href: "/settings", icon: Settings },

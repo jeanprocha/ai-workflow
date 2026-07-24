@@ -1,5 +1,9 @@
-import { MetricCard } from "@workflow/ui";
-import { StatusBadge, type ExecutionStatus } from "@workflow/ui";
+"use client";
+
+import Link from "next/link";
+import { MetricCard, StatusBadge, EmptyState, type ExecutionStatus } from "@workflow/ui";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -8,30 +12,32 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAnalyticsSummary, useRecentExecutions } from "@/hooks/use-analytics";
 
-const METRICS = [
-  { label: "Fluxos", value: "24" },
-  { label: "Execucoes", value: "182.000" },
-  { label: "IA Requests", value: "42.000" },
-  { label: "Tempo medio", value: "2,1s" },
-  { label: "Falhas", value: "3", delta: { direction: "down" as const, value: "12%" } },
-  { label: "Custo IA", value: "US$ 42,00" },
-];
+function toBadgeStatus(status: string): ExecutionStatus {
+  return status === "canceled" ? "failed" : (status as ExecutionStatus);
+}
 
-const RECENT_EXECUTIONS: Array<{
-  workflow: string;
-  status: ExecutionStatus;
-  duration: string;
-  startedAt: string;
-}> = [
-  { workflow: "Suporte IA — Zendesk", status: "success", duration: "1,8s", startedAt: "há 2 min" },
-  { workflow: "Lead Qualification", status: "running", duration: "—", startedAt: "há 4 min" },
-  { workflow: "Resumo de reunioes", status: "success", duration: "3,2s", startedAt: "há 11 min" },
-  { workflow: "Extrair PDF — boletos", status: "failed", duration: "10,0s", startedAt: "há 18 min" },
-  { workflow: "Atendimento WhatsApp", status: "retry", duration: "—", startedAt: "há 22 min" },
-];
+function formatDuration(ms: number | null) {
+  if (ms === null) return "—";
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
 
 export default function DashboardPage() {
+  const { data: summary, isLoading: loadingSummary } = useAnalyticsSummary();
+  const { data: recent, isLoading: loadingRecent } = useRecentExecutions();
+
+  const metrics = summary
+    ? [
+        { label: "Fluxos", value: String(summary.workflowsCount) },
+        { label: "Execucoes", value: summary.executionsCount.toLocaleString("pt-BR") },
+        { label: "IA Requests", value: summary.aiRequestsCount.toLocaleString("pt-BR") },
+        { label: "Tempo medio", value: `${(summary.avgDurationMs / 1000).toFixed(1)}s` },
+        { label: "Falhas", value: String(summary.failuresCount) },
+        { label: "Custo IA", value: `US$ ${summary.costUsdTotal.toFixed(2)}` },
+      ]
+    : [];
+
   return (
     <div className="space-y-6">
       <div>
@@ -39,44 +45,71 @@ export default function DashboardPage() {
         <p className="text-sm text-muted-foreground">Visao geral da plataforma.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        {METRICS.map((metric) => (
-          <MetricCard key={metric.label} {...metric} />
-        ))}
-      </div>
+      {loadingSummary ? (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-20 rounded-lg" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          {metrics.map((metric) => (
+            <MetricCard key={metric.label} {...metric} />
+          ))}
+        </div>
+      )}
 
       <div className="rounded-lg border border-border bg-card">
-        <div className="border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-md font-medium text-foreground">Execucoes recentes</h2>
+          <Button size="sm" variant="ghost" render={<Link href="/executions" />}>
+            Ver todas
+          </Button>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Fluxo</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Duracao</TableHead>
-              <TableHead className="text-right">Iniciado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {RECENT_EXECUTIONS.map((execution) => (
-              <TableRow key={execution.workflow}>
-                <TableCell className="font-medium text-foreground">
-                  {execution.workflow}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={execution.status} />
-                </TableCell>
-                <TableCell className="tabular text-right font-mono text-sm">
-                  {execution.duration}
-                </TableCell>
-                <TableCell className="text-right text-sm text-muted-foreground">
-                  {execution.startedAt}
-                </TableCell>
+
+        {loadingRecent && <Skeleton className="m-4 h-32 rounded-lg" />}
+
+        {!loadingRecent && !recent?.length && (
+          <div className="p-4">
+            <EmptyState
+              title="Nenhuma execucao ainda"
+              description="Execute um fluxo para ver o historico aqui."
+            />
+          </div>
+        )}
+
+        {!!recent?.length && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Fluxo</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Duracao</TableHead>
+                <TableHead className="text-right">Iniciado</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {recent.map((execution) => (
+                <TableRow key={execution.id}>
+                  <TableCell className="font-medium text-foreground">
+                    <Link href={`/executions/${execution.id}`} className="hover:underline">
+                      {execution.workflow.name}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={toBadgeStatus(execution.status)} />
+                  </TableCell>
+                  <TableCell className="tabular text-right font-mono text-sm">
+                    {formatDuration(execution.durationMs)}
+                  </TableCell>
+                  <TableCell className="text-right text-sm text-muted-foreground">
+                    {new Date(execution.startedAt).toLocaleString("pt-BR")}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   );

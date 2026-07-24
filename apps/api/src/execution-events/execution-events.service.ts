@@ -14,6 +14,14 @@ export type ExecutionEvent =
       error?: string;
     }
   | {
+      type: 'log.created';
+      executionId: string;
+      nodeId: string | null;
+      level: string;
+      event: string;
+      payload?: unknown;
+    }
+  | {
       type: 'execution.completed';
       executionId: string;
       status: 'success' | 'failed';

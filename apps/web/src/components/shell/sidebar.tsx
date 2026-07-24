@@ -7,13 +7,12 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Pulse } from "@workflow/ui";
 import { NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
-
-/** Mock: em produto real, viria de um hook conectado ao SSE de execucoes (Fase 6). */
-const HAS_LIVE_EXECUTION = true;
+import { useHasLiveExecution } from "@/hooks/use-executions";
 
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const hasLiveExecution = useHasLiveExecution();
 
   return (
     <aside
@@ -56,7 +55,7 @@ export function Sidebar() {
               )}
               <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
               {!collapsed && <span className="truncate">{item.label}</span>}
-              {!collapsed && item.showLiveIndicator && HAS_LIVE_EXECUTION && (
+              {!collapsed && item.showLiveIndicator && hasLiveExecution && (
                 <Pulse variant="dot" size={6} className="ml-auto" />
               )}
             </Link>

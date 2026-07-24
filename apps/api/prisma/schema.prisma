@@ -170,6 +170,10 @@ model Execution {
   finishedAt        DateTime?       @map("finished_at")
   error             String?
   parentExecutionId String?         @map("parent_execution_id")
+  /** Agrupa uma execucao com todos os seus replays (Fase 6). Nula em execucoes anteriores a Fase 6. */
+  traceId           String?         @map("trace_id")
+  /** Node a partir do qual esta execucao foi um replay parcial, se houver. */
+  replayFromNodeId  String?         @map("replay_from_node_id")
 
   workflow Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   version  WorkflowVersion @relation(fields: [versionId], references: [id])
@@ -179,6 +183,7 @@ model Execution {
   replays  Execution[]     @relation("Replay")
 
   @@index([workflowId])
+  @@index([traceId])
   @@map("executions")
 }
 
@@ -195,6 +200,8 @@ model ExecutionStep {
   tokens      Int?
   model       String?
   costUsd     Float?          @map("cost_usd")
+  /** Heap usado pelo processo do worker logo apos o node terminar, em MB. */
+  memoryMb    Float?          @map("memory_mb")
   startedAt   DateTime        @default(now()) @map("started_at")
   finishedAt  DateTime?       @map("finished_at")
   attempt     Int             @default(1)

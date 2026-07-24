@@ -6,6 +6,8 @@ import { EngineService } from '../engine/engine.service';
 
 interface RunJobData {
   executionId: string;
+  replayFromNodeId?: string;
+  replayInput?: unknown;
 }
 
 @Processor(EXECUTIONS_QUEUE)
@@ -20,6 +22,9 @@ export class ExecutionsProcessor extends WorkerHost {
     this.logger.log(
       `Executando job ${job.id} (execution ${job.data.executionId})`,
     );
-    await this.engine.run(job.data.executionId);
+    await this.engine.run(job.data.executionId, {
+      replayFromNodeId: job.data.replayFromNodeId,
+      replayInput: job.data.replayInput,
+    });
   }
 }

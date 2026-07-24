@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma/prisma.module';
+import { CacheModule } from './cache/cache.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { WorkspacesModule } from './workspaces/workspaces.module';
@@ -14,10 +15,12 @@ import { ExecutionsModule } from './executions/executions.module';
 import { HooksModule } from './hooks/hooks.module';
 import { AgentsModule } from './agents/agents.module';
 import { TemplatesModule } from './templates/templates.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
     PrismaModule,
+    CacheModule,
     AuthModule,
     WorkspacesModule,
     CredentialsModule,
@@ -27,6 +30,7 @@ import { TemplatesModule } from './templates/templates.module';
     HooksModule,
     AgentsModule,
     TemplatesModule,
+    AnalyticsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],

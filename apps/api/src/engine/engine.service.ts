@@ -53,7 +53,10 @@ export class EngineService {
     private readonly agents: AgentsService,
   ) {}
 
-  async run(executionId: string): Promise<void> {
+  async run(
+    executionId: string,
+    options?: { replayFromNodeId?: string; replayInput?: unknown },
+  ): Promise<void> {
     const execution = await this.prisma.execution.findUniqueOrThrow({
       where: { id: executionId },
       include: { version: true, workflow: true },
@@ -71,12 +74,16 @@ export class EngineService {
       graph.nodes.map((node) => [node.id, node]),
     );
     const outgoing = new Map<string, WorkflowEdge[]>();
+    const incoming = new Map<string, WorkflowEdge[]>();
     const incomingCount = new Map<string, number>();
     for (const edge of graph.edges) {
       const list = outgoing.get(edge.source) ?? [];
       list.push(edge);
       outgoing.set(edge.source, list);
       incomingCount.set(edge.target, (incomingCount.get(edge.target) ?? 0) + 1);
+      const inList = incoming.get(edge.target) ?? [];
+      inList.push(edge);
+      incoming.set(edge.target, inList);
     }
 
     const triggerNode = graph.nodes.find((node) => node.category === 'trigger');
@@ -89,14 +96,48 @@ export class EngineService {
     let tokensTotal = 0;
     let costUsdTotal = 0;
 
-    if (!triggerNode) {
+    const startNode = options?.replayFromNodeId
+      ? nodesById.get(options.replayFromNodeId)
+      : triggerNode;
+
+    if (!startNode) {
       overallStatus = 'failed';
-      failureError = 'O fluxo nao possui um node trigger.';
+      failureError = options?.replayFromNodeId
+        ? `Node ${options.replayFromNodeId} nao encontrado no grafo.`
+        : 'O fluxo nao possui um node trigger.';
     } else {
       const executed = new Set<string>();
       const mergeBuffers = new Map<string, unknown[]>();
+
+      // Partial replay: nodes upstream do node de partida nao sao re-executados —
+      // seus outputs sao reaproveitados da execucao original (persistidos em
+      // ExecutionStep). Variaveis (logic.setVariables) acumuladas antes do ponto
+      // de replay nao sao reconstituidas (limitacao conhecida da v1).
+      if (options?.replayFromNodeId && execution.parentExecutionId) {
+        const ancestors = this.computeAncestors(
+          options.replayFromNodeId,
+          incoming,
+        );
+        const parentSteps = await this.prisma.executionStep.findMany({
+          where: {
+            executionId: execution.parentExecutionId,
+            status: 'success',
+            nodeId: { in: [...ancestors] },
+          },
+        });
+        for (const step of parentSteps) {
+          nodeOutputs[step.nodeId] = step.output;
+          executed.add(step.nodeId);
+        }
+      }
+
       let currentWave = new Map<string, unknown>([
-        [triggerNode.id, execution.inputPayload],
+        [
+          startNode.id,
+          options?.replayFromNodeId
+            ? options.replayInput
+            : execution.inputPayload,
+        ],
       ]);
 
       while (currentWave.size > 0) {
@@ -213,16 +254,16 @@ export class EngineService {
     const definition = getNodeDefinition(node.type);
     if (!definition) {
       const message = `Node type desconhecido: ${node.type}`;
-      await this.recordStep(
+      await this.recordStep({
         executionId,
         node,
-        'failed',
+        status: 'failed',
         input,
-        null,
-        message,
-        0,
-        1,
-      );
+        output: null,
+        error: message,
+        durationMs: 0,
+        attempt: 1,
+      });
       return { nodeId: node.id, ok: false, error: message };
     }
 
@@ -269,17 +310,17 @@ export class EngineService {
         );
 
         const durationMs = Date.now() - startedAt;
-        await this.recordStep(
+        await this.recordStep({
           executionId,
           node,
-          'success',
+          status: 'success',
           input,
-          result.output,
-          null,
+          output: result.output,
+          error: null,
           durationMs,
           attempt,
-          result.usage,
-        );
+          usage: result.usage,
+        });
         this.events.emit({
           type: 'step.completed',
           executionId,
@@ -299,16 +340,16 @@ export class EngineService {
         const durationMs = Date.now() - startedAt;
         const message = error instanceof Error ? error.message : String(error);
         lastError = message;
-        await this.recordStep(
+        await this.recordStep({
           executionId,
           node,
-          'failed',
+          status: 'failed',
           input,
-          null,
-          message,
+          output: null,
+          error: message,
           durationMs,
           attempt,
-        );
+        });
         this.events.emit({
           type: 'step.completed',
           executionId,
@@ -328,6 +369,26 @@ export class EngineService {
     return { nodeId: node.id, ok: false, error: lastError };
   }
 
+  /** Retorna o conjunto de nodes alcancaveis "para tras" a partir de targetId (exclusive). */
+  private computeAncestors(
+    targetId: string,
+    incoming: Map<string, WorkflowEdge[]>,
+  ): Set<string> {
+    const seen = new Set<string>();
+    const stack = [targetId];
+    while (stack.length > 0) {
+      const id = stack.pop();
+      if (id === undefined) continue;
+      for (const edge of incoming.get(id) ?? []) {
+        if (!seen.has(edge.source)) {
+          seen.add(edge.source);
+          stack.push(edge.source);
+        }
+      }
+    }
+    return seen;
+  }
+
   private async getCredential(
     workspaceId: string,
     name: string,
@@ -341,17 +402,28 @@ export class EngineService {
     return this.crypto.decrypt(credential.encryptedData);
   }
 
-  private async recordStep(
-    executionId: string,
-    node: WorkflowNode,
-    status: 'success' | 'failed',
-    input: unknown,
-    output: unknown,
-    error: string | null,
-    durationMs: number,
-    attempt: number,
-    usage?: NodeUsage,
-  ) {
+  private async recordStep(params: {
+    executionId: string;
+    node: WorkflowNode;
+    status: 'success' | 'failed';
+    input: unknown;
+    output: unknown;
+    error: string | null;
+    durationMs: number;
+    attempt: number;
+    usage?: NodeUsage;
+  }) {
+    const {
+      executionId,
+      node,
+      status,
+      input,
+      output,
+      error,
+      durationMs,
+      attempt,
+      usage,
+    } = params;
     await this.prisma.executionStep.create({
       data: {
         executionId,
@@ -367,6 +439,7 @@ export class EngineService {
         tokens: usage?.tokens,
         model: usage?.model,
         costUsd: usage?.costUsd,
+        memoryMb: process.memoryUsage().heapUsed / (1024 * 1024),
         startedAt: new Date(Date.now() - durationMs),
         finishedAt: new Date(),
       },
@@ -388,6 +461,14 @@ export class EngineService {
           event,
           payload: payload === undefined ? undefined : toJson(payload),
         },
+      });
+      this.events.emit({
+        type: 'log.created',
+        executionId,
+        nodeId,
+        level: 'info',
+        event,
+        payload,
       });
     } catch (error) {
       this.logger.warn(`Falha ao gravar log de execucao: ${String(error)}`);
