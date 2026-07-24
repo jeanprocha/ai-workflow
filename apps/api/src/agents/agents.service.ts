@@ -4,9 +4,13 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { McpService } from '../mcp/mcp.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
-import { buildAgentTools } from './tools';
+import { buildAgentTools, type AgentTool } from './tools';
+
+/** Prefixo usado em agent.tools para referenciar uma tool MCP: "mcp:<serverId>:<toolName>". */
+const MCP_TOOL_PREFIX = 'mcp:';
 
 const MAX_TOOL_ITERATIONS = 5;
 
@@ -23,6 +27,7 @@ export class AgentsService {
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
     private readonly knowledge: KnowledgeService,
+    private readonly mcp: McpService,
   ) {}
 
   list(workspaceId: string) {
@@ -89,7 +94,14 @@ export class AgentsService {
         : await this.getCredential(workspaceId, agent.credential);
 
     const enabledToolNames = (agent.tools as string[]) ?? [];
-    const toolset = buildAgentTools({
+    const nativeToolNames = enabledToolNames.filter(
+      (name) => !name.startsWith(MCP_TOOL_PREFIX),
+    );
+    const mcpRefs = enabledToolNames.filter((name) =>
+      name.startsWith(MCP_TOOL_PREFIX),
+    );
+
+    const nativeToolset = buildAgentTools({
       prisma: this.prisma,
       crypto: this.crypto,
       workspaceId,
@@ -97,9 +109,15 @@ export class AgentsService {
       knowledge: this.knowledge,
       knowledgeBaseId: agent.knowledgeBaseId,
     });
-    const tools = enabledToolNames
-      .map((name) => toolset[name])
-      .filter((tool) => !!tool);
+    const nativeTools = nativeToolNames
+      .map((name) => nativeToolset[name])
+      .filter((tool): tool is AgentTool => !!tool);
+    const mcpTools = await this.buildMcpTools(workspaceId, mcpRefs);
+
+    const tools = [...nativeTools, ...mcpTools];
+    const toolsByName = new Map(
+      tools.map((tool) => [tool.definition.name, tool]),
+    );
 
     const messages: ChatMessage[] = [
       { role: 'system', content: agent.systemPrompt },
@@ -134,7 +152,7 @@ export class AgentsService {
       });
 
       for (const call of result.toolCalls) {
-        const tool = toolset[call.name];
+        const tool = toolsByName.get(call.name);
         toolCallsUsed.push(call.name);
         const output = tool
           ? await tool.execute(call.arguments).catch((error: unknown) => ({
@@ -159,6 +177,60 @@ export class AgentsService {
       costUsd,
       toolCallsUsed,
     };
+  }
+
+  /** Remove chaves meta ($schema, $id) que os providers de IA nao esperam no schema da tool. */
+  private sanitizeMcpInputSchema(
+    schema: Record<string, unknown>,
+  ): Record<string, unknown> {
+    return Object.fromEntries(
+      Object.entries(schema).filter(
+        ([key]) => key !== '$schema' && key !== '$id',
+      ),
+    );
+  }
+
+  /** Converte refs "mcp:<serverId>:<toolName>" habilitadas no agente em AgentTool executaveis. */
+  private async buildMcpTools(
+    workspaceId: string,
+    refs: string[],
+  ): Promise<AgentTool[]> {
+    const tools: AgentTool[] = [];
+
+    for (const ref of refs) {
+      const [, serverId, toolName] = ref.split(':');
+      if (!serverId || !toolName) continue;
+
+      const server = await this.prisma.mcpServer.findFirst({
+        where: { id: serverId, workspaceId },
+        include: { tools: true },
+      });
+      const toolMeta = server?.tools.find((tool) => tool.name === toolName);
+      if (!server || !toolMeta) continue;
+
+      tools.push({
+        definition: {
+          name: toolMeta.name,
+          description:
+            toolMeta.description ??
+            `Tool MCP "${toolMeta.name}" do servidor "${server.name}".`,
+          parameters: this.sanitizeMcpInputSchema(
+            toolMeta.inputSchema as Record<string, unknown>,
+          ),
+        },
+        execute: async (args) => {
+          const result = await this.mcp.callTool(
+            workspaceId,
+            serverId,
+            toolName,
+            args,
+          );
+          return result;
+        },
+      });
+    }
+
+    return tools;
   }
 
   private async getCredential(

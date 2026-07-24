@@ -35,6 +35,7 @@ import {
   type CreateAgentInput,
 } from "@/hooks/use-agents";
 import { useKnowledgeBases } from "@/hooks/use-knowledge";
+import { useMcpServers } from "@/hooks/use-mcp";
 import { ApiError } from "@/lib/api-client";
 
 const AVAILABLE_TOOLS = [
@@ -53,7 +54,9 @@ function errorMessage(error: unknown, fallback: string) {
 
 function displayTools(tools: string[]) {
   const hasMemory = MEMORY_TOOL_KEYS.every((key) => tools.includes(key));
-  const rest = tools.filter((tool) => !MEMORY_TOOL_KEYS.includes(tool));
+  const rest = tools
+    .filter((tool) => !MEMORY_TOOL_KEYS.includes(tool))
+    .map((tool) => (tool.startsWith("mcp:") ? (tool.split(":")[2] ?? tool) : tool));
   return hasMemory ? [...rest, "memory"] : rest;
 }
 
@@ -70,6 +73,7 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   });
   const createAgent = useCreateAgent();
   const { data: knowledgeBases } = useKnowledgeBases();
+  const { data: mcpServers } = useMcpServers();
 
   function toggleTool(key: string) {
     const tools = form.tools ?? [];
@@ -218,6 +222,39 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+          {!!mcpServers?.filter((server) => server.status === "connected").length && (
+            <div className="space-y-1.5">
+              <Label>Tools MCP</Label>
+              <div className="flex flex-col gap-2">
+                {mcpServers
+                  .filter((server) => server.status === "connected")
+                  .map((server) => (
+                    <div key={server.id}>
+                      <p className="text-xs text-muted-foreground">{server.name}</p>
+                      <div className="flex flex-wrap gap-3">
+                        {server.tools.map((tool) => {
+                          const ref = `mcp:${server.id}:${tool.name}`;
+                          return (
+                            <label
+                              key={ref}
+                              className="flex items-center gap-1.5 text-sm text-foreground"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isToolChecked(ref)}
+                                onChange={() => toggleTool(ref)}
+                                className="h-4 w-4 rounded border-border-strong"
+                              />
+                              {tool.name}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
         </div>

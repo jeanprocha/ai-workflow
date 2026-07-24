@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 
 export const EXECUTIONS_QUEUE = 'executions';
 export const INGESTION_QUEUE = 'ingestion';
+export const MCP_HEALTH_QUEUE = 'mcp-health';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ export const INGESTION_QUEUE = 'ingestion';
     }),
     BullModule.registerQueue({ name: EXECUTIONS_QUEUE }),
     BullModule.registerQueue({ name: INGESTION_QUEUE }),
+    BullModule.registerQueue({ name: MCP_HEALTH_QUEUE }),
   ],
   exports: [BullModule],
 })

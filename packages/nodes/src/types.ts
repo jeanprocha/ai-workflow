@@ -29,6 +29,12 @@ export interface NodeExecutionContext<Config = Record<string, unknown>> {
       similarity: number;
     }>
   >;
+  /** Invoca uma tool de um servidor MCP conectado do workspace (node MCP Tool). */
+  callMcpTool: (
+    mcpServerId: string,
+    toolName: string,
+    args: Record<string, unknown>,
+  ) => Promise<unknown>;
 }
 
 export interface NodeExecutionResult {

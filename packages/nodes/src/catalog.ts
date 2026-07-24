@@ -42,6 +42,7 @@ import { aiOcrMeta } from "./definitions/ai-ocr.meta.js";
 import { aiEmbeddingsMeta } from "./definitions/ai-embeddings.meta.js";
 import { agentNode } from "./definitions/agent.js";
 import { knowledgeSearchNode } from "./definitions/knowledge-search.js";
+import { mcpToolNode } from "./definitions/mcp-tool.js";
 
 export interface NodeCatalogEntry {
   type: string;
@@ -108,6 +109,7 @@ export const NODE_CATALOG: readonly NodeCatalogEntry[] = [
   aiEmbeddingsMeta,
   agentNode,
   knowledgeSearchNode,
+  mcpToolNode,
 ].map(toEntry);
 
 export function getCatalogEntry(type: string): NodeCatalogEntry | undefined {

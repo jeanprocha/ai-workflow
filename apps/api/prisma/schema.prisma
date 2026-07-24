@@ -43,6 +43,7 @@ model Workspace {
   variables      Variable[]
   agents         Agent[]
   knowledgeBases KnowledgeBase[]
+  mcpServers     McpServer[]
 
   @@map("workspaces")
 }
@@ -347,4 +348,58 @@ model Chunk {
 
   @@index([documentId])
   @@map("chunks")
+}
+
+/// Fase 8 (MCP). Conexao fica em memoria no processo da API (ADR-005/ADR-003
+/// ja assumem worker single-process); reconecta sob demanda a partir da
+/// config persistida aqui quando necessario (ex.: apos restart do processo).
+enum McpTransport {
+  stdio
+  sse
+  http
+}
+
+enum McpServerStatus {
+  connecting
+  connected
+  disconnected
+  error
+}
+
+model McpServer {
+  id            String          @id @default(uuid())
+  workspaceId   String          @map("workspace_id")
+  name          String
+  transport     McpTransport
+  /** Comando do processo (transport stdio). */
+  command       String?
+  args          Json?
+  env           Json?
+  /** URL do servidor remoto (transport sse/http). */
+  url           String?
+  headers       Json?
+  status        McpServerStatus @default(disconnected)
+  lastError     String?         @map("last_error")
+  lastCheckedAt DateTime?       @map("last_checked_at")
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tools     McpTool[]
+
+  @@index([workspaceId])
+  @@map("mcp_servers")
+}
+
+model McpTool {
+  id          String   @id @default(uuid())
+  mcpServerId String   @map("mcp_server_id")
+  name        String
+  description String?
+  inputSchema Json     @map("input_schema")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  mcpServer McpServer @relation(fields: [mcpServerId], references: [id], onDelete: Cascade)
+
+  @@unique([mcpServerId, name])
+  @@map("mcp_tools")
 }

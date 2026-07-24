@@ -11,6 +11,7 @@ import { ExecutionEventsService } from '../execution-events/execution-events.ser
 import { CryptoService } from '../crypto/crypto.service';
 import { AgentsService } from '../agents/agents.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { McpService } from '../mcp/mcp.service';
 
 const NODE_TIMEOUT_MS = 30_000;
 
@@ -53,6 +54,7 @@ export class EngineService {
     private readonly crypto: CryptoService,
     private readonly agents: AgentsService,
     private readonly knowledge: KnowledgeService,
+    private readonly mcp: McpService,
   ) {}
 
   async run(
@@ -318,6 +320,8 @@ export class EngineService {
                   similarity: result.similarity,
                 }));
               },
+              callMcpTool: (mcpServerId, toolName, args) =>
+                this.mcp.callTool(workspaceId, mcpServerId, toolName, args),
             }),
           ),
           NODE_TIMEOUT_MS,
