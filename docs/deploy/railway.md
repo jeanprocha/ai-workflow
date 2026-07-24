@@ -25,8 +25,8 @@ um serviço com essa imagem) e Redis (plugin Redis do Railway).
    - Settings → Build → Dockerfile Path: `apps/api/Dockerfile` (ja e o default
      via `railway.json` na raiz).
    - Settings → Deploy → Start Command: deixar o padrao (`node dist/src/main.js`).
-   - Variables: `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `CREDENTIALS_ENCRYPTION_KEY`
-     (ou o nome usado em `apps/api/.env`), demais chaves de API de IA/integracoes.
+   - Variables: `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `SECRETS_ENCRYPTION_KEY`
+     (nomes exatos de `apps/api/.env`), demais chaves de API de IA/integracoes.
    - Uma migracao (`prisma migrate deploy`) deve rodar antes do primeiro boot —
      via um "Release Command" no servico `api` (Settings → Deploy → Release
      Command: `pnpm --filter @workflow/api exec prisma migrate deploy`). Rodar
