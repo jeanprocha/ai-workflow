@@ -15,3 +15,5 @@ coverage
 
 .pnpm-store
 pnpm-lock.yaml.bak
+.vercel
+.env*
