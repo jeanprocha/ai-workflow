@@ -12,6 +12,11 @@ export interface NodeExecutionContext<Config = Record<string, unknown>> {
   log: (event: string, payload?: unknown) => void;
   /** Busca o valor descriptografado de uma credencial do workspace pelo nome. */
   getCredential: (name: string) => Promise<string>;
+  /** Conversa com um agente do workspace (node Agent) — roda o loop agentico completo. */
+  callAgent: (
+    agentId: string,
+    message: string,
+  ) => Promise<{ content: string; tokens: number; costUsd: number }>;
 }
 
 export interface NodeExecutionResult {
@@ -24,6 +29,8 @@ export interface NodeExecutionResult {
   branches?: string[];
   /** Mutacoes nas variaveis de runtime (mescladas no contexto da execucao). */
   varsPatch?: Record<string, unknown>;
+  /** Nodes de IA preenchem isto — a engine grava em execution_steps e soma no total da execucao. */
+  usage?: { tokens: number; model: string; costUsd: number };
 }
 
 export interface NodeDefinition<Config = Record<string, unknown>> {

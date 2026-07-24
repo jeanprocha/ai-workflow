@@ -23,6 +23,15 @@ import { emailSendNode } from "./definitions/email-send.js";
 import { slackMessageNode } from "./definitions/slack-message.js";
 import { discordMessageNode } from "./definitions/discord-message.js";
 import { telegramMessageNode } from "./definitions/telegram-message.js";
+import { aiChatNode } from "./definitions/ai-chat.js";
+import { aiClassificationNode } from "./definitions/ai-classification.js";
+import { aiTranslationNode } from "./definitions/ai-translation.js";
+import { aiSummarizationNode } from "./definitions/ai-summarization.js";
+import { aiExtractionNode } from "./definitions/ai-extraction.js";
+import { aiVisionNode } from "./definitions/ai-vision.js";
+import { aiOcrNode } from "./definitions/ai-ocr.js";
+import { aiEmbeddingsNode } from "./definitions/ai-embeddings.js";
+import { agentNode } from "./definitions/agent.js";
 
 export const NODE_DEFINITIONS: readonly NodeDefinition<never>[] = [
   manualTriggerNode,
@@ -49,6 +58,15 @@ export const NODE_DEFINITIONS: readonly NodeDefinition<never>[] = [
   slackMessageNode,
   discordMessageNode,
   telegramMessageNode,
+  aiChatNode,
+  aiClassificationNode,
+  aiTranslationNode,
+  aiSummarizationNode,
+  aiExtractionNode,
+  aiVisionNode,
+  aiOcrNode,
+  aiEmbeddingsNode,
+  agentNode,
 ] as unknown as NodeDefinition<never>[];
 
 const registry = new Map<string, NodeDefinition<never>>(

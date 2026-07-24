@@ -11,7 +11,7 @@ import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { workflowGraphSchema, EMPTY_GRAPH } from './graph.schema';
 
-function toJsonInput(graph: unknown): Prisma.InputJsonValue {
+export function toJsonInput(graph: unknown): Prisma.InputJsonValue {
   return graph as Prisma.InputJsonValue;
 }
 
@@ -20,7 +20,7 @@ function toJsonInput(graph: unknown): Prisma.InputJsonValue {
  * gerando um na primeira vez que o node e salvo. Sincronizado com a coluna
  * workflows.webhook_id para permitir lookup O(1) em POST /hooks/:webhookId.
  */
-function ensureWebhookId(graph: WorkflowGraph): {
+export function ensureWebhookId(graph: WorkflowGraph): {
   graph: WorkflowGraph;
   webhookId: string | null;
 } {

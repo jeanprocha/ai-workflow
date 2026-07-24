@@ -41,6 +41,7 @@ model Workspace {
   workflows   Workflow[]
   credentials Credential[]
   variables   Variable[]
+  agents      Agent[]
 
   @@map("workspaces")
 }
@@ -224,4 +225,52 @@ model ExecutionLog {
 
   @@index([executionId])
   @@map("execution_logs")
+}
+
+model Agent {
+  id           String   @id @default(uuid())
+  workspaceId  String   @map("workspace_id")
+  name         String
+  description  String?
+  systemPrompt String   @map("system_prompt")
+  provider     String   @default("anthropic")
+  model        String
+  credential   String   @default("")
+  temperature  Float    @default(0.7)
+  /** Nomes das tools habilitadas: ["http", "calculator", "sql", "knowledge_base"]. */
+  tools        Json     @default("[]")
+  outputSchema Json?    @map("output_schema")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  memories  AgentMemory[]
+
+  @@index([workspaceId])
+  @@map("agents")
+}
+
+/// Catalogo global de templates oficiais — excecao deliberada ao ADR-006:
+/// nao carrega workspace_id porque e compartilhado entre todos os workspaces.
+model Template {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  category    String
+  graph       Json
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("templates")
+}
+
+model AgentMemory {
+  id        String   @id @default(uuid())
+  agentId   String   @map("agent_id")
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, key])
+  @@map("agent_memories")
 }

@@ -9,11 +9,18 @@ import type {
 import { PrismaService } from '../prisma/prisma.service';
 import { ExecutionEventsService } from '../execution-events/execution-events.service';
 import { CryptoService } from '../crypto/crypto.service';
+import { AgentsService } from '../agents/agents.service';
 
 const NODE_TIMEOUT_MS = 30_000;
 
 function toJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
+}
+
+interface NodeUsage {
+  tokens: number;
+  model: string;
+  costUsd: number;
 }
 
 interface NodeStepResult {
@@ -23,6 +30,7 @@ interface NodeStepResult {
   branches?: string[];
   varsPatch?: Record<string, unknown>;
   error?: string;
+  usage?: NodeUsage;
 }
 
 /**
@@ -42,6 +50,7 @@ export class EngineService {
     private readonly prisma: PrismaService,
     private readonly events: ExecutionEventsService,
     private readonly crypto: CryptoService,
+    private readonly agents: AgentsService,
   ) {}
 
   async run(executionId: string): Promise<void> {
@@ -77,6 +86,8 @@ export class EngineService {
     let lastOutput: unknown = null;
     let overallStatus: 'success' | 'failed' = 'success';
     let failureError: string | null = null;
+    let tokensTotal = 0;
+    let costUsdTotal = 0;
 
     if (!triggerNode) {
       overallStatus = 'failed';
@@ -122,6 +133,10 @@ export class EngineService {
             nodeOutputs[result.nodeId] = result.output;
             lastOutput = result.output;
             if (result.varsPatch) vars = { ...vars, ...result.varsPatch };
+            if (result.usage) {
+              tokensTotal += result.usage.tokens;
+              costUsdTotal += result.usage.costUsd;
+            }
           } else {
             waveFailed = true;
             failureError = result.error ?? 'Erro desconhecido.';
@@ -173,6 +188,8 @@ export class EngineService {
         finishedAt: new Date(),
         durationMs: Date.now() - execution.startedAt.getTime(),
         outputPayload: lastOutput === null ? undefined : toJson(lastOutput),
+        tokensTotal,
+        costUsd: costUsdTotal,
       },
     });
 
@@ -234,6 +251,18 @@ export class EngineService {
                 void this.recordLog(executionId, node.id, event, payload);
               },
               getCredential: (name) => this.getCredential(workspaceId, name),
+              callAgent: async (agentId, message) => {
+                const result = await this.agents.chat(
+                  workspaceId,
+                  agentId,
+                  message,
+                );
+                return {
+                  content: result.content,
+                  tokens: result.tokensTotal,
+                  costUsd: result.costUsd,
+                };
+              },
             }),
           ),
           NODE_TIMEOUT_MS,
@@ -249,6 +278,7 @@ export class EngineService {
           null,
           durationMs,
           attempt,
+          result.usage,
         );
         this.events.emit({
           type: 'step.completed',
@@ -263,6 +293,7 @@ export class EngineService {
           output: result.output,
           branches: result.branches,
           varsPatch: result.varsPatch,
+          usage: result.usage,
         };
       } catch (error) {
         const durationMs = Date.now() - startedAt;
@@ -319,6 +350,7 @@ export class EngineService {
     error: string | null,
     durationMs: number,
     attempt: number,
+    usage?: NodeUsage,
   ) {
     await this.prisma.executionStep.create({
       data: {
@@ -332,6 +364,9 @@ export class EngineService {
         error,
         durationMs,
         attempt,
+        tokens: usage?.tokens,
+        model: usage?.model,
+        costUsd: usage?.costUsd,
         startedAt: new Date(Date.now() - durationMs),
         finishedAt: new Date(),
       },

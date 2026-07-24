@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@workflow/ai": "workspace:^",
     "@workflow/shared": "workspace:*",
     "csv-parse": "^7.0.1",
     "ioredis": "^5.11.1",

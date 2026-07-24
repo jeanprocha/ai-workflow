@@ -32,6 +32,15 @@ import { mongodbQueryMeta } from "./definitions/mongodb-query.meta.js";
 import { emailSendMeta } from "./definitions/email-send.meta.js";
 import { pdfParseMeta } from "./definitions/pdf-parse.meta.js";
 import { docxParseMeta } from "./definitions/docx-parse.meta.js";
+import { aiChatMeta } from "./definitions/ai-chat.meta.js";
+import { aiClassificationMeta } from "./definitions/ai-classification.meta.js";
+import { aiTranslationMeta } from "./definitions/ai-translation.meta.js";
+import { aiSummarizationMeta } from "./definitions/ai-summarization.meta.js";
+import { aiExtractionMeta } from "./definitions/ai-extraction.meta.js";
+import { aiVisionMeta } from "./definitions/ai-vision.meta.js";
+import { aiOcrMeta } from "./definitions/ai-ocr.meta.js";
+import { aiEmbeddingsMeta } from "./definitions/ai-embeddings.meta.js";
+import { agentNode } from "./definitions/agent.js";
 
 export interface NodeCatalogEntry {
   type: string;
@@ -88,6 +97,15 @@ export const NODE_CATALOG: readonly NodeCatalogEntry[] = [
   slackMessageNode,
   discordMessageNode,
   telegramMessageNode,
+  aiChatMeta,
+  aiClassificationMeta,
+  aiTranslationMeta,
+  aiSummarizationMeta,
+  aiExtractionMeta,
+  aiVisionMeta,
+  aiOcrMeta,
+  aiEmbeddingsMeta,
+  agentNode,
 ].map(toEntry);
 
 export function getCatalogEntry(type: string): NodeCatalogEntry | undefined {

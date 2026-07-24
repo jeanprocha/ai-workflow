@@ -12,6 +12,8 @@ import { VariablesModule } from './variables/variables.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { ExecutionsModule } from './executions/executions.module';
 import { HooksModule } from './hooks/hooks.module';
+import { AgentsModule } from './agents/agents.module';
+import { TemplatesModule } from './templates/templates.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { HooksModule } from './hooks/hooks.module';
     WorkflowsModule,
     ExecutionsModule,
     HooksModule,
+    AgentsModule,
+    TemplatesModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
