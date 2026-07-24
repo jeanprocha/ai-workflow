@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, RotateCw } from "lucide-react";
+import { ArrowLeft, RotateCw, Stethoscope } from "lucide-react";
 import { StatusBadge, type ExecutionStatus } from "@workflow/ui";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { JsonViewer } from "@/components/json-viewer";
+import { ProviderModelFields, type ProviderModelValue } from "@/components/ai/provider-model-fields";
 import {
   useExecution,
   useReplayExecution,
@@ -24,7 +25,148 @@ import {
   type ExecutionStep,
 } from "@/hooks/use-executions";
 import { useExecutionLive } from "@/hooks/use-execution-live";
+import {
+  useApplyDiagnosisSuggestion,
+  useDiagnoseExecution,
+  type DiagnosisResult,
+} from "@/hooks/use-debugger";
 import { ApiError } from "@/lib/api-client";
+
+const SUGGESTION_LABEL: Record<string, string> = {
+  retry: "Adicionar Retry",
+  timeout: "Aumentar Timeout",
+  fallback: "Adicionar Fallback",
+};
+
+function DebuggerDialog({
+  executionId,
+  open,
+  onOpenChange,
+}: {
+  executionId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [aiConfig, setAiConfig] = useState<ProviderModelValue>({
+    provider: "anthropic",
+    model: "claude-sonnet-5",
+    credential: "",
+  });
+  const [diagnosis, setDiagnosis] = useState<DiagnosisResult | null>(null);
+  const [appliedIndex, setAppliedIndex] = useState<number | null>(null);
+  const diagnose = useDiagnoseExecution(executionId);
+  const applySuggestion = useApplyDiagnosisSuggestion();
+
+  function reset() {
+    setDiagnosis(null);
+    setAppliedIndex(null);
+  }
+
+  async function onDiagnose() {
+    try {
+      const result = await diagnose.mutateAsync({
+        provider: aiConfig.provider,
+        model: aiConfig.model.trim(),
+        credential: aiConfig.credential.trim(),
+      });
+      setDiagnosis(result);
+    } catch (error) {
+      toast.error(errorMessage(error, "Nao foi possivel diagnosticar esta execucao."));
+    }
+  }
+
+  async function onApply(index: number) {
+    if (!diagnosis) return;
+    try {
+      await applySuggestion.mutateAsync({
+        suggestionId: diagnosis.suggestionId,
+        suggestionIndex: index,
+      });
+      setAppliedIndex(index);
+      toast.success("Correcao aplicada — uma nova versao do fluxo foi salva.");
+    } catch (error) {
+      toast.error(errorMessage(error, "Nao foi possivel aplicar esta correcao."));
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v) reset();
+      }}
+    >
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            <span className="inline-flex items-center gap-1.5">
+              <Stethoscope className="h-4 w-4 text-primary" strokeWidth={1.5} />
+              AI Debugger
+            </span>
+          </DialogTitle>
+        </DialogHeader>
+
+        {!diagnosis ? (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Analisa o erro, os logs e a config do node que falhou, e sugere causa provavel +
+              correcoes aplicaveis com um clique.
+            </p>
+            <ProviderModelFields idPrefix="debugger" value={aiConfig} onChange={setAiConfig} />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={onDiagnose} disabled={diagnose.isPending || !aiConfig.model.trim()}>
+                {diagnose.isPending ? "Diagnosticando..." : "Diagnosticar"}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <div className="rounded-lg border border-border bg-muted p-3">
+              <p className="text-xs font-medium text-muted-foreground">Possivel causa</p>
+              <p className="mt-1 text-sm text-foreground">{diagnosis.causaProvavel}</p>
+            </div>
+            <div className="space-y-2">
+              {diagnosis.sugestoes.map((suggestion, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {SUGGESTION_LABEL[suggestion.tipo] ?? suggestion.tipo}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{suggestion.descricao}</p>
+                  </div>
+                  {suggestion.aplicavel ? (
+                    <Button
+                      size="sm"
+                      variant={appliedIndex === index ? "secondary" : "outline"}
+                      onClick={() => onApply(index)}
+                      disabled={applySuggestion.isPending || appliedIndex === index}
+                    >
+                      {appliedIndex === index ? "Aplicado" : "Aplicar"}
+                    </Button>
+                  ) : (
+                    <span className="shrink-0 text-xs text-muted-foreground">Manual</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Fechar
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function toBadgeStatus(status: string): ExecutionStatus {
   return status === "canceled" ? "failed" : (status as ExecutionStatus);
@@ -125,6 +267,7 @@ export default function ExecutionDetailPage({
   const { data: execution, isLoading } = useExecution(id);
   const retryExecution = useRetryExecution();
   const [replayStep, setReplayStep] = useState<ExecutionStep | null>(null);
+  const [debuggerOpen, setDebuggerOpen] = useState(false);
 
   const isLive = execution?.status === "running" || execution?.status === "queued";
   const { logs: liveLogs } = useExecutionLive(id, isLive);
@@ -170,10 +313,16 @@ export default function ExecutionDetailPage({
             <StatusBadge status={toBadgeStatus(execution.status)} />
           </div>
           {execution.status === "failed" && (
-            <Button size="sm" variant="outline" onClick={onRetry} disabled={retryExecution.isPending}>
-              <RotateCw className="h-3.5 w-3.5" strokeWidth={1.5} />
-              Reexecutar
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setDebuggerOpen(true)}>
+                <Stethoscope className="h-3.5 w-3.5" strokeWidth={1.5} />
+                Diagnosticar com IA
+              </Button>
+              <Button size="sm" variant="outline" onClick={onRetry} disabled={retryExecution.isPending}>
+                <RotateCw className="h-3.5 w-3.5" strokeWidth={1.5} />
+                Reexecutar
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -286,6 +435,7 @@ export default function ExecutionDetailPage({
         step={replayStep}
         onOpenChange={(open) => !open && setReplayStep(null)}
       />
+      <DebuggerDialog executionId={id} open={debuggerOpen} onOpenChange={setDebuggerOpen} />
     </div>
   );
 }

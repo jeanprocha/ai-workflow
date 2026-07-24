@@ -7,6 +7,12 @@ export interface ModelInfo {
   inputPricePerMillion: number;
   outputPricePerMillion: number;
   vision: boolean;
+  /**
+   * Classificacao aproximada de capacidade (nao ha um score real disponivel
+   * dos providers) — usada pelo AI Cost Optimizer (Fase 11) pra so sugerir
+   * troca por um modelo de tier igual ou inferior, nunca "pra cima".
+   */
+  tier: "flagship" | "standard" | "economy";
 }
 
 /**
@@ -22,6 +28,7 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     inputPricePerMillion: 15,
     outputPricePerMillion: 75,
     vision: true,
+    tier: "flagship",
   },
   {
     id: "claude-sonnet-5",
@@ -31,6 +38,7 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     inputPricePerMillion: 3,
     outputPricePerMillion: 15,
     vision: true,
+    tier: "standard",
   },
   {
     id: "claude-haiku-4-5-20251001",
@@ -40,6 +48,7 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     inputPricePerMillion: 0.8,
     outputPricePerMillion: 4,
     vision: true,
+    tier: "economy",
   },
   {
     id: "gpt-5",
@@ -49,6 +58,7 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     inputPricePerMillion: 5,
     outputPricePerMillion: 15,
     vision: true,
+    tier: "flagship",
   },
   {
     id: "gpt-5-mini",
@@ -58,6 +68,7 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     inputPricePerMillion: 0.6,
     outputPricePerMillion: 2.4,
     vision: true,
+    tier: "economy",
   },
   {
     id: "gemini-2.5-pro",
@@ -67,6 +78,7 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     inputPricePerMillion: 1.25,
     outputPricePerMillion: 5,
     vision: true,
+    tier: "flagship",
   },
   {
     id: "gemini-2.5-flash",
@@ -76,6 +88,7 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     inputPricePerMillion: 0.15,
     outputPricePerMillion: 0.6,
     vision: true,
+    tier: "economy",
   },
   {
     id: "llama3.1",
@@ -85,6 +98,7 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     inputPricePerMillion: 0,
     outputPricePerMillion: 0,
     vision: false,
+    tier: "economy",
   },
 ] as const;
 

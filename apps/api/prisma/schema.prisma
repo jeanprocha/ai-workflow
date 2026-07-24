@@ -44,6 +44,7 @@ model Workspace {
   agents         Agent[]
   knowledgeBases KnowledgeBase[]
   mcpServers     McpServer[]
+  aiSuggestions  AiSuggestion[]
 
   @@map("workspaces")
 }
@@ -84,6 +85,7 @@ model Workflow {
   versions       WorkflowVersion[] @relation("WorkflowVersions")
   currentVersion WorkflowVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])
   executions     Execution[]
+  aiSuggestions  AiSuggestion[]
 
   @@index([workspaceId])
   @@map("workflows")
@@ -177,12 +179,13 @@ model Execution {
   /** Node a partir do qual esta execucao foi um replay parcial, se houver. */
   replayFromNodeId  String?         @map("replay_from_node_id")
 
-  workflow Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  version  WorkflowVersion @relation(fields: [versionId], references: [id])
-  steps    ExecutionStep[]
-  logs     ExecutionLog[]
-  parent   Execution?      @relation("Replay", fields: [parentExecutionId], references: [id])
-  replays  Execution[]     @relation("Replay")
+  workflow      Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  version       WorkflowVersion @relation(fields: [versionId], references: [id])
+  steps         ExecutionStep[]
+  logs          ExecutionLog[]
+  parent        Execution?      @relation("Replay", fields: [parentExecutionId], references: [id])
+  replays       Execution[]     @relation("Replay")
+  aiSuggestions AiSuggestion[]
 
   @@index([workflowId])
   @@index([traceId])
@@ -350,6 +353,16 @@ model Chunk {
   @@map("chunks")
 }
 
+// ATENCAO: existe um indice HNSW em chunks.embedding (`chunks_embedding_hnsw_idx`,
+// criado via SQL bruto na migration 20260724030000_knowledge_rag) que o Prisma
+// nao consegue representar em schema (coluna Unsupported). Isso faz o
+// `prisma migrate dev` tratar esse indice como "drift" e gerar um DROP INDEX
+// automatico em QUALQUER nova migration — ja aconteceu uma vez (Fase 11) e
+// derrubou o indice do banco de dev local sem aviso. Sempre que rodar
+// `migrate dev`/`migrate diff`, revise o migration.sql gerado e remova
+// manualmente qualquer `DROP INDEX "chunks_embedding_hnsw_idx"` antes de
+// aplicar (e recrie o indice se ja tiver aplicado por engano).
+
 /// Fase 8 (MCP). Conexao fica em memoria no processo da API (ADR-005/ADR-003
 /// ja assumem worker single-process); reconecta sob demanda a partir da
 /// config persistida aqui quando necessario (ex.: apos restart do processo).
@@ -402,4 +415,44 @@ model McpTool {
 
   @@unique([mcpServerId, name])
   @@map("mcp_tools")
+}
+
+/** Fase 11: IA generativa de plataforma (Autocomplete, Copilot, Debugger, Cost Optimizer). */
+enum AiSuggestionType {
+  autocomplete
+  copilot
+  debugger
+  cost_optimizer
+}
+
+enum AiSuggestionStatus {
+  pending
+  accepted
+  rejected
+}
+
+/**
+ * Telemetria de sugestoes de IA (Fase 11): registra toda sugestao gerada pelas
+ * 4 features e se o usuario aceitou ou rejeitou, para poder medir/melhorar os
+ * prompts internos depois.
+ */
+model AiSuggestion {
+  id          String             @id @default(uuid())
+  workspaceId String             @map("workspace_id")
+  workflowId  String?            @map("workflow_id")
+  executionId String?            @map("execution_id")
+  type        AiSuggestionType
+  /** Conteudo especifico do tipo: grafo gerado, causa+fixes, troca de modelo, diff proposto. */
+  payload     Json
+  status      AiSuggestionStatus @default(pending)
+  createdAt   DateTime           @default(now()) @map("created_at")
+  resolvedAt  DateTime?          @map("resolved_at")
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workflow  Workflow?  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  execution Execution? @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([workflowId])
+  @@map("ai_suggestions")
 }

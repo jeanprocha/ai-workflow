@@ -16,6 +16,7 @@ import {
 import { useRunWorkflow } from "@/hooks/use-workflows";
 import { ApiError } from "@/lib/api-client";
 import { VersionHistoryDialog } from "./version-history-dialog";
+import { CopilotDialog } from "./copilot-dialog";
 
 export interface EditorToolbarProps {
   workflowId: string;
@@ -72,6 +73,7 @@ export function EditorToolbar({
       </div>
 
       <div className="flex items-center gap-2">
+        <CopilotDialog workflowId={workflowId} />
         {currentVersionId && (
           <VersionHistoryDialog workflowId={workflowId} currentVersionId={currentVersionId} />
         )}

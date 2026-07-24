@@ -8,6 +8,7 @@ import {
   BarChart3,
   Plug,
   Settings,
+  PiggyBank,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Agents", href: "/agents", icon: Bot },
   { label: "Executions", href: "/executions", icon: ListChecks, showLiveIndicator: true },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "Cost Optimizer", href: "/cost-optimizer", icon: PiggyBank },
   { label: "Knowledge", href: "/knowledge", icon: BookOpen },
   { label: "MCP", href: "/mcp", icon: Plug },
   { label: "Templates", href: "/templates", icon: LayoutTemplate },

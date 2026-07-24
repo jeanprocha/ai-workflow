@@ -9,5 +9,6 @@ import { SchedulerModule } from '../scheduler/scheduler.module';
   imports: [WorkspacesModule, ExecutionsModule, SchedulerModule],
   controllers: [WorkflowsController],
   providers: [WorkflowsService],
+  exports: [WorkflowsService],
 })
 export class WorkflowsModule {}

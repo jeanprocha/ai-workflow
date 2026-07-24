@@ -21,6 +21,11 @@ import { KnowledgeModule } from './knowledge/knowledge.module';
 import { McpModule } from './mcp/mcp.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { SearchModule } from './search/search.module';
+import { AiSuggestionsModule } from './ai-suggestions/ai-suggestions.module';
+import { AutocompleteModule } from './autocomplete/autocomplete.module';
+import { DebuggerModule } from './debugger/debugger.module';
+import { CostOptimizerModule } from './cost-optimizer/cost-optimizer.module';
+import { CopilotModule } from './copilot/copilot.module';
 
 @Module({
   imports: [
@@ -42,6 +47,11 @@ import { SearchModule } from './search/search.module';
     McpModule,
     SchedulerModule,
     SearchModule,
+    AiSuggestionsModule,
+    AutocompleteModule,
+    DebuggerModule,
+    CostOptimizerModule,
+    CopilotModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
