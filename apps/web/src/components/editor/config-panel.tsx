@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { getCatalogEntry } from "@/lib/node-catalog";
 import { getNodeIcon } from "@/lib/node-icons";
+import { usePreviewCron } from "@/hooks/use-scheduler";
+import { ApiError } from "@/lib/api-client";
 import type { WorkflowFlowNode } from "./workflow-node";
 
 export interface ConfigPanelProps {
@@ -226,6 +228,313 @@ function DelayFields({
   );
 }
 
+const CRON_PRESETS = [
+  { label: "A cada minuto", value: "* * * * *" },
+  { label: "A cada 5 minutos", value: "*/5 * * * *" },
+  { label: "A cada hora", value: "0 * * * *" },
+  { label: "Diariamente as 9h", value: "0 9 * * *" },
+  { label: "Semanalmente (seg 9h)", value: "0 9 * * 1" },
+  { label: "Mensalmente (dia 1, 9h)", value: "0 9 1 * *" },
+];
+
+const TIMEZONES = [
+  "UTC",
+  "America/Sao_Paulo",
+  "America/New_York",
+  "America/Los_Angeles",
+  "Europe/Lisbon",
+  "Europe/London",
+];
+
+function CronFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const cronExpression = (config.cronExpression as string) ?? "0 9 * * *";
+  const timezone = (config.timezone as string) ?? "America/Sao_Paulo";
+  const enabled = (config.enabled as boolean) ?? true;
+
+  const previewCron = usePreviewCron();
+  const previewError =
+    previewCron.error instanceof ApiError ? previewCron.error.message : null;
+
+  async function loadPreview(expr: string, tz: string) {
+    await previewCron.mutateAsync({ cronExpression: expr, timezone: tz }).catch(() => undefined);
+  }
+
+  return (
+    <>
+      <Field label="Presets">
+        <select
+          onChange={(event) => {
+            if (!event.target.value) return;
+            onChange({ ...config, cronExpression: event.target.value });
+            void loadPreview(event.target.value, timezone);
+          }}
+          defaultValue=""
+          className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm"
+        >
+          <option value="">Personalizado (editar abaixo)</option>
+          {CRON_PRESETS.map((preset) => (
+            <option key={preset.value} value={preset.value}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field label="Expressao cron" hint="Formato: minuto hora dia-do-mes mes dia-da-semana">
+        <Input
+          value={cronExpression}
+          onChange={(event) => onChange({ ...config, cronExpression: event.target.value })}
+          onBlur={() => void loadPreview(cronExpression, timezone)}
+          className="font-mono text-xs"
+        />
+      </Field>
+
+      <Field label="Timezone">
+        <select
+          value={timezone}
+          onChange={(event) => {
+            onChange({ ...config, timezone: event.target.value });
+            void loadPreview(cronExpression, event.target.value);
+          }}
+          className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm"
+        >
+          {TIMEZONES.map((tz) => (
+            <option key={tz} value={tz}>
+              {tz}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <label className="flex items-center gap-1.5 text-sm text-foreground">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(event) => onChange({ ...config, enabled: event.target.checked })}
+          className="h-4 w-4 rounded border-border-strong"
+        />
+        Agendamento habilitado
+      </label>
+
+      <div className="rounded-md border border-border bg-muted p-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void loadPreview(cronExpression, timezone)}
+        >
+          Calcular proximas execucoes
+        </Button>
+        {previewError && <p className="mt-2 text-xs text-danger">{previewError}</p>}
+        {previewCron.data && (
+          <ul className="mt-2 space-y-0.5">
+            {previewCron.data.nextRuns.map((run) => (
+              <li key={run} className="font-mono text-xs text-muted-foreground">
+                {new Date(run).toLocaleString("pt-BR")}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
+  );
+}
+
+function TextField({
+  config,
+  onChange,
+  field,
+  label,
+  hint,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+  field: string;
+  label: string;
+  hint?: string;
+}) {
+  return (
+    <Field label={label} hint={hint}>
+      <Input
+        value={String(config[field] ?? "")}
+        onChange={(event) => onChange({ ...config, [field]: event.target.value })}
+      />
+    </Field>
+  );
+}
+
+function CredentialField({
+  config,
+  onChange,
+  hint,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+  hint: string;
+}) {
+  return <TextField config={config} onChange={onChange} field="credential" label="Conexao" hint={hint} />;
+}
+
+function GithubFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  return (
+    <>
+      <CredentialField config={config} onChange={onChange} hint="Nome da conexao (Personal Access Token) do GitHub." />
+      <TextField config={config} onChange={onChange} field="owner" label="Owner" hint="Usuario ou organizacao." />
+      <TextField config={config} onChange={onChange} field="repo" label="Repo" />
+      <TextField config={config} onChange={onChange} field="title" label="Titulo da issue" />
+      <Field label="Corpo">
+        <Textarea
+          rows={3}
+          value={String(config.body ?? "")}
+          onChange={(event) => onChange({ ...config, body: event.target.value })}
+        />
+      </Field>
+    </>
+  );
+}
+
+function StripeFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  return (
+    <>
+      <CredentialField config={config} onChange={onChange} hint="Nome da conexao (secret key) do Stripe." />
+      <TextField config={config} onChange={onChange} field="email" label="Email do cliente" />
+      <TextField config={config} onChange={onChange} field="name" label="Nome do cliente" />
+    </>
+  );
+}
+
+function NotionFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  return (
+    <>
+      <CredentialField config={config} onChange={onChange} hint="Nome da conexao (integration token) do Notion." />
+      <TextField config={config} onChange={onChange} field="databaseId" label="Database ID" />
+      <TextField config={config} onChange={onChange} field="title" label="Titulo da pagina" />
+      <TextField
+        config={config}
+        onChange={onChange}
+        field="titleProperty"
+        label="Propriedade de titulo"
+        hint="Nome da propriedade do database usada como titulo (padrao: Name)."
+      />
+    </>
+  );
+}
+
+function GoogleDriveFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  return (
+    <>
+      <CredentialField config={config} onChange={onChange} hint="Nome da conexao (JSON da Service Account) do Google Drive." />
+      <TextField config={config} onChange={onChange} field="query" label="Filtro (query)" hint="Sintaxe de busca do Google Drive." />
+      <Field label="Itens por pagina">
+        <Input
+          type="number"
+          min={1}
+          max={100}
+          value={Number(config.pageSize ?? 10)}
+          onChange={(event) => onChange({ ...config, pageSize: Number(event.target.value) })}
+        />
+      </Field>
+    </>
+  );
+}
+
+function LinearFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  return (
+    <>
+      <CredentialField config={config} onChange={onChange} hint="Nome da conexao (API key) do Linear." />
+      <TextField config={config} onChange={onChange} field="teamId" label="Team ID" />
+      <TextField config={config} onChange={onChange} field="title" label="Titulo da issue" />
+      <Field label="Descricao">
+        <Textarea
+          rows={3}
+          value={String(config.description ?? "")}
+          onChange={(event) => onChange({ ...config, description: event.target.value })}
+        />
+      </Field>
+    </>
+  );
+}
+
+function WhatsappFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  return (
+    <>
+      <CredentialField config={config} onChange={onChange} hint="Nome da conexao (access token) do WhatsApp Cloud API." />
+      <TextField config={config} onChange={onChange} field="phoneNumberId" label="Phone Number ID" />
+      <TextField config={config} onChange={onChange} field="to" label="Numero de destino" hint="Formato internacional, sem simbolos." />
+      <Field label="Mensagem">
+        <Textarea
+          rows={3}
+          value={String(config.message ?? "")}
+          onChange={(event) => onChange({ ...config, message: event.target.value })}
+        />
+      </Field>
+    </>
+  );
+}
+
+function TeamsFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  return (
+    <>
+      <CredentialField config={config} onChange={onChange} hint="Nome da conexao (webhook URL) do Teams." />
+      <Field label="Mensagem">
+        <Textarea
+          rows={3}
+          value={String(config.message ?? "")}
+          onChange={(event) => onChange({ ...config, message: event.target.value })}
+        />
+      </Field>
+    </>
+  );
+}
+
 function SwitchFields({
   config,
   onChange,
@@ -372,6 +681,17 @@ const JSON_FALLBACK_TYPES = new Set([
   "communication.slack",
   "communication.discord",
   "communication.telegram",
+  "ai.chat",
+  "ai.classification",
+  "ai.translation",
+  "ai.summarization",
+  "ai.extraction",
+  "ai.vision",
+  "ai.ocr",
+  "ai.embeddings",
+  "ai.agent",
+  "knowledge.search",
+  "mcp.tool",
 ]);
 
 export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: ConfigPanelProps) {
@@ -417,6 +737,10 @@ export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: C
           </Field>
         )}
 
+        {node.data.nodeType === "trigger.cron" && (
+          <CronFields config={config} onChange={onChange} />
+        )}
+
         {node.data.nodeType === "api.httpRequest" && (
           <HttpRequestFields config={config} onChange={onChange} />
         )}
@@ -447,6 +771,28 @@ export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: C
 
         {node.data.nodeType === "logic.parallel" && (
           <NoConfigNote text="Sem configuracao — conecte ate 3 caminhos para rodarem em paralelo com o mesmo dado de entrada." />
+        )}
+
+        {node.data.nodeType === "integration.github" && (
+          <GithubFields config={config} onChange={onChange} />
+        )}
+        {node.data.nodeType === "integration.stripe" && (
+          <StripeFields config={config} onChange={onChange} />
+        )}
+        {node.data.nodeType === "integration.notion" && (
+          <NotionFields config={config} onChange={onChange} />
+        )}
+        {node.data.nodeType === "integration.googleDrive" && (
+          <GoogleDriveFields config={config} onChange={onChange} />
+        )}
+        {node.data.nodeType === "integration.linear" && (
+          <LinearFields config={config} onChange={onChange} />
+        )}
+        {node.data.nodeType === "integration.whatsapp" && (
+          <WhatsappFields config={config} onChange={onChange} />
+        )}
+        {node.data.nodeType === "integration.teams" && (
+          <TeamsFields config={config} onChange={onChange} />
         )}
 
         {JSON_FALLBACK_TYPES.has(node.data.nodeType) && (

@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto';
 import type { Prisma } from '@prisma/client';
 import type { WorkflowGraph } from '@workflow/shared';
 import { PrismaService } from '../prisma/prisma.service';
+import { SchedulerService } from '../scheduler/scheduler.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { workflowGraphSchema, EMPTY_GRAPH } from './graph.schema';
@@ -48,7 +49,10 @@ export function ensureWebhookId(graph: WorkflowGraph): {
 
 @Injectable()
 export class WorkflowsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scheduler: SchedulerService,
+  ) {}
 
   list(workspaceId: string) {
     return this.prisma.workflow.findMany({
@@ -97,6 +101,7 @@ export class WorkflowsService {
   async remove(workspaceId: string, id: string) {
     await this.findOne(workspaceId, id);
     await this.prisma.workflow.delete({ where: { id } });
+    await this.scheduler.removeSchedule(id);
   }
 
   async saveGraph(
@@ -122,7 +127,7 @@ export class WorkflowsService {
     const nextVersionNumber = (lastVersion?.versionNumber ?? 0) + 1;
     const { graph, webhookId } = ensureWebhookId(parsed.data);
 
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const version = await tx.workflowVersion.create({
         data: {
           workflowId: id,
@@ -137,5 +142,82 @@ export class WorkflowsService {
         include: { currentVersion: true },
       });
     });
+    await this.scheduler.syncWorkflowSchedule(id, workspaceId, graph);
+    return updated;
+  }
+
+  async listVersions(workspaceId: string, id: string) {
+    const workflow = await this.findOne(workspaceId, id);
+    const versions = await this.prisma.workflowVersion.findMany({
+      where: { workflowId: id },
+      orderBy: { versionNumber: 'desc' },
+      include: { createdBy: { select: { name: true } } },
+    });
+    return versions.map((version) => ({
+      id: version.id,
+      versionNumber: version.versionNumber,
+      createdAt: version.createdAt,
+      createdByName: version.createdBy.name,
+      isCurrent: version.id === workflow.currentVersionId,
+    }));
+  }
+
+  async getVersion(workspaceId: string, id: string, versionId: string) {
+    await this.findOne(workspaceId, id);
+    const version = await this.prisma.workflowVersion.findFirst({
+      where: { id: versionId, workflowId: id },
+      include: { createdBy: { select: { name: true } } },
+    });
+    if (!version) {
+      throw new NotFoundException('Versao nao encontrada.');
+    }
+    return version;
+  }
+
+  /**
+   * "Publicar"/rollback sao a mesma operacao: clona o graph da versao alvo
+   * como uma NOVA versao (preserva historico linear e auditavel, como um
+   * git revert) e aponta o workflow para ela.
+   */
+  async rollback(
+    workspaceId: string,
+    id: string,
+    userId: string,
+    versionId: string,
+  ) {
+    const workflow = await this.findOne(workspaceId, id);
+    const target = await this.prisma.workflowVersion.findFirst({
+      where: { id: versionId, workflowId: id },
+    });
+    if (!target) {
+      throw new NotFoundException('Versao nao encontrada.');
+    }
+
+    const lastVersion = await this.prisma.workflowVersion.findFirst({
+      where: { workflowId: id },
+      orderBy: { versionNumber: 'desc' },
+    });
+    const nextVersionNumber = (lastVersion?.versionNumber ?? 0) + 1;
+    const { graph, webhookId } = ensureWebhookId(
+      target.graph as unknown as WorkflowGraph,
+    );
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const version = await tx.workflowVersion.create({
+        data: {
+          workflowId: id,
+          versionNumber: nextVersionNumber,
+          graph: toJsonInput(graph),
+          createdById: userId,
+        },
+      });
+      return tx.workflow.update({
+        where: { id: workflow.id },
+        data: { currentVersionId: version.id, webhookId },
+        include: { currentVersion: true },
+      });
+    });
+    await this.scheduler.syncWorkflowSchedule(id, workspaceId, graph);
+    return updated;
   }
 }

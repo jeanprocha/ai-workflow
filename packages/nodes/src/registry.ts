@@ -1,6 +1,7 @@
 import type { NodeDefinition } from "./types.js";
 import { manualTriggerNode } from "./definitions/manual-trigger.js";
 import { webhookTriggerNode } from "./definitions/webhook-trigger.js";
+import { cronTriggerNode } from "./definitions/cron-trigger.js";
 import { httpRequestNode } from "./definitions/http-request.js";
 import { ifNode } from "./definitions/if.js";
 import { setVariablesNode } from "./definitions/set-variables.js";
@@ -34,10 +35,18 @@ import { aiEmbeddingsNode } from "./definitions/ai-embeddings.js";
 import { agentNode } from "./definitions/agent.js";
 import { knowledgeSearchNode } from "./definitions/knowledge-search.js";
 import { mcpToolNode } from "./definitions/mcp-tool.js";
+import { githubCreateIssueNode } from "./definitions/github-create-issue.js";
+import { stripeCreateCustomerNode } from "./definitions/stripe-create-customer.js";
+import { notionCreatePageNode } from "./definitions/notion-create-page.js";
+import { googleDriveListFilesNode } from "./definitions/google-drive-list-files.js";
+import { linearCreateIssueNode } from "./definitions/linear-create-issue.js";
+import { whatsappSendMessageNode } from "./definitions/whatsapp-send-message.js";
+import { teamsMessageNode } from "./definitions/teams-message.js";
 
 export const NODE_DEFINITIONS: readonly NodeDefinition<never>[] = [
   manualTriggerNode,
   webhookTriggerNode,
+  cronTriggerNode,
   httpRequestNode,
   ifNode,
   switchNode,
@@ -71,6 +80,13 @@ export const NODE_DEFINITIONS: readonly NodeDefinition<never>[] = [
   agentNode,
   knowledgeSearchNode,
   mcpToolNode,
+  githubCreateIssueNode,
+  stripeCreateCustomerNode,
+  notionCreatePageNode,
+  googleDriveListFilesNode,
+  linearCreateIssueNode,
+  whatsappSendMessageNode,
+  teamsMessageNode,
 ] as unknown as NodeDefinition<never>[];
 
 const registry = new Map<string, NodeDefinition<never>>(

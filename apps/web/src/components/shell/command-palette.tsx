@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Workflow, Boxes, ListChecks, LayoutTemplate, Bot } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   CommandDialog,
@@ -12,48 +13,148 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { NAV_ITEMS } from "@/lib/nav";
+import { useGlobalSearch } from "@/hooks/use-search";
 
 export interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+function useDebouncedValue(value: string, delayMs: number): string {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const router = useRouter();
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query, 250);
+  const { data: results, isFetching } = useGlobalSearch(debouncedQuery);
+
+  function handleOpenChange(next: boolean) {
+    if (!next) setQuery("");
+    onOpenChange(next);
+  }
 
   function go(href: string) {
-    onOpenChange(false);
+    handleOpenChange(false);
     router.push(href);
   }
+
+  const hasQuery = debouncedQuery.trim().length > 0;
+  const hasResults =
+    !!results &&
+    (results.workflows.length > 0 ||
+      results.nodes.length > 0 ||
+      results.executions.length > 0 ||
+      results.templates.length > 0 ||
+      results.agents.length > 0);
 
   return (
     <CommandDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       title="Busca global"
       description="Pesquise fluxos, nodes, execucoes, templates e agentes"
     >
-      <CommandInput placeholder="Pesquisar fluxos, nodes, execucoes, templates, agentes..." />
+      <CommandInput
+        value={query}
+        onValueChange={setQuery}
+        placeholder="Pesquisar fluxos, nodes, execucoes, templates, agentes..."
+      />
       <CommandList>
-        <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
-        <CommandGroup heading="Acoes rapidas">
-          <CommandItem onSelect={() => go("/flows/new")}>
-            <Plus className="h-4 w-4" strokeWidth={1.5} />
-            Criar fluxo
-          </CommandItem>
-        </CommandGroup>
-        <CommandSeparator />
-        <CommandGroup heading="Navegar">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <CommandItem key={item.href} onSelect={() => go(item.href)}>
-                <Icon className="h-4 w-4" strokeWidth={1.5} />
-                {item.label}
+        {hasQuery && !isFetching && !hasResults && (
+          <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+        )}
+
+        {results && results.workflows.length > 0 && (
+          <CommandGroup heading="Fluxos">
+            {results.workflows.map((workflow) => (
+              <CommandItem key={workflow.id} onSelect={() => go(`/flows/${workflow.id}`)}>
+                <Workflow className="h-4 w-4" strokeWidth={1.5} />
+                {workflow.name}
               </CommandItem>
-            );
-          })}
-        </CommandGroup>
+            ))}
+          </CommandGroup>
+        )}
+
+        {results && results.nodes.length > 0 && (
+          <CommandGroup heading="Nodes">
+            {results.nodes.map((node) => (
+              <CommandItem
+                key={`${node.workflowId}-${node.nodeId}`}
+                onSelect={() => go(`/flows/${node.workflowId}`)}
+              >
+                <Boxes className="h-4 w-4" strokeWidth={1.5} />
+                {node.nodeLabel}
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {node.workflowName}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {results && results.executions.length > 0 && (
+          <CommandGroup heading="Execucoes">
+            {results.executions.map((execution) => (
+              <CommandItem key={execution.id} onSelect={() => go(`/executions/${execution.id}`)}>
+                <ListChecks className="h-4 w-4" strokeWidth={1.5} />
+                {execution.workflowName}
+                <span className="ml-auto text-xs text-muted-foreground">{execution.status}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {results && results.templates.length > 0 && (
+          <CommandGroup heading="Templates">
+            {results.templates.map((template) => (
+              <CommandItem key={template.id} onSelect={() => go("/templates")}>
+                <LayoutTemplate className="h-4 w-4" strokeWidth={1.5} />
+                {template.name}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {results && results.agents.length > 0 && (
+          <CommandGroup heading="Agentes">
+            {results.agents.map((agent) => (
+              <CommandItem key={agent.id} onSelect={() => go("/agents")}>
+                <Bot className="h-4 w-4" strokeWidth={1.5} />
+                {agent.name}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {!hasQuery && (
+          <>
+            <CommandGroup heading="Acoes rapidas">
+              <CommandItem onSelect={() => go("/flows/new")}>
+                <Plus className="h-4 w-4" strokeWidth={1.5} />
+                Criar fluxo
+              </CommandItem>
+            </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup heading="Navegar">
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <CommandItem key={item.href} onSelect={() => go(item.href)}>
+                    <Icon className="h-4 w-4" strokeWidth={1.5} />
+                    {item.label}
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </>
+        )}
       </CommandList>
     </CommandDialog>
   );

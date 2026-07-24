@@ -15,12 +15,14 @@ import {
 } from "@/components/ui/dialog";
 import { useRunWorkflow } from "@/hooks/use-workflows";
 import { ApiError } from "@/lib/api-client";
+import { VersionHistoryDialog } from "./version-history-dialog";
 
 export interface EditorToolbarProps {
   workflowId: string;
   name: string;
   saveState: "saved" | "saving" | "dirty";
   onRunStarted: (executionId: string) => void;
+  currentVersionId: string | null;
 }
 
 const SAVE_LABEL: Record<EditorToolbarProps["saveState"], string> = {
@@ -29,7 +31,13 @@ const SAVE_LABEL: Record<EditorToolbarProps["saveState"], string> = {
   dirty: "Alteracoes nao salvas",
 };
 
-export function EditorToolbar({ workflowId, name, saveState, onRunStarted }: EditorToolbarProps) {
+export function EditorToolbar({
+  workflowId,
+  name,
+  saveState,
+  onRunStarted,
+  currentVersionId,
+}: EditorToolbarProps) {
   const [runOpen, setRunOpen] = useState(false);
   const [payload, setPayload] = useState("{}");
   const runWorkflow = useRunWorkflow(workflowId);
@@ -63,10 +71,15 @@ export function EditorToolbar({ workflowId, name, saveState, onRunStarted }: Edi
         <span className="text-xs text-muted-foreground">{SAVE_LABEL[saveState]}</span>
       </div>
 
-      <Button onClick={() => setRunOpen(true)}>
-        <Play className="h-4 w-4" strokeWidth={1.5} />
-        Executar
-      </Button>
+      <div className="flex items-center gap-2">
+        {currentVersionId && (
+          <VersionHistoryDialog workflowId={workflowId} currentVersionId={currentVersionId} />
+        )}
+        <Button onClick={() => setRunOpen(true)}>
+          <Play className="h-4 w-4" strokeWidth={1.5} />
+          Executar
+        </Button>
+      </div>
 
       <Dialog open={runOpen} onOpenChange={setRunOpen}>
         <DialogContent>

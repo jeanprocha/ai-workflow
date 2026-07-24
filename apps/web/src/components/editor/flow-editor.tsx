@@ -217,6 +217,7 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
         name={workflow?.name ?? "Carregando..."}
         saveState={saveState}
         onRunStarted={setExecutionId}
+        currentVersionId={workflow?.currentVersion?.id ?? null}
       />
       <div className="flex flex-1 overflow-hidden">
         <NodePalette />

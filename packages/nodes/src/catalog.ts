@@ -10,6 +10,7 @@
 import type { NodeCategory } from "@workflow/shared";
 import { manualTriggerNode } from "./definitions/manual-trigger.js";
 import { webhookTriggerNode } from "./definitions/webhook-trigger.js";
+import { cronTriggerNode } from "./definitions/cron-trigger.js";
 import { httpRequestNode } from "./definitions/http-request.js";
 import { ifNode } from "./definitions/if.js";
 import { switchNode } from "./definitions/switch.js";
@@ -43,6 +44,13 @@ import { aiEmbeddingsMeta } from "./definitions/ai-embeddings.meta.js";
 import { agentNode } from "./definitions/agent.js";
 import { knowledgeSearchNode } from "./definitions/knowledge-search.js";
 import { mcpToolNode } from "./definitions/mcp-tool.js";
+import { githubCreateIssueNode } from "./definitions/github-create-issue.js";
+import { stripeCreateCustomerNode } from "./definitions/stripe-create-customer.js";
+import { notionCreatePageNode } from "./definitions/notion-create-page.js";
+import { googleDriveListFilesMeta } from "./definitions/google-drive-list-files.meta.js";
+import { linearCreateIssueNode } from "./definitions/linear-create-issue.js";
+import { whatsappSendMessageNode } from "./definitions/whatsapp-send-message.js";
+import { teamsMessageNode } from "./definitions/teams-message.js";
 
 export interface NodeCatalogEntry {
   type: string;
@@ -77,6 +85,7 @@ function toEntry(definition: {
 export const NODE_CATALOG: readonly NodeCatalogEntry[] = [
   manualTriggerNode,
   webhookTriggerNode,
+  cronTriggerNode,
   httpRequestNode,
   ifNode,
   switchNode,
@@ -110,6 +119,13 @@ export const NODE_CATALOG: readonly NodeCatalogEntry[] = [
   agentNode,
   knowledgeSearchNode,
   mcpToolNode,
+  githubCreateIssueNode,
+  stripeCreateCustomerNode,
+  notionCreatePageNode,
+  googleDriveListFilesMeta,
+  linearCreateIssueNode,
+  whatsappSendMessageNode,
+  teamsMessageNode,
 ].map(toEntry);
 
 export function getCatalogEntry(type: string): NodeCatalogEntry | undefined {

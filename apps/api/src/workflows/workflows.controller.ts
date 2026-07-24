@@ -91,4 +91,36 @@ export class WorkflowsController {
       dto.input ?? {},
     );
   }
+
+  @Get(':id/versions')
+  listVersions(
+    @CurrentWorkspace() workspaceId: string,
+    @Param('id') id: string,
+  ) {
+    return this.workflowsService.listVersions(workspaceId, id);
+  }
+
+  @Get(':id/versions/:versionId')
+  getVersion(
+    @CurrentWorkspace() workspaceId: string,
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.workflowsService.getVersion(workspaceId, id, versionId);
+  }
+
+  @Post(':id/versions/:versionId/rollback')
+  rollback(
+    @CurrentWorkspace() workspaceId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.workflowsService.rollback(
+      workspaceId,
+      id,
+      user.userId,
+      versionId,
+    );
+  }
 }

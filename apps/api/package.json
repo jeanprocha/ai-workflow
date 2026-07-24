@@ -42,6 +42,7 @@
     "bullmq": "^5.81.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "cron-parser": "^5.6.2",
     "ioredis": "^5.11.1",
     "multer": "^2.2.0",
     "passport": "^0.7.0",

@@ -18,6 +18,8 @@ import { TemplatesModule } from './templates/templates.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { McpModule } from './mcp/mcp.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { McpModule } from './mcp/mcp.module';
     AnalyticsModule,
     KnowledgeModule,
     McpModule,
+    SchedulerModule,
+    SearchModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
