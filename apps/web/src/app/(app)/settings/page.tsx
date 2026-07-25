@@ -33,9 +33,27 @@ import {
 } from "@/hooks/use-credentials";
 import { useCreateVariable, useDeleteVariable, useVariables } from "@/hooks/use-variables";
 import { ApiError } from "@/lib/api-client";
+import { useDictionary, useLocale, setLocale, type Locale } from "@/lib/i18n";
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback;
+}
+
+function LanguageSelect() {
+  const locale = useLocale();
+  const t = useDictionary();
+
+  return (
+    <select
+      aria-label={t.settings.appearance.languageLabel}
+      value={locale}
+      onChange={(event) => setLocale(event.target.value as Locale)}
+      className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+    >
+      <option value="pt">{t.settings.appearance.languagePt}</option>
+      <option value="en">{t.settings.appearance.languageEn}</option>
+    </select>
+  );
 }
 
 function SettingsSection({
@@ -57,6 +75,7 @@ function SettingsSection({
 }
 
 function ConnectionsSection() {
+  const t = useDictionary();
   const { data: credentials, isLoading } = useCredentials();
   const createCredential = useCreateCredential();
   const deleteCredential = useDeleteCredential();
@@ -70,13 +89,13 @@ function ConnectionsSection() {
     if (!provider.trim() || !name.trim() || !value.trim()) return;
     try {
       await createCredential.mutateAsync({ provider: provider.trim(), name: name.trim(), value });
-      toast.success("Conexao adicionada.");
+      toast.success(t.settings.connections.createdToast);
       setProvider("");
       setName("");
       setValue("");
       setOpen(false);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel adicionar a conexao."));
+      toast.error(errorMessage(error, t.settings.connections.createErrorFallback));
     }
   }
 
@@ -84,9 +103,9 @@ function ConnectionsSection() {
     if (!deleteId) return;
     try {
       await deleteCredential.mutateAsync(deleteId);
-      toast.success("Conexao removida.");
+      toast.success(t.settings.connections.removedToast);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel remover a conexao."));
+      toast.error(errorMessage(error, t.settings.connections.removeErrorFallback));
     } finally {
       setDeleteId(null);
     }
@@ -98,11 +117,11 @@ function ConnectionsSection() {
     <>
       {!credentials?.length ? (
         <EmptyState
-          title="Nenhuma conexao ainda"
-          description="Adicione uma credencial para usar em fluxos e agentes."
+          title={t.settings.connections.emptyTitle}
+          description={t.settings.connections.emptyDescription}
           action={
             <Button size="sm" onClick={() => setOpen(true)}>
-              Adicionar conexao
+              {t.settings.connections.add}
             </Button>
           }
         />
@@ -129,7 +148,7 @@ function ConnectionsSection() {
             </div>
           ))}
           <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-            Adicionar conexao
+            {t.settings.connections.add}
           </Button>
         </div>
       )}
@@ -137,29 +156,29 @@ function ConnectionsSection() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Adicionar conexao</DialogTitle>
+            <DialogTitle>{t.settings.connections.dialogTitle}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="cred-provider">Provider</Label>
+              <Label htmlFor="cred-provider">{t.settings.connections.providerLabel}</Label>
               <Input
                 id="cred-provider"
-                placeholder="openai, anthropic, stripe..."
+                placeholder={t.settings.connections.providerPlaceholder}
                 value={provider}
                 onChange={(event) => setProvider(event.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cred-name">Nome</Label>
+              <Label htmlFor="cred-name">{t.settings.connections.nameLabel}</Label>
               <Input
                 id="cred-name"
-                placeholder="Ex: OpenAI Producao"
+                placeholder={t.settings.connections.namePlaceholder}
                 value={name}
                 onChange={(event) => setName(event.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cred-value">Chave / valor</Label>
+              <Label htmlFor="cred-value">{t.settings.connections.valueLabel}</Label>
               <Input
                 id="cred-value"
                 type="password"
@@ -170,10 +189,10 @@ function ConnectionsSection() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
+              {t.common.cancel}
             </Button>
             <Button onClick={onCreate} disabled={createCredential.isPending}>
-              {createCredential.isPending ? "Adicionando..." : "Adicionar"}
+              {createCredential.isPending ? t.common.adding : t.common.add}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -182,18 +201,18 @@ function ConnectionsSection() {
       <AlertDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover esta conexao?</AlertDialogTitle>
+            <AlertDialogTitle>{t.settings.connections.removeConfirmTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Fluxos e agentes que dependem dela deixarao de funcionar.
+              {t.settings.connections.removeConfirmDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-danger/10 text-danger hover:bg-danger/20"
               onClick={onDelete}
             >
-              Remover
+              {t.common.remove}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -203,6 +222,7 @@ function ConnectionsSection() {
 }
 
 function VariablesSection() {
+  const t = useDictionary();
   const { data: variables, isLoading } = useVariables();
   const createVariable = useCreateVariable();
   const deleteVariable = useDeleteVariable();
@@ -216,13 +236,13 @@ function VariablesSection() {
     if (!key.trim() || !value.trim()) return;
     try {
       await createVariable.mutateAsync({ key: key.trim(), value, isSecret });
-      toast.success("Variavel criada.");
+      toast.success(t.settings.variables.createdToast);
       setKey("");
       setValue("");
       setIsSecret(false);
       setOpen(false);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel criar a variavel."));
+      toast.error(errorMessage(error, t.settings.variables.createErrorFallback));
     }
   }
 
@@ -230,9 +250,9 @@ function VariablesSection() {
     if (!deleteId) return;
     try {
       await deleteVariable.mutateAsync(deleteId);
-      toast.success("Variavel removida.");
+      toast.success(t.settings.variables.removedToast);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel remover a variavel."));
+      toast.error(errorMessage(error, t.settings.variables.removeErrorFallback));
     } finally {
       setDeleteId(null);
     }
@@ -244,11 +264,11 @@ function VariablesSection() {
     <>
       {!variables?.length ? (
         <EmptyState
-          title="Nenhuma variavel ainda"
-          description="Crie uma variavel para reutilizar em qualquer fluxo."
+          title={t.settings.variables.emptyTitle}
+          description={t.settings.variables.emptyDescription}
           action={
             <Button size="sm" onClick={() => setOpen(true)}>
-              Adicionar variavel
+              {t.settings.variables.add}
             </Button>
           }
         />
@@ -271,7 +291,7 @@ function VariablesSection() {
             </div>
           ))}
           <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-            Adicionar variavel
+            {t.settings.variables.add}
           </Button>
         </div>
       )}
@@ -279,20 +299,20 @@ function VariablesSection() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Adicionar variavel</DialogTitle>
+            <DialogTitle>{t.settings.variables.dialogTitle}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="var-key">Chave</Label>
+              <Label htmlFor="var-key">{t.settings.variables.keyLabel}</Label>
               <Input
                 id="var-key"
-                placeholder="API_BASE_URL"
+                placeholder={t.settings.variables.keyPlaceholder}
                 value={key}
                 onChange={(event) => setKey(event.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="var-value">Valor</Label>
+              <Label htmlFor="var-value">{t.settings.variables.valueLabel}</Label>
               <Input
                 id="var-value"
                 type={isSecret ? "password" : "text"}
@@ -307,15 +327,15 @@ function VariablesSection() {
                 onChange={(event) => setIsSecret(event.target.checked)}
                 className="h-4 w-4 rounded border-border-strong"
               />
-              Tratar como secret (nunca exibido depois de salvo)
+              {t.settings.variables.secretCheckbox}
             </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
+              {t.common.cancel}
             </Button>
             <Button onClick={onCreate} disabled={createVariable.isPending}>
-              {createVariable.isPending ? "Adicionando..." : "Adicionar"}
+              {createVariable.isPending ? t.common.adding : t.common.add}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -324,18 +344,18 @@ function VariablesSection() {
       <AlertDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover esta variavel?</AlertDialogTitle>
+            <AlertDialogTitle>{t.settings.variables.removeConfirmTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Fluxos que referenciam esta variavel vao falhar ate ela ser recriada.
+              {t.settings.variables.removeConfirmDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-danger/10 text-danger hover:bg-danger/20"
               onClick={onDelete}
             >
-              Remover
+              {t.common.remove}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -345,34 +365,40 @@ function VariablesSection() {
 }
 
 export default function SettingsPage() {
+  const t = useDictionary();
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-foreground">Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Conexoes, variaveis, seguranca e preferencias do workspace.
-        </p>
+        <h1 className="text-lg font-semibold text-foreground">{t.settings.title}</h1>
+        <p className="text-sm text-muted-foreground">{t.settings.description}</p>
       </div>
 
-      <SettingsSection title="Aparencia" description="Escolha entre tema escuro ou claro.">
-        <div className="flex items-center gap-3">
+      <SettingsSection
+        title={t.settings.appearance.title}
+        description={t.settings.appearance.themeDescription}
+      >
+        <div className="flex flex-wrap items-center gap-3">
           <ThemeToggle />
           <span className="text-sm text-muted-foreground">
-            O tema escuro e o padrao da plataforma.
+            {t.settings.appearance.themeDefaultNote}
           </span>
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <LanguageSelect />
         </div>
       </SettingsSection>
 
       <SettingsSection
-        title="Conexoes"
-        description="Credenciais de integracoes e providers de IA, sempre criptografadas."
+        title={t.settings.connections.title}
+        description={t.settings.connections.description}
       >
         <ConnectionsSection />
       </SettingsSection>
 
       <SettingsSection
-        title="Variaveis"
-        description="Variaveis globais, de ambiente e de runtime do workspace."
+        title={t.settings.variables.title}
+        description={t.settings.variables.description}
       >
         <VariablesSection />
       </SettingsSection>

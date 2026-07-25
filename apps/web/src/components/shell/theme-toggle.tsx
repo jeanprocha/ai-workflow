@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useDictionary } from "@/lib/i18n";
 
 type Theme = "dark" | "light";
 
@@ -24,6 +25,7 @@ function getServerSnapshot(): Theme {
 
 export function ThemeToggle() {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const t = useDictionary();
 
   function toggle() {
     const next: Theme = theme === "dark" ? "light" : "dark";
@@ -41,9 +43,9 @@ export function ThemeToggle() {
         ) : (
           <Moon className="h-4 w-4" strokeWidth={1.5} />
         )}
-        <span className="sr-only">Alternar tema</span>
+        <span className="sr-only">{t.shell.toggleTheme}</span>
       </TooltipTrigger>
-      <TooltipContent>Alternar tema</TooltipContent>
+      <TooltipContent>{t.shell.toggleTheme}</TooltipContent>
     </Tooltip>
   );
 }

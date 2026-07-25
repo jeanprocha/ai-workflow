@@ -30,6 +30,12 @@ const THEME_INIT_SCRIPT = `
   } catch (e) {
     document.documentElement.classList.add("dark");
   }
+  try {
+    var locale = localStorage.getItem("wf.locale");
+    document.documentElement.lang = locale === "en" ? "en-US" : "pt-BR";
+  } catch (e) {
+    document.documentElement.lang = "pt-BR";
+  }
 })();
 `;
 

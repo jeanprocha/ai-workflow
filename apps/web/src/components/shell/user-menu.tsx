@@ -14,10 +14,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { clearSession } from "@/lib/auth-storage";
+import { useDictionary } from "@/lib/i18n";
 
 export function UserMenu() {
   const router = useRouter();
   const { data: user } = useCurrentUser();
+  const t = useDictionary();
   const initial = user?.name?.[0]?.toUpperCase() ?? "?";
 
   function onLogout() {
@@ -41,13 +43,13 @@ export function UserMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>{user?.name ?? "Conta"}</DropdownMenuLabel>
+          <DropdownMenuLabel>{user?.name ?? t.shell.account}</DropdownMenuLabel>
           <p className="px-1.5 pb-1.5 text-xs text-muted-foreground">{user?.email}</p>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onLogout} variant="destructive">
           <LogOut className="h-4 w-4" strokeWidth={1.5} />
-          Sair
+          {t.shell.logout}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

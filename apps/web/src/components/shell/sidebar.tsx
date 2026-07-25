@@ -8,11 +8,13 @@ import { Pulse } from "@workflow/ui";
 import { NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { useHasLiveExecution } from "@/hooks/use-executions";
+import { useDictionary } from "@/lib/i18n";
 
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const hasLiveExecution = useHasLiveExecution();
+  const t = useDictionary();
 
   return (
     <aside
@@ -28,7 +30,7 @@ export function Sidebar() {
         </span>
         {!collapsed && (
           <span className="text-sm font-semibold tracking-tight text-foreground">
-            Workflow AI
+            {t.nav.brand}
           </span>
         )}
       </div>
@@ -37,11 +39,12 @@ export function Sidebar() {
         {NAV_ITEMS.map((item) => {
           const active = pathname.startsWith(item.href);
           const Icon = item.icon;
+          const label = t.nav[item.key];
           return (
             <Link
               key={item.href}
               href={item.href}
-              title={collapsed ? item.label : undefined}
+              title={collapsed ? label : undefined}
               className={cn(
                 "relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors",
                 active
@@ -54,7 +57,7 @@ export function Sidebar() {
                 <span className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary" />
               )}
               <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-              {!collapsed && <span className="truncate">{item.label}</span>}
+              {!collapsed && <span className="truncate">{label}</span>}
               {!collapsed && item.showLiveIndicator && hasLiveExecution && (
                 <Pulse variant="dot" size={6} className="ml-auto" />
               )}
@@ -77,7 +80,7 @@ export function Sidebar() {
           ) : (
             <PanelLeftClose className="h-4 w-4" strokeWidth={1.5} />
           )}
-          {!collapsed && <span>Recolher</span>}
+          {!collapsed && <span>{t.shell.collapse}</span>}
         </button>
       </div>
     </aside>

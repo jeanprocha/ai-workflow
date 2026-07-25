@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { register } from "@/lib/auth";
 import { ApiError } from "@/lib/api-client";
+import { useDictionary } from "@/lib/i18n";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const t = useDictionary();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,7 +28,7 @@ export default function RegisterPage() {
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Nao foi possivel criar a conta.");
+      setError(err instanceof ApiError ? err.message : t.auth.register.genericError);
     } finally {
       setLoading(false);
     }
@@ -38,14 +40,14 @@ export default function RegisterPage() {
       className="space-y-4 rounded-lg border border-border bg-card p-6"
     >
       <div>
-        <h1 className="text-md font-medium text-foreground">Criar conta</h1>
+        <h1 className="text-md font-medium text-foreground">{t.auth.register.heading}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Comece a construir automacoes com IA.
+          {t.auth.register.subheading}
         </p>
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="name">Nome</Label>
+        <Label htmlFor="name">{t.auth.register.nameLabel}</Label>
         <Input
           id="name"
           autoComplete="name"
@@ -56,7 +58,7 @@ export default function RegisterPage() {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t.auth.register.emailLabel}</Label>
         <Input
           id="email"
           type="email"
@@ -68,7 +70,7 @@ export default function RegisterPage() {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="password">Senha</Label>
+        <Label htmlFor="password">{t.auth.register.passwordLabel}</Label>
         <Input
           id="password"
           type="password"
@@ -78,19 +80,19 @@ export default function RegisterPage() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
-        <p className="text-xs text-muted-foreground">Minimo de 8 caracteres.</p>
+        <p className="text-xs text-muted-foreground">{t.auth.register.passwordHint}</p>
       </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}
 
       <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Criando conta..." : "Criar conta"}
+        {loading ? t.auth.register.submitting : t.auth.register.submit}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">
-        Ja tem conta?{" "}
+        {t.auth.register.hasAccount}{" "}
         <Link href="/login" className="text-primary hover:underline">
-          Entrar
+          {t.auth.register.signIn}
         </Link>
       </p>
     </form>

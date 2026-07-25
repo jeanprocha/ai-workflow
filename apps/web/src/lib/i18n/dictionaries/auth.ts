@@ -1,0 +1,53 @@
+export const pt = {
+  login: {
+    heading: "Entrar",
+    subheading: "Acesse sua conta do Workflow AI.",
+    emailLabel: "Email",
+    passwordLabel: "Senha",
+    submit: "Entrar",
+    submitting: "Entrando...",
+    noAccount: "Nao tem conta?",
+    createAccount: "Criar conta",
+    genericError: "Nao foi possivel entrar.",
+  },
+  register: {
+    heading: "Criar conta",
+    subheading: "Comece a construir automacoes com IA.",
+    nameLabel: "Nome",
+    emailLabel: "Email",
+    passwordLabel: "Senha",
+    passwordHint: "Minimo de 8 caracteres.",
+    submit: "Criar conta",
+    submitting: "Criando conta...",
+    hasAccount: "Ja tem conta?",
+    signIn: "Entrar",
+    genericError: "Nao foi possivel criar a conta.",
+  },
+};
+
+export const en = {
+  login: {
+    heading: "Sign in",
+    subheading: "Access your Workflow AI account.",
+    emailLabel: "Email",
+    passwordLabel: "Password",
+    submit: "Sign in",
+    submitting: "Signing in...",
+    noAccount: "Don't have an account?",
+    createAccount: "Create account",
+    genericError: "Could not sign in.",
+  },
+  register: {
+    heading: "Create account",
+    subheading: "Start building automations with AI.",
+    nameLabel: "Name",
+    emailLabel: "Email",
+    passwordLabel: "Password",
+    passwordHint: "Minimum 8 characters.",
+    submit: "Create account",
+    submitting: "Creating account...",
+    hasAccount: "Already have an account?",
+    signIn: "Sign in",
+    genericError: "Could not create the account.",
+  },
+} satisfies typeof pt;

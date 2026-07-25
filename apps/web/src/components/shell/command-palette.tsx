@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/command";
 import { NAV_ITEMS } from "@/lib/nav";
 import { useGlobalSearch } from "@/hooks/use-search";
+import { useDictionary } from "@/lib/i18n";
 
 export interface CommandPaletteProps {
   open: boolean;
@@ -34,6 +35,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 250);
   const { data: results, isFetching } = useGlobalSearch(debouncedQuery);
+  const t = useDictionary();
 
   function handleOpenChange(next: boolean) {
     if (!next) setQuery("");
@@ -58,21 +60,21 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     <CommandDialog
       open={open}
       onOpenChange={handleOpenChange}
-      title="Busca global"
-      description="Pesquise fluxos, nodes, execucoes, templates e agentes"
+      title={t.shell.commandPalette.dialogTitle}
+      description={t.shell.commandPalette.dialogDescription}
     >
       <CommandInput
         value={query}
         onValueChange={setQuery}
-        placeholder="Pesquisar fluxos, nodes, execucoes, templates, agentes..."
+        placeholder={t.shell.commandPalette.inputPlaceholder}
       />
       <CommandList>
         {hasQuery && !isFetching && !hasResults && (
-          <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+          <CommandEmpty>{t.shell.commandPalette.empty}</CommandEmpty>
         )}
 
         {results && results.workflows.length > 0 && (
-          <CommandGroup heading="Fluxos">
+          <CommandGroup heading={t.shell.commandPalette.groupFlows}>
             {results.workflows.map((workflow) => (
               <CommandItem key={workflow.id} onSelect={() => go(`/flows/${workflow.id}`)}>
                 <Workflow className="h-4 w-4" strokeWidth={1.5} />
@@ -83,7 +85,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         )}
 
         {results && results.nodes.length > 0 && (
-          <CommandGroup heading="Nodes">
+          <CommandGroup heading={t.shell.commandPalette.groupNodes}>
             {results.nodes.map((node) => (
               <CommandItem
                 key={`${node.workflowId}-${node.nodeId}`}
@@ -100,7 +102,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         )}
 
         {results && results.executions.length > 0 && (
-          <CommandGroup heading="Execucoes">
+          <CommandGroup heading={t.shell.commandPalette.groupExecutions}>
             {results.executions.map((execution) => (
               <CommandItem key={execution.id} onSelect={() => go(`/executions/${execution.id}`)}>
                 <ListChecks className="h-4 w-4" strokeWidth={1.5} />
@@ -112,7 +114,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         )}
 
         {results && results.templates.length > 0 && (
-          <CommandGroup heading="Templates">
+          <CommandGroup heading={t.shell.commandPalette.groupTemplates}>
             {results.templates.map((template) => (
               <CommandItem key={template.id} onSelect={() => go("/templates")}>
                 <LayoutTemplate className="h-4 w-4" strokeWidth={1.5} />
@@ -123,7 +125,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         )}
 
         {results && results.agents.length > 0 && (
-          <CommandGroup heading="Agentes">
+          <CommandGroup heading={t.shell.commandPalette.groupAgents}>
             {results.agents.map((agent) => (
               <CommandItem key={agent.id} onSelect={() => go("/agents")}>
                 <Bot className="h-4 w-4" strokeWidth={1.5} />
@@ -135,20 +137,20 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
         {!hasQuery && (
           <>
-            <CommandGroup heading="Acoes rapidas">
+            <CommandGroup heading={t.shell.commandPalette.quickActions}>
               <CommandItem onSelect={() => go("/flows/new")}>
                 <Plus className="h-4 w-4" strokeWidth={1.5} />
-                Criar fluxo
+                {t.shell.commandPalette.createFlow}
               </CommandItem>
             </CommandGroup>
             <CommandSeparator />
-            <CommandGroup heading="Navegar">
+            <CommandGroup heading={t.shell.commandPalette.navigate}>
               {NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
                 return (
                   <CommandItem key={item.href} onSelect={() => go(item.href)}>
                     <Icon className="h-4 w-4" strokeWidth={1.5} />
-                    {item.label}
+                    {t.nav[item.key]}
                   </CommandItem>
                 );
               })}
