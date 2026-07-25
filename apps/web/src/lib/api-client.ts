@@ -47,10 +47,16 @@ export interface ApiFetchOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   /** Inclui o header x-workspace-id (padrao: true). */
   withWorkspace?: boolean;
+  /**
+   * Desliga o fluxo de refresh/redirect automatico em 401 (padrao: true).
+   * Usado por /auth/login e /auth/register: la, 401 significa credenciais
+   * erradas, nao sessao expirada — nao deve limpar sessao nem redirecionar.
+   */
+  handleAuthErrors?: boolean;
 }
 
 export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
-  const { body, withWorkspace = true, headers, ...rest } = options;
+  const { body, withWorkspace = true, handleAuthErrors = true, headers, ...rest } = options;
 
   async function doFetch(): Promise<Response> {
     const accessToken = getAccessToken();
@@ -71,8 +77,8 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 
   let response = await doFetch();
 
-  if (response.status === 401 && getRefreshToken()) {
-    const refreshed = await tryRefresh();
+  if (response.status === 401 && handleAuthErrors) {
+    const refreshed = getRefreshToken() ? await tryRefresh() : false;
     if (refreshed) {
       response = await doFetch();
     } else {

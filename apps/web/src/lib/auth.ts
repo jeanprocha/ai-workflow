@@ -19,6 +19,7 @@ export async function login(email: string, password: string) {
     method: "POST",
     body: { email, password },
     withWorkspace: false,
+    handleAuthErrors: false,
   });
   await bootstrapSession(tokens);
 }
@@ -28,6 +29,7 @@ export async function register(name: string, email: string, password: string) {
     method: "POST",
     body: { name, email, password },
     withWorkspace: false,
+    handleAuthErrors: false,
   });
   await bootstrapSession(tokens);
 }
