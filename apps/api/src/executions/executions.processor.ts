@@ -12,6 +12,7 @@ import {
   onJobFailed,
   onJobStalled,
 } from '../observability/queue-events';
+import { MetricsService } from '../observability/metrics.service';
 
 interface RunJobData {
   executionId: string;
@@ -26,7 +27,10 @@ interface RunJobData {
 export class ExecutionsProcessor extends WorkerHost {
   private readonly logger = new Logger(ExecutionsProcessor.name);
 
-  constructor(private readonly engine: EngineService) {
+  constructor(
+    private readonly engine: EngineService,
+    private readonly metrics: MetricsService,
+  ) {
     super();
   }
 
@@ -44,16 +48,16 @@ export class ExecutionsProcessor extends WorkerHost {
 
   @OnWorkerEvent('completed')
   onCompleted(job: Job<RunJobData>) {
-    onJobCompleted(EXECUTIONS_QUEUE, job);
+    onJobCompleted(EXECUTIONS_QUEUE, job, this.metrics);
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job<RunJobData> | undefined, error: Error) {
-    onJobFailed(EXECUTIONS_QUEUE, job, error);
+    onJobFailed(EXECUTIONS_QUEUE, job, error, this.metrics);
   }
 
   @OnWorkerEvent('stalled')
   onStalled(jobId: string) {
-    onJobStalled(EXECUTIONS_QUEUE, jobId);
+    onJobStalled(EXECUTIONS_QUEUE, jobId, this.metrics);
   }
 }

@@ -9,6 +9,7 @@ import {
   onJobFailed,
   onJobStalled,
 } from '../observability/queue-events';
+import { MetricsService } from '../observability/metrics.service';
 
 @Processor(MCP_HEALTH_QUEUE, {
   concurrency: Number(process.env.MCP_HEALTH_CONCURRENCY ?? 1),
@@ -16,7 +17,10 @@ import {
 export class McpHealthProcessor extends WorkerHost {
   private readonly logger = new Logger(McpHealthProcessor.name);
 
-  constructor(private readonly mcp: McpService) {
+  constructor(
+    private readonly mcp: McpService,
+    private readonly metrics: MetricsService,
+  ) {
     super();
   }
 
@@ -29,16 +33,16 @@ export class McpHealthProcessor extends WorkerHost {
 
   @OnWorkerEvent('completed')
   onCompleted(job: Job) {
-    onJobCompleted(MCP_HEALTH_QUEUE, job);
+    onJobCompleted(MCP_HEALTH_QUEUE, job, this.metrics);
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job | undefined, error: Error) {
-    onJobFailed(MCP_HEALTH_QUEUE, job, error);
+    onJobFailed(MCP_HEALTH_QUEUE, job, error, this.metrics);
   }
 
   @OnWorkerEvent('stalled')
   onStalled(jobId: string) {
-    onJobStalled(MCP_HEALTH_QUEUE, jobId);
+    onJobStalled(MCP_HEALTH_QUEUE, jobId, this.metrics);
   }
 }

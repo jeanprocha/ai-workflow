@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ObservabilityModule } from './observability/observability.module';
 import { AuthContextInterceptor } from './observability/auth-context.interceptor';
+import { HttpMetricsInterceptor } from './observability/http-metrics.interceptor';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CacheModule } from './cache/cache.module';
@@ -61,6 +62,7 @@ import { CopilotModule } from './copilot/copilot.module';
     AppService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_INTERCEPTOR, useClass: AuthContextInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
   ],
 })
 export class AppModule {}

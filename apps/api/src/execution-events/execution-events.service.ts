@@ -7,6 +7,9 @@ import { EventEmitter } from 'events';
 import { Observable } from 'rxjs';
 import { Redis } from 'ioredis';
 import { getContext } from '../observability/request-context';
+import { MetricsService } from '../observability/metrics.service';
+
+const HEARTBEAT_INTERVAL_MS = 15_000;
 
 export type ExecutionEvent =
   | { type: 'execution.started'; executionId: string }
@@ -53,7 +56,7 @@ export class ExecutionEventsService implements OnModuleDestroy {
   );
   private readonly subscribedChannels = new Set<string>();
 
-  constructor() {
+  constructor(private readonly metrics: MetricsService) {
     this.emitter.setMaxListeners(100);
     this.subscriber.on('message', (channel: string, message: string) => {
       if (!channel.startsWith(CHANNEL_PREFIX)) return;
@@ -102,13 +105,32 @@ export class ExecutionEventsService implements OnModuleDestroy {
     };
   }
 
+  /**
+   * Heartbeat `ping` a cada 15s: sem eventos de negocio, o cliente nao tem
+   * como distinguir stream vivo de conexao morta (proxy/LB pode derrubar
+   * silenciosamente). O ping vai dentro do `data` (nao so no `event:` SSE)
+   * porque `sse-client.ts` hoje so le a linha `data:` — consumidores atuais
+   * (`use-execution-stream`/`use-execution-live`) filtram por `type` exato e
+   * ignoram tipos desconhecidos, entao isso e seguro antes da Fase 6 (que vai
+   * usar esse ping pra watchdog de reconexao).
+   */
   toObservable(executionId: string): Observable<MessageEvent> {
     return new Observable<MessageEvent>((subscriber) => {
+      this.metrics.sseActiveConnections.inc();
       const unsubscribe = this.subscribe(executionId, (event) => {
         subscriber.next({ data: event });
         if (event.type === 'execution.completed') subscriber.complete();
       });
-      return unsubscribe;
+      const heartbeat = setInterval(() => {
+        subscriber.next({
+          data: { type: 'ping', executionId, timestamp: Date.now() },
+        });
+      }, HEARTBEAT_INTERVAL_MS);
+      return () => {
+        clearInterval(heartbeat);
+        unsubscribe();
+        this.metrics.sseActiveConnections.dec();
+      };
     });
   }
 

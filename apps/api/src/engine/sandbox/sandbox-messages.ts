@@ -32,6 +32,8 @@ export interface SandboxResult {
   varsPatch?: Record<string, unknown>;
   usage?: { tokens: number; model: string; costUsd: number };
   error?: string;
+  /** So presente em falha do sandbox em si (nao de logica do node) — usado pra sandbox_timeouts_total. */
+  failureReason?: 'timeout' | 'oom' | 'crash';
 }
 
 export type SandboxToHostMessage = SandboxResult | CtxRpcCall;

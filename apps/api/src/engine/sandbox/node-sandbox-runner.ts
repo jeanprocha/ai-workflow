@@ -81,6 +81,7 @@ export class NodeSandboxRunner {
           kind: 'result',
           ok: false,
           error: `Node excedeu o timeout de ${options.timeoutMs}ms (sandbox).`,
+          failureReason: 'timeout',
         });
       }, options.timeoutMs);
 
@@ -93,7 +94,12 @@ export class NodeSandboxRunner {
       });
 
       worker.on('error', (error: Error) => {
-        finish({ kind: 'result', ok: false, error: error.message });
+        finish({
+          kind: 'result',
+          ok: false,
+          error: error.message,
+          failureReason: 'crash',
+        });
       });
 
       worker.on('exit', (code: number) => {
@@ -102,6 +108,7 @@ export class NodeSandboxRunner {
             kind: 'result',
             ok: false,
             error: `Sandbox encerrou inesperadamente (codigo ${code}) — possivel estouro de memoria.`,
+            failureReason: 'oom',
           });
         }
       });

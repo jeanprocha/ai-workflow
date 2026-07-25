@@ -2,6 +2,7 @@ import './load-env';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { WorkerModule } from './worker/worker.module';
+import { startWorkerHttpServer } from './observability/worker-http';
 
 /**
  * Entrypoint do worker (Fase 10, ADR-008): mesmo codebase do @workflow/api,
@@ -26,6 +27,11 @@ async function bootstrap() {
   // por padrao espera o job ativo terminar antes de resolver (drena antes de
   // encerrar, sem descartar execucao em andamento).
   app.enableShutdownHooks();
+
+  const httpServer = startWorkerHttpServer(app);
+  const closeHttpServer = () => httpServer.close();
+  process.on('SIGTERM', closeHttpServer);
+  process.on('SIGINT', closeHttpServer);
 
   logger.log(
     'Worker iniciado — consumindo filas: executions, ingestion, mcp-health, schedules.',

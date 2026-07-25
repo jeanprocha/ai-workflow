@@ -14,6 +14,7 @@ import { KnowledgeService } from '../knowledge/knowledge.service';
 import { McpService } from '../mcp/mcp.service';
 import { NodeSandboxRunner } from './sandbox/node-sandbox-runner';
 import { mergeContext } from '../observability/request-context';
+import { MetricsService } from '../observability/metrics.service';
 
 const NODE_TIMEOUT_MS = Number(process.env.NODE_SANDBOX_TIMEOUT_MS ?? 30_000);
 const NODE_MEMORY_LIMIT_MB = Number(process.env.NODE_SANDBOX_MEMORY_MB ?? 256);
@@ -75,6 +76,7 @@ export class EngineService {
     private readonly knowledge: KnowledgeService,
     private readonly mcp: McpService,
     private readonly sandbox: NodeSandboxRunner,
+    private readonly metrics: MetricsService,
   ) {}
 
   async run(
@@ -278,6 +280,16 @@ export class EngineService {
       status: overallStatus,
     });
 
+    const durationSeconds = (Date.now() - execution.startedAt.getTime()) / 1000;
+    const metricLabels = {
+      status: overallStatus,
+      trigger: execution.triggerType,
+    };
+    this.metrics.executionTotal.inc(metricLabels);
+    this.metrics.executionDuration.observe(metricLabels, durationSeconds);
+    if (tokensTotal > 0) this.metrics.executionTokensTotal.inc(tokensTotal);
+    if (costUsdTotal > 0) this.metrics.executionCostUsdTotal.inc(costUsdTotal);
+
     const summary = {
       executionId,
       status: overallStatus,
@@ -390,7 +402,21 @@ export class EngineService {
 
       const durationMs = Date.now() - startedAt;
 
+      if (attempt > 1) {
+        this.metrics.stepRetriesTotal.inc({ node_type: node.type });
+      }
+      if (result.failureReason) {
+        this.metrics.sandboxTimeoutsTotal.inc({
+          node_type: node.type,
+          reason: result.failureReason,
+        });
+      }
+
       if (result.ok) {
+        this.metrics.stepDuration.observe(
+          { node_type: node.type, status: 'success' },
+          durationMs / 1000,
+        );
         await this.recordStep({
           executionId,
           node,
@@ -421,6 +447,10 @@ export class EngineService {
 
       const message = result.error ?? 'Erro desconhecido.';
       lastError = message;
+      this.metrics.stepDuration.observe(
+        { node_type: node.type, status: 'failed' },
+        durationMs / 1000,
+      );
       await this.recordStep({
         executionId,
         node,

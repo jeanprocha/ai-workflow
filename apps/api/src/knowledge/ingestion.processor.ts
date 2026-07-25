@@ -12,6 +12,7 @@ import {
   onJobFailed,
   onJobStalled,
 } from '../observability/queue-events';
+import { MetricsService } from '../observability/metrics.service';
 
 interface IngestJobData {
   documentId: string;
@@ -24,7 +25,10 @@ interface IngestJobData {
 export class IngestionProcessor extends WorkerHost {
   private readonly logger = new Logger(IngestionProcessor.name);
 
-  constructor(private readonly knowledge: KnowledgeService) {
+  constructor(
+    private readonly knowledge: KnowledgeService,
+    private readonly metrics: MetricsService,
+  ) {
     super();
   }
 
@@ -39,16 +43,16 @@ export class IngestionProcessor extends WorkerHost {
 
   @OnWorkerEvent('completed')
   onCompleted(job: Job<IngestJobData>) {
-    onJobCompleted(INGESTION_QUEUE, job);
+    onJobCompleted(INGESTION_QUEUE, job, this.metrics);
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job<IngestJobData> | undefined, error: Error) {
-    onJobFailed(INGESTION_QUEUE, job, error);
+    onJobFailed(INGESTION_QUEUE, job, error, this.metrics);
   }
 
   @OnWorkerEvent('stalled')
   onStalled(jobId: string) {
-    onJobStalled(INGESTION_QUEUE, jobId);
+    onJobStalled(INGESTION_QUEUE, jobId, this.metrics);
   }
 }
