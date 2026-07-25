@@ -195,6 +195,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.101.4
         version: 5.101.4(react@19.2.4)
+      '@workflow/ai':
+        specifier: workspace:^
+        version: link:../../packages/ai
       '@workflow/nodes':
         specifier: workspace:^
         version: link:../../packages/nodes
