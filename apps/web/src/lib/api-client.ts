@@ -5,6 +5,7 @@ import {
   getWorkspaceId,
   setTokens,
 } from "./auth-storage";
+import { getLocale } from "./i18n/store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333";
 
@@ -63,6 +64,7 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     const workspaceId = getWorkspaceId();
     const finalHeaders: Record<string, string> = {
       "Content-Type": "application/json",
+      "x-lang": getLocale(),
       ...(headers as Record<string, string>),
     };
     if (accessToken) finalHeaders.Authorization = `Bearer ${accessToken}`;

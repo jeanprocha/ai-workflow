@@ -18,7 +18,9 @@ function subscribe(callback: () => void) {
   return () => window.removeEventListener(LOCALE_CHANGE_EVENT, callback);
 }
 
-function getSnapshot(): Locale {
+/** Leitura direta (sem hook) — usado por api-client.ts, fora de componentes React. */
+export function getLocale(): Locale {
+  if (typeof window === "undefined") return "pt";
   const stored = localStorage.getItem(LOCALE_KEY);
   return stored === "en" ? "en" : "pt";
 }
@@ -29,7 +31,7 @@ function getServerSnapshot(): Locale {
 }
 
 export function useLocale(): Locale {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  return useSyncExternalStore(subscribe, getLocale, getServerSnapshot);
 }
 
 export function setLocale(locale: Locale) {

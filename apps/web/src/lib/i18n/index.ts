@@ -1,10 +1,10 @@
 "use client";
 
 import { pt, en, type Dictionary } from "./dictionary";
-import { useLocale, setLocale, type Locale } from "./store";
+import { useLocale, setLocale, getLocale, type Locale } from "./store";
 
 export type { Locale, Dictionary };
-export { useLocale, setLocale };
+export { useLocale, setLocale, getLocale };
 
 const DICTIONARIES: Record<Locale, Dictionary> = { pt, en };
 
