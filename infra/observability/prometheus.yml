@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: workflow-api
+    static_configs:
+      - targets: ["host.docker.internal:3333"]
+
+  - job_name: workflow-worker
+    static_configs:
+      - targets: ["host.docker.internal:3334"]

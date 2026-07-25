@@ -31,6 +31,44 @@ services:
       timeout: 5s
       retries: 10
 
+  # Opcionais (Fase 8 de observabilidade) — nao sobem com `docker compose up`
+  # normal, so com `docker compose --profile observability up -d`. Fazem
+  # scrape da API (:3333) e do worker (:3334) rodando LOCALMENTE (fora do
+  # Docker, via `pnpm dev`/`dev:worker`) — dai o host.docker.internal.
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    restart: unless-stopped
+    profiles: ["observability"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    extra_hosts:
+      # host.docker.internal so resolve automaticamente no Docker Desktop
+      # (Mac/Windows) — no Linux precisa deste mapeamento explicito.
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    restart: unless-stopped
+    profiles: ["observability"]
+    ports:
+      - "3005:3000"
+    environment:
+      # So pra uso local — nunca usar essas flags num Grafana exposto publicamente.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/observability/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
   redis_data:
+  prometheus_data:
+  grafana_data:
