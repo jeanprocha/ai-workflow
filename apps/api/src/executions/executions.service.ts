@@ -9,6 +9,7 @@ import type { Queue } from 'bullmq';
 import type { Prisma, TriggerType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EXECUTIONS_QUEUE } from '../queue/queue.module';
+import { withJobContext } from '../observability/request-context';
 import { ListExecutionsQueryDto } from './dto/list-executions-query.dto';
 import { ReplayExecutionDto } from './dto/replay-execution.dto';
 
@@ -99,11 +100,14 @@ export class ExecutionsService {
       },
     });
 
-    await this.queue.add('run', {
-      executionId: execution.id,
-      replayFromNodeId,
-      replayInput: replayFromNodeId ? inputPayload : undefined,
-    });
+    await this.queue.add(
+      'run',
+      withJobContext({
+        executionId: execution.id,
+        replayFromNodeId,
+        replayInput: replayFromNodeId ? inputPayload : undefined,
+      }),
+    );
     return execution;
   }
 

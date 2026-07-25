@@ -12,6 +12,7 @@ import { extractText, inferSourceType } from '@workflow/nodes';
 import { PrismaService } from '../prisma/prisma.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { INGESTION_QUEUE } from '../queue/queue.module';
+import { withJobContext } from '../observability/request-context';
 import { CreateKnowledgeBaseDto } from './dto/create-knowledge-base.dto';
 import { SearchKnowledgeDto } from './dto/search-knowledge.dto';
 import { chunkText } from './chunking';
@@ -137,7 +138,7 @@ export class KnowledgeService {
       },
     });
 
-    await this.queue.add('ingest', { documentId: document.id });
+    await this.queue.add('ingest', withJobContext({ documentId: document.id }));
     return document;
   }
 

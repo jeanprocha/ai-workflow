@@ -32,8 +32,14 @@ export function createLoggerParams(): Params {
         : undefined,
       // Injeta o contexto de correlacao (requestId, executionId, etc.) em
       // TODO log emitido durante a request/job atual, sem precisar passar
-      // manualmente em cada chamada de logger.
-      mixin: () => getContext() ?? {},
+      // manualmente em cada chamada de logger. IMPORTANTE: devolve uma COPIA
+      // — getContext() e o objeto vivo do AsyncLocalStorage (mergeContext
+      // muta ele in-place ao longo da request/job); o pino faz merge
+      // mutando o objeto que o mixin devolve, entao devolver a referencia
+      // direta fazia campos de UM log (ex.: nodeId/event/payload de
+      // execution.log) vazarem pros logs seguintes da mesma request
+      // (ex.: execution.completed) — achado revisando log real lado a lado.
+      mixin: () => ({ ...getContext() }),
       // Escopo deliberadamente estreito: so os headers HTTP que realmente
       // carregam segredo. pino-http nao loga req.body/res.body por padrao
       // (so headers), entao um wildcard tipo '*.password' nao protege nada

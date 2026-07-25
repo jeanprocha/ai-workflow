@@ -13,8 +13,17 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public body: unknown,
+    /** Mesmo valor enviado no header x-request-id — correlaciona com os logs do servidor (GET /debug/logs). */
+    public requestId?: string,
   ) {
     super(typeof body === "object" && body && "message" in body ? String(body.message) : "Erro na API");
+  }
+}
+
+declare global {
+  interface Window {
+    /** Injetado pelo Playwright via addInitScript (apps/e2e/helpers/fixtures.ts, Fase 7). */
+    __E2E_TEST_RUN__?: string;
   }
 }
 
@@ -59,14 +68,21 @@ export interface ApiFetchOptions extends Omit<RequestInit, "body"> {
 export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
   const { body, withWorkspace = true, handleAuthErrors = true, headers, ...rest } = options;
 
+  // Mesmo id nas duas tentativas (original + retry pos-refresh de 401) — e
+  // logicamente a mesma operacao do ponto de vista de quem chamou.
+  const requestId = crypto.randomUUID();
+  const testRun = typeof window !== "undefined" ? window.__E2E_TEST_RUN__ : undefined;
+
   async function doFetch(): Promise<Response> {
     const accessToken = getAccessToken();
     const workspaceId = getWorkspaceId();
     const finalHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       "x-lang": getLocale(),
+      "x-request-id": requestId,
       ...(headers as Record<string, string>),
     };
+    if (testRun) finalHeaders["x-test-run"] = testRun;
     if (accessToken) finalHeaders.Authorization = `Bearer ${accessToken}`;
     if (withWorkspace && workspaceId) finalHeaders["x-workspace-id"] = workspaceId;
 
@@ -94,7 +110,7 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     const errorBody = contentType.includes("application/json")
       ? await response.json().catch(() => null)
       : await response.text();
-    throw new ApiError(response.status, errorBody);
+    throw new ApiError(response.status, errorBody, requestId);
   }
 
   if (response.status === 204) return undefined as T;

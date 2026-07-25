@@ -3,11 +3,16 @@ import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { EXECUTIONS_QUEUE } from '../queue/queue.module';
 import { EngineService } from '../engine/engine.service';
+import {
+  runJobInContext,
+  type JobContext,
+} from '../observability/request-context';
 
 interface RunJobData {
   executionId: string;
   replayFromNodeId?: string;
   replayInput?: unknown;
+  _ctx?: JobContext;
 }
 
 @Processor(EXECUTIONS_QUEUE, {
@@ -21,12 +26,14 @@ export class ExecutionsProcessor extends WorkerHost {
   }
 
   async process(job: Job<RunJobData>): Promise<void> {
-    this.logger.log(
-      `Executando job ${job.id} (execution ${job.data.executionId})`,
-    );
-    await this.engine.run(job.data.executionId, {
-      replayFromNodeId: job.data.replayFromNodeId,
-      replayInput: job.data.replayInput,
+    await runJobInContext(EXECUTIONS_QUEUE, job, async () => {
+      this.logger.log(
+        `Executando job ${job.id} (execution ${job.data.executionId})`,
+      );
+      await this.engine.run(job.data.executionId, {
+        replayFromNodeId: job.data.replayFromNodeId,
+        replayInput: job.data.replayInput,
+      });
     });
   }
 }

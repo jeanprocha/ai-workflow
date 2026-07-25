@@ -3,10 +3,15 @@ import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { SCHEDULES_QUEUE } from '../queue/queue.module';
 import { ExecutionsService } from '../executions/executions.service';
+import {
+  runJobInContext,
+  type JobContext,
+} from '../observability/request-context';
 
 interface ScheduleJobData {
   workflowId: string;
   workspaceId: string;
+  _ctx?: JobContext;
 }
 
 @Processor(SCHEDULES_QUEUE, {
@@ -20,14 +25,16 @@ export class ScheduleProcessor extends WorkerHost {
   }
 
   async process(job: Job<ScheduleJobData>): Promise<void> {
-    this.logger.log(
-      `Disparando execucao agendada do workflow ${job.data.workflowId}`,
-    );
-    await this.executions.trigger(
-      job.data.workspaceId,
-      job.data.workflowId,
-      'cron',
-      {},
-    );
+    await runJobInContext(SCHEDULES_QUEUE, job, async () => {
+      this.logger.log(
+        `Disparando execucao agendada do workflow ${job.data.workflowId}`,
+      );
+      await this.executions.trigger(
+        job.data.workspaceId,
+        job.data.workflowId,
+        'cron',
+        {},
+      );
+    });
   }
 }

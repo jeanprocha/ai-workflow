@@ -6,6 +6,7 @@ import {
 import { EventEmitter } from 'events';
 import { Observable } from 'rxjs';
 import { Redis } from 'ioredis';
+import { getContext } from '../observability/request-context';
 
 export type ExecutionEvent =
   | { type: 'execution.started'; executionId: string }
@@ -66,10 +67,19 @@ export class ExecutionEventsService implements OnModuleDestroy {
     });
   }
 
+  /**
+   * Anexa o requestId do contexto atual (aberto pelo processor via
+   * runJobInContext, ver observability/request-context.ts) no envelope
+   * publicado — sem precisar tocar cada um dos 4 call-sites em
+   * engine.service.ts. O cliente SSE (e o debug endpoint da Fase 7) usam
+   * isso pra correlacionar o evento com os logs do servidor daquela run.
+   */
   emit(event: ExecutionEvent) {
+    const requestId = getContext()?.requestId;
+    const envelope = requestId ? { ...event, requestId } : event;
     void this.publisher.publish(
       CHANNEL_PREFIX + event.executionId,
-      JSON.stringify(event),
+      JSON.stringify(envelope),
     );
   }
 

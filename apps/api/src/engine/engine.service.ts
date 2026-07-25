@@ -13,6 +13,7 @@ import { AgentsService } from '../agents/agents.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { McpService } from '../mcp/mcp.service';
 import { NodeSandboxRunner } from './sandbox/node-sandbox-runner';
+import { mergeContext } from '../observability/request-context';
 
 const NODE_TIMEOUT_MS = Number(process.env.NODE_SANDBOX_TIMEOUT_MS ?? 30_000);
 const NODE_MEMORY_LIMIT_MB = Number(process.env.NODE_SANDBOX_MEMORY_MB ?? 256);
@@ -84,6 +85,12 @@ export class EngineService {
       where: { id: executionId },
       include: { version: true, workflow: true },
     });
+
+    // Enriquece o contexto ja aberto pelo processor (runJobInContext, com
+    // requestId/jobId/queue) com os dois campos que so existem depois de
+    // carregar a execucao — daqui pra frente, todo log desta run() (inclusive
+    // os do sandbox via ctx.log) carrega executionId e traceId.
+    mergeContext({ executionId, traceId: execution.traceId ?? undefined });
 
     await this.prisma.execution.update({
       where: { id: executionId },

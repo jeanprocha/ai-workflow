@@ -3,9 +3,14 @@ import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { INGESTION_QUEUE } from '../queue/queue.module';
 import { KnowledgeService } from './knowledge.service';
+import {
+  runJobInContext,
+  type JobContext,
+} from '../observability/request-context';
 
 interface IngestJobData {
   documentId: string;
+  _ctx?: JobContext;
 }
 
 @Processor(INGESTION_QUEUE, {
@@ -19,9 +24,11 @@ export class IngestionProcessor extends WorkerHost {
   }
 
   async process(job: Job<IngestJobData>): Promise<void> {
-    this.logger.log(
-      `Processando documento ${job.data.documentId} (job ${job.id})`,
-    );
-    await this.knowledge.ingest(job.data.documentId);
+    await runJobInContext(INGESTION_QUEUE, job, async () => {
+      this.logger.log(
+        `Processando documento ${job.data.documentId} (job ${job.id})`,
+      );
+      await this.knowledge.ingest(job.data.documentId);
+    });
   }
 }
