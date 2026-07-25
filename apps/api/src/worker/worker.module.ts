@@ -14,6 +14,7 @@ import { McpHealthProcessor } from '../mcp/mcp-health.processor';
 import { SchedulerModule } from '../scheduler/scheduler.module';
 import { ScheduleProcessor } from '../scheduler/schedule.processor';
 import { OrphanRecoveryService } from './orphan-recovery.service';
+import { WorkerHeartbeatService } from './worker-heartbeat.service';
 
 /**
  * Processo separado do apps/api (Fase 10, ADR-008): so consome filas, nunca
@@ -46,6 +47,7 @@ import { OrphanRecoveryService } from './orphan-recovery.service';
     McpHealthProcessor,
     ScheduleProcessor,
     OrphanRecoveryService,
+    WorkerHeartbeatService,
   ],
 })
 export class WorkerModule {}

@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { SCHEDULES_QUEUE } from '../queue/queue.module';
@@ -7,6 +7,11 @@ import {
   runJobInContext,
   type JobContext,
 } from '../observability/request-context';
+import {
+  onJobCompleted,
+  onJobFailed,
+  onJobStalled,
+} from '../observability/queue-events';
 
 interface ScheduleJobData {
   workflowId: string;
@@ -36,5 +41,20 @@ export class ScheduleProcessor extends WorkerHost {
         {},
       );
     });
+  }
+
+  @OnWorkerEvent('completed')
+  onCompleted(job: Job<ScheduleJobData>) {
+    onJobCompleted(SCHEDULES_QUEUE, job);
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job<ScheduleJobData> | undefined, error: Error) {
+    onJobFailed(SCHEDULES_QUEUE, job, error);
+  }
+
+  @OnWorkerEvent('stalled')
+  onStalled(jobId: string) {
+    onJobStalled(SCHEDULES_QUEUE, jobId);
   }
 }

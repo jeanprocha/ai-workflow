@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { INGESTION_QUEUE } from '../queue/queue.module';
@@ -7,6 +7,11 @@ import {
   runJobInContext,
   type JobContext,
 } from '../observability/request-context';
+import {
+  onJobCompleted,
+  onJobFailed,
+  onJobStalled,
+} from '../observability/queue-events';
 
 interface IngestJobData {
   documentId: string;
@@ -30,5 +35,20 @@ export class IngestionProcessor extends WorkerHost {
       );
       await this.knowledge.ingest(job.data.documentId);
     });
+  }
+
+  @OnWorkerEvent('completed')
+  onCompleted(job: Job<IngestJobData>) {
+    onJobCompleted(INGESTION_QUEUE, job);
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job<IngestJobData> | undefined, error: Error) {
+    onJobFailed(INGESTION_QUEUE, job, error);
+  }
+
+  @OnWorkerEvent('stalled')
+  onStalled(jobId: string) {
+    onJobStalled(INGESTION_QUEUE, jobId);
   }
 }

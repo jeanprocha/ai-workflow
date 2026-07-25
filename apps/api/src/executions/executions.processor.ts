@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { EXECUTIONS_QUEUE } from '../queue/queue.module';
@@ -7,6 +7,11 @@ import {
   runJobInContext,
   type JobContext,
 } from '../observability/request-context';
+import {
+  onJobCompleted,
+  onJobFailed,
+  onJobStalled,
+} from '../observability/queue-events';
 
 interface RunJobData {
   executionId: string;
@@ -35,5 +40,20 @@ export class ExecutionsProcessor extends WorkerHost {
         replayInput: job.data.replayInput,
       });
     });
+  }
+
+  @OnWorkerEvent('completed')
+  onCompleted(job: Job<RunJobData>) {
+    onJobCompleted(EXECUTIONS_QUEUE, job);
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job<RunJobData> | undefined, error: Error) {
+    onJobFailed(EXECUTIONS_QUEUE, job, error);
+  }
+
+  @OnWorkerEvent('stalled')
+  onStalled(jobId: string) {
+    onJobStalled(EXECUTIONS_QUEUE, jobId);
   }
 }

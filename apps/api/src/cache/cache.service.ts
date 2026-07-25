@@ -24,6 +24,20 @@ export class CacheService implements OnModuleDestroy {
     return value;
   }
 
+  /** Escrita direta (sem compute) — usado pelo heartbeat do worker (observability/). */
+  async set(key: string, value: string, ttlSeconds: number): Promise<void> {
+    await this.client.set(key, value, 'EX', ttlSeconds);
+  }
+
+  async get(key: string): Promise<string | null> {
+    return this.client.get(key);
+  }
+
+  /** @throws se o Redis nao responder — usado por GET /health/ready. */
+  async ping(): Promise<void> {
+    await this.client.ping();
+  }
+
   onModuleDestroy() {
     this.client.disconnect();
   }
