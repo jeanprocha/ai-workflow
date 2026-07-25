@@ -11,6 +11,7 @@ import { CryptoService } from '../crypto/crypto.service';
 import { WorkflowsService } from '../workflows/workflows.service';
 import { AiSuggestionsService } from '../ai-suggestions/ai-suggestions.service';
 import { DiagnoseExecutionDto } from './dto/diagnose-execution.dto';
+import type { Locale } from '../i18n/pt-to-en';
 
 // z.number() puro (sem .int()/.min()/.max()) de proposito: a saida estruturada
 // da Anthropic (output_config.format.schema) rejeita minItems/maxItems em
@@ -76,6 +77,7 @@ export class DebuggerService {
     workspaceId: string,
     executionId: string,
     dto: DiagnoseExecutionDto,
+    locale: Locale = 'pt',
   ): Promise<DiagnosisResult> {
     const execution = await this.prisma.execution.findFirst({
       where: { id: executionId, workflow: { workspaceId } },
@@ -124,7 +126,11 @@ export class DebuggerService {
         : await this.getCredential(workspaceId, dto.credential ?? '');
     const provider = getProvider(dto.provider);
 
-    const prompt = `Um node de um workflow de automacao falhou. Analise e responda em portugues.
+    const languageInstruction =
+      locale === 'en'
+        ? 'Analyze and respond in English.'
+        : 'Analise e responda em portugues.';
+    const prompt = `Um node de um workflow de automacao falhou. ${languageInstruction}
 
 Node: type="${node.type}" label="${node.label}"
 Config atual: ${JSON.stringify(node.config)}

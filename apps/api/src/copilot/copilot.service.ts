@@ -17,6 +17,7 @@ import { WorkflowsService } from '../workflows/workflows.service';
 import { AiSuggestionsService } from '../ai-suggestions/ai-suggestions.service';
 import { workflowGraphSchema } from '../workflows/graph.schema';
 import { CopilotChatDto } from './dto/copilot-chat.dto';
+import type { Locale } from '../i18n/pt-to-en';
 
 const copilotResponseSchema = z.object({
   reply: z.string(),
@@ -56,6 +57,7 @@ export class CopilotService {
     workspaceId: string,
     workflowId: string,
     dto: CopilotChatDto,
+    locale: Locale = 'pt',
   ): Promise<CopilotChatResult> {
     const workflow = await this.workflows.findOne(workspaceId, workflowId);
     const graph = workflow.currentVersion?.graph as unknown as
@@ -90,6 +92,7 @@ export class CopilotService {
       workflow.name,
       graph,
       recentExecutions,
+      locale,
     );
     const history: ChatMessage[] = (dto.history ?? []).map((item) => ({
       role: item.role,
@@ -199,7 +202,12 @@ function buildSystemPrompt(
     tokensTotal: number;
     startedAt: Date;
   }>,
+  locale: Locale,
 ): string {
+  const languageInstruction =
+    locale === 'en'
+      ? 'Respond in English, in a direct and practical way.'
+      : 'Responda em portugues, de forma direta e pratica.';
   const nodesDescription = graph.nodes
     .map((node) => {
       const catalogEntry = getCatalogEntry(node.type);
@@ -225,7 +233,7 @@ function buildSystemPrompt(
         .join('\n')
     : '(nenhuma execucao ainda)';
 
-  return `Voce e o Copilot de um editor de workflows de automacao (estilo n8n/Zapier). Responda em portugues, de forma direta e pratica.
+  return `Voce e o Copilot de um editor de workflows de automacao (estilo n8n/Zapier). ${languageInstruction}
 
 Fluxo atual: "${workflowName}"
 

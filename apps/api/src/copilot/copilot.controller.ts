@@ -7,6 +7,8 @@ import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../auth/decorators/current-user.decorator';
+import { Lang } from '../i18n/lang.decorator';
+import type { Locale } from '../i18n/pt-to-en';
 
 @Controller('workflows/:id/copilot')
 @UseGuards(WorkspaceGuard)
@@ -18,8 +20,9 @@ export class CopilotController {
     @CurrentWorkspace() workspaceId: string,
     @Param('id') id: string,
     @Body() dto: CopilotChatDto,
+    @Lang() lang: Locale,
   ) {
-    return this.copilot.chat(workspaceId, id, dto);
+    return this.copilot.chat(workspaceId, id, dto, lang);
   }
 
   @Post('suggestions/:suggestionId/apply')

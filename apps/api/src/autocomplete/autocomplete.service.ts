@@ -12,6 +12,7 @@ import { CryptoService } from '../crypto/crypto.service';
 import { AiSuggestionsService } from '../ai-suggestions/ai-suggestions.service';
 import { workflowGraphSchema } from '../workflows/graph.schema';
 import { GenerateWorkflowDto } from './dto/generate-workflow.dto';
+import type { Locale } from '../i18n/pt-to-en';
 
 const MAX_ATTEMPTS = 2;
 
@@ -79,13 +80,17 @@ function llmGraphToWorkflowGraph(
   };
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(locale: Locale): string {
   const catalogLines = NODE_CATALOG.map(
     (entry) =>
       `- type="${entry.type}" category="${entry.category}" (${entry.label}): ${entry.description} — outputs: [${entry.outputs.join(', ')}]`,
   ).join('\n');
+  const openingLine =
+    locale === 'en'
+      ? 'You generate workflow graphs (n8n/Zapier-style automation) from a natural-language description, in English. Node "label" values you generate must also be in English.'
+      : 'Voce gera grafos de workflow (automacao no estilo n8n/Zapier) a partir de uma descricao em linguagem natural, em portugues. Os valores de "label" dos nodes gerados tambem devem ser em portugues.';
 
-  return `Voce gera grafos de workflow (automacao no estilo n8n/Zapier) a partir de uma descricao em linguagem natural, em portugues.
+  return `${openingLine}
 
 Catalogo de nodes disponiveis (use APENAS estes valores exatos em "type"):
 ${catalogLines}
@@ -115,6 +120,7 @@ export class AutocompleteService {
   async generate(
     workspaceId: string,
     dto: GenerateWorkflowDto,
+    locale: Locale = 'pt',
   ): Promise<GeneratedWorkflowResult> {
     if (dto.workflowId) {
       const workflow = await this.prisma.workflow.findFirst({
@@ -130,7 +136,7 @@ export class AutocompleteService {
         ? ''
         : await this.getCredential(workspaceId, dto.credential ?? '');
     const provider = getProvider(dto.provider);
-    const systemPrompt = buildSystemPrompt();
+    const systemPrompt = buildSystemPrompt(locale);
 
     let lastError: string | null = null;
     let graph: WorkflowGraph | null = null;

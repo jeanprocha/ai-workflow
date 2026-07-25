@@ -8,6 +8,8 @@ import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../auth/decorators/current-user.decorator';
+import { Lang } from '../i18n/lang.decorator';
+import type { Locale } from '../i18n/pt-to-en';
 
 @Controller('executions')
 @UseGuards(WorkspaceGuard)
@@ -19,8 +21,9 @@ export class DebuggerController {
     @CurrentWorkspace() workspaceId: string,
     @Param('id') id: string,
     @Body() dto: DiagnoseExecutionDto,
+    @Lang() lang: Locale,
   ) {
-    return this.debuggerService.diagnose(workspaceId, id, dto);
+    return this.debuggerService.diagnose(workspaceId, id, dto, lang);
   }
 
   @Post('diagnose/:suggestionId/apply')
