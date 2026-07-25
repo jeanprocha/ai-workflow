@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ObservabilityModule } from './observability/observability.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CacheModule } from './cache/cache.module';
@@ -29,6 +30,7 @@ import { CopilotModule } from './copilot/copilot.module';
 
 @Module({
   imports: [
+    ObservabilityModule,
     PrismaModule,
     CacheModule,
     ExecutionEventsModule,

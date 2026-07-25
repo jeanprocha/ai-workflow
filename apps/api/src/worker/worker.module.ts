@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ObservabilityModule } from '../observability/observability.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CacheModule } from '../cache/cache.module';
 import { ExecutionEventsModule } from '../execution-events/execution-events.module';
@@ -28,6 +29,7 @@ import { OrphanRecoveryService } from './orphan-recovery.service';
  */
 @Module({
   imports: [
+    ObservabilityModule,
     PrismaModule,
     CacheModule,
     ExecutionEventsModule,

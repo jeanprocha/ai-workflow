@@ -1,12 +1,19 @@
 import './load-env';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
-import { LangExceptionFilter } from './i18n/lang.filter';
+import { AllExceptionsFilter } from './observability/all-exceptions.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.enableCors();
+  // bufferLogs: guarda os logs emitidos entre a criacao da app e o
+  // useLogger() abaixo (inclusive erros de bootstrap de outros modulos),
+  // em vez de perde-los ou de deixar o Nest usar o console.log default
+  // nesse meio-tempo.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const logger = app.get(Logger);
+  app.useLogger(logger);
+  app.enableCors({ exposedHeaders: ['x-request-id'] });
   app.enableShutdownHooks();
   app.useGlobalPipes(
     new ValidationPipe({
@@ -15,7 +22,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  app.useGlobalFilters(new LangExceptionFilter());
+  app.useGlobalFilters(new AllExceptionsFilter(logger));
   await app.listen(process.env.PORT ?? 3333);
 }
 void bootstrap();

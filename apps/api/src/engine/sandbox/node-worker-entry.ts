@@ -74,7 +74,8 @@ async function run(): Promise<void> {
       config: data.config as never,
       input: data.input,
       vars: data.vars,
-      log: (event, payload) => fireAndForget('log', [event, payload]),
+      log: (event, payload, level) =>
+        fireAndForget('log', [event, payload, level]),
       getCredential: (name) => callMain('getCredential', [name]),
       callAgent: (agentId, message) =>
         callMain('callAgent', [agentId, message]),

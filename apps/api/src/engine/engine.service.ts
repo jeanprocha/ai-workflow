@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, LogLevel } from '@prisma/client';
 import { getNodeDefinition, resolveExpressions } from '@workflow/nodes';
 import type {
   WorkflowEdge,
@@ -19,6 +19,20 @@ const NODE_MEMORY_LIMIT_MB = Number(process.env.NODE_SANDBOX_MEMORY_MB ?? 256);
 
 function toJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
+}
+
+const VALID_LOG_LEVELS: readonly LogLevel[] = [
+  'debug',
+  'info',
+  'warn',
+  'error',
+];
+
+/** `level` cruza o limite do worker_thread como string solta — nunca confiar sem checar. */
+function normalizeLogLevel(level: string | undefined): LogLevel {
+  return level && (VALID_LOG_LEVELS as readonly string[]).includes(level)
+    ? (level as LogLevel)
+    : 'info';
 }
 
 interface NodeUsage {
@@ -76,6 +90,14 @@ export class EngineService {
       data: { status: 'running' },
     });
     this.events.emit({ type: 'execution.started', executionId });
+    this.logger.log(
+      {
+        executionId,
+        workflowId: execution.workflow.id,
+        triggerType: execution.triggerType,
+      },
+      'execution.started',
+    );
 
     const workspaceId = execution.workflow.workspaceId;
     const graph = execution.version.graph as unknown as WorkflowGraph;
@@ -248,6 +270,22 @@ export class EngineService {
       executionId,
       status: overallStatus,
     });
+
+    const summary = {
+      executionId,
+      status: overallStatus,
+      durationMs: Date.now() - execution.startedAt.getTime(),
+      tokensTotal,
+      costUsd: costUsdTotal,
+    };
+    if (overallStatus === 'failed') {
+      this.logger.error(
+        { ...summary, error: failureError },
+        'execution.completed',
+      );
+    } else {
+      this.logger.log(summary, 'execution.completed');
+    }
   }
 
   private async executeNodeWithRetry(params: {
@@ -296,8 +334,8 @@ export class EngineService {
         input,
         vars,
         {
-          log: (event, payload) => {
-            void this.recordLog(executionId, node.id, event, payload);
+          log: (event, payload, level) => {
+            void this.recordLog(executionId, node.id, event, payload, level);
           },
           getCredential: (name) => this.getCredential(workspaceId, name),
           callAgent: async (agentId, message) => {
@@ -479,6 +517,31 @@ export class EngineService {
         finishedAt: new Date(),
       },
     });
+
+    if (status === 'failed') {
+      this.logger.error(
+        {
+          executionId,
+          nodeId: node.id,
+          nodeType: node.type,
+          attempt,
+          error,
+          durationMs,
+        },
+        'step.failed',
+      );
+    } else {
+      this.logger.debug(
+        {
+          executionId,
+          nodeId: node.id,
+          nodeType: node.type,
+          attempt,
+          durationMs,
+        },
+        'step.success',
+      );
+    }
   }
 
   private async recordLog(
@@ -486,13 +549,15 @@ export class EngineService {
     nodeId: string,
     event: string,
     payload: unknown,
+    level?: string,
   ) {
+    const safeLevel = normalizeLogLevel(level);
     try {
       await this.prisma.executionLog.create({
         data: {
           executionId,
           nodeId,
-          level: 'info',
+          level: safeLevel,
           event,
           payload: payload === undefined ? undefined : toJson(payload),
         },
@@ -501,12 +566,22 @@ export class EngineService {
         type: 'log.created',
         executionId,
         nodeId,
-        level: 'info',
+        level: safeLevel,
         event,
         payload,
       });
     } catch (error) {
       this.logger.warn(`Falha ao gravar log de execucao: ${String(error)}`);
     }
+
+    // Espelho em stdout estruturado, alem da tabela execution_logs — o node
+    // que chamou ctx.log() fica visivel no log do servidor sem precisar
+    // consultar o Postgres. `debug` fica fora do output por padrao
+    // (LOG_LEVEL=info) para nao poluir com todo evento de sucesso.
+    const line = { executionId, nodeId, event, payload };
+    if (safeLevel === 'error') this.logger.error(line, 'execution.log');
+    else if (safeLevel === 'warn') this.logger.warn(line, 'execution.log');
+    else if (safeLevel === 'debug') this.logger.debug(line, 'execution.log');
+    else this.logger.log(line, 'execution.log');
   }
 }

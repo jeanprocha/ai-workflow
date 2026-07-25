@@ -11,7 +11,7 @@ import type {
 const ENTRY_PATH = path.join(__dirname, 'node-worker-entry.js');
 
 export interface SandboxCtxHandlers {
-  log: (event: string, payload: unknown) => void;
+  log: (event: string, payload: unknown, level?: string) => void;
   getCredential: (name: string) => Promise<string>;
   callAgent: (
     agentId: string,
@@ -115,7 +115,11 @@ export class NodeSandboxRunner {
   ): Promise<void> {
     if (call.method === 'log') {
       try {
-        handlers.log(call.args[0] as string, call.args[1]);
+        handlers.log(
+          call.args[0] as string,
+          call.args[1],
+          call.args[2] as string | undefined,
+        );
       } catch (error) {
         this.logger.warn(`Falha ao processar log do sandbox: ${String(error)}`);
       }

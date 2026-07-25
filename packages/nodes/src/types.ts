@@ -2,14 +2,16 @@ import type { z } from "zod";
 import type { NodeCategory } from "@workflow/shared";
 import type { ExpressionContext } from "./expressions.js";
 
+export type NodeLogLevel = "debug" | "info" | "warn" | "error";
+
 export interface NodeExecutionContext<Config = Record<string, unknown>> {
   config: Config;
   /** Payload recebido do node/edge anterior (ou o payload do trigger). */
   input: unknown;
   /** Variaveis de runtime desta execucao (Set Variables escreve aqui). */
   vars: Record<string, unknown>;
-  /** Log estruturado — persistido em execution_logs. */
-  log: (event: string, payload?: unknown) => void;
+  /** Log estruturado — persistido em execution_logs e espelhado em stdout. Default de `level`: "info". */
+  log: (event: string, payload?: unknown, level?: NodeLogLevel) => void;
   /** Busca o valor descriptografado de uma credencial do workspace pelo nome. */
   getCredential: (name: string) => Promise<string>;
   /** Conversa com um agente do workspace (node Agent) — roda o loop agentico completo. */
