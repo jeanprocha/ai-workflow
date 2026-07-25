@@ -140,6 +140,7 @@ export class AutocompleteService {
 
     let lastError: string | null = null;
     let graph: WorkflowGraph | null = null;
+    let lastResult: Awaited<ReturnType<typeof provider.chat>> | null = null;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       const userContent =
@@ -159,6 +160,7 @@ export class AutocompleteService {
         // outputSchema ja restringe bastante o formato de saida de qualquer forma.
         outputSchema: GRAPH_JSON_SCHEMA,
       });
+      lastResult = result;
 
       const parsedJson = safeJsonParse(result.content);
       if (parsedJson === undefined) {
@@ -198,6 +200,10 @@ export class AutocompleteService {
       type: 'autocomplete',
       workflowId: dto.workflowId,
       payload: { prompt: dto.prompt, graph },
+      model: lastResult?.model,
+      inputTokens: lastResult?.usage.inputTokens,
+      outputTokens: lastResult?.usage.outputTokens,
+      costUsd: lastResult?.costUsd,
     });
 
     return { suggestionId: suggestion.id, graph };

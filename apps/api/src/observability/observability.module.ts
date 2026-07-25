@@ -3,6 +3,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { createLoggerParams } from './logger.config';
 import { MetricsService } from './metrics.service';
 import { MetricsController } from './metrics.controller';
+import { AiTelemetryBridgeService } from './ai-telemetry.bridge';
 import { QueueModule } from '../queue/queue.module';
 
 /**
@@ -21,7 +22,7 @@ import { QueueModule } from '../queue/queue.module';
     QueueModule,
   ],
   controllers: [MetricsController],
-  providers: [MetricsService],
+  providers: [MetricsService, AiTelemetryBridgeService],
   exports: [LoggerModule, MetricsService],
 })
 export class ObservabilityModule {}

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Worker } from 'node:worker_threads';
 import * as path from 'node:path';
+import type { AiTelemetryEvent } from '@workflow/ai';
 import type {
   CtxRpcCall,
   CtxRpcReply,
@@ -12,6 +13,7 @@ const ENTRY_PATH = path.join(__dirname, 'node-worker-entry.js');
 
 export interface SandboxCtxHandlers {
   log: (event: string, payload: unknown, level?: string) => void;
+  aiTelemetry: (event: AiTelemetryEvent) => void;
   getCredential: (name: string) => Promise<string>;
   callAgent: (
     agentId: string,
@@ -129,6 +131,17 @@ export class NodeSandboxRunner {
         );
       } catch (error) {
         this.logger.warn(`Falha ao processar log do sandbox: ${String(error)}`);
+      }
+      return; // fire-and-forget — sem reply
+    }
+
+    if (call.method === 'aiTelemetry') {
+      try {
+        handlers.aiTelemetry(call.args[0] as AiTelemetryEvent);
+      } catch (error) {
+        this.logger.warn(
+          `Falha ao processar telemetria de IA do sandbox: ${String(error)}`,
+        );
       }
       return; // fire-and-forget — sem reply
     }

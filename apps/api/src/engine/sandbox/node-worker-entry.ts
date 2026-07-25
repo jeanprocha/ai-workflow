@@ -1,5 +1,6 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import { getNodeDefinition } from '@workflow/nodes';
+import { setTelemetryHandler } from '@workflow/ai';
 import type {
   SandboxRequest,
   CtxRpcCall,
@@ -24,6 +25,18 @@ if (!parentPort) {
 
 const port = parentPort;
 const data = workerData as SandboxRequest;
+
+// @workflow/ai roda isolado dentro deste worker_thread (modulo proprio, sem
+// estado compartilhado com o processo principal) — setTelemetryHandler() do
+// AiTelemetryBridgeService (registrado no bootstrap do processo principal)
+// nunca alcancaria as chamadas de getProvider().chat() feitas por nodes
+// ai.* aqui dentro. Sem isto, o evento morreria no vazio (emitTelemetry()
+// vira no-op sem handler) e as metricas ai_* nunca veriam execucao de nodes,
+// so as chamadas feitas direto na API (Autocomplete/Copilot/Debugger).
+// Fire-and-forget de volta ao thread principal, que reemite via
+// emitTelemetry() na SUA propria instancia do modulo (essa sim com o
+// handler real registrado).
+setTelemetryHandler((event) => fireAndForget('aiTelemetry', [event]));
 
 let rpcCounter = 0;
 const pending = new Map<

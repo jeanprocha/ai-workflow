@@ -445,6 +445,11 @@ model AiSuggestion {
   /** Conteudo especifico do tipo: grafo gerado, causa+fixes, troca de modelo, diff proposto. */
   payload     Json
   status      AiSuggestionStatus @default(pending)
+  /** Ausentes quando o tipo nao chama LLM (ex.: cost_optimizer, heuristica sobre ExecutionStep). */
+  model        String?
+  inputTokens  Int?              @map("input_tokens")
+  outputTokens Int?              @map("output_tokens")
+  costUsd      Float?            @map("cost_usd")
   createdAt   DateTime           @default(now()) @map("created_at")
   resolvedAt  DateTime?          @map("resolved_at")
 

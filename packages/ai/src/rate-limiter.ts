@@ -39,7 +39,8 @@ const POLL_INTERVAL_MS = 250;
  * multiplicando o limite efetivo pelo numero de workers). O Redis e o unico
  * estado compartilhado que todos os processos ja enxergam.
  */
-export async function acquireProviderSlot(provider: string): Promise<void> {
+/** @returns quanto tempo (ms) foi gasto esperando um slot — 0 se liberou de primeira. */
+export async function acquireProviderSlot(provider: string): Promise<number> {
   const limit = limitFor(provider);
   const redis = getClient();
   const startedAt = Date.now();
@@ -51,7 +52,7 @@ export async function acquireProviderSlot(provider: string): Promise<void> {
     if (count === 1) {
       await redis.expire(key, WINDOW_SECONDS + 5);
     }
-    if (count <= limit) return;
+    if (count <= limit) return Date.now() - startedAt;
 
     if (Date.now() - startedAt > MAX_WAIT_MS) {
       throw new Error(

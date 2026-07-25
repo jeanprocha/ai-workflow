@@ -190,6 +190,10 @@ Diga a causa provavel do erro em uma frase curta, e ate 3 sugestoes de correcao,
         causaProvavel: parsed.data.causaProvavel,
         sugestoes,
       },
+      model: result.model,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      costUsd: result.costUsd,
     });
 
     return {

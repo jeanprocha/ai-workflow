@@ -18,6 +18,11 @@ export class AiSuggestionsService {
     workflowId?: string;
     executionId?: string;
     payload: unknown;
+    /** Da ChatResult do provider — ausente pra tipos que nao chamam LLM (ex.: cost_optimizer). */
+    model?: string;
+    inputTokens?: number;
+    outputTokens?: number;
+    costUsd?: number;
   }) {
     return this.prisma.aiSuggestion.create({
       data: {
@@ -26,6 +31,10 @@ export class AiSuggestionsService {
         workflowId: params.workflowId,
         executionId: params.executionId,
         payload: params.payload as Prisma.InputJsonValue,
+        model: params.model,
+        inputTokens: params.inputTokens,
+        outputTokens: params.outputTokens,
+        costUsd: params.costUsd,
       },
     });
   }

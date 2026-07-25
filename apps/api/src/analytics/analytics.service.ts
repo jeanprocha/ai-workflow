@@ -24,7 +24,7 @@ export class AnalyticsService {
       30,
       async () => {
         const where = { workflow: { workspaceId } };
-        const [workflowsCount, agg, failuresCount, aiStepsAgg] =
+        const [workflowsCount, agg, failuresCount, aiStepsAgg, suggestionsAgg] =
           await Promise.all([
             this.prisma.workflow.count({ where: { workspaceId } }),
             this.prisma.execution.aggregate({
@@ -42,6 +42,13 @@ export class AnalyticsService {
                 tokens: { not: null },
               },
             }),
+            // Custo/tokens das 4 features de IA (Autocomplete/Copilot/Debugger)
+            // — chamadas fora da engine, nao entram no aggregate de Execution
+            // acima. Sem isso o custo de IA no dashboard ficava subestimado.
+            this.prisma.aiSuggestion.aggregate({
+              where: { workspaceId },
+              _sum: { costUsd: true, inputTokens: true, outputTokens: true },
+            }),
           ]);
 
         const executionsCount = agg._count;
@@ -53,8 +60,12 @@ export class AnalyticsService {
           failuresCount,
           failureRate:
             executionsCount > 0 ? failuresCount / executionsCount : 0,
-          costUsdTotal: agg._sum.costUsd ?? 0,
-          tokensTotal: agg._sum.tokensTotal ?? 0,
+          costUsdTotal:
+            (agg._sum.costUsd ?? 0) + (suggestionsAgg._sum.costUsd ?? 0),
+          tokensTotal:
+            (agg._sum.tokensTotal ?? 0) +
+            (suggestionsAgg._sum.inputTokens ?? 0) +
+            (suggestionsAgg._sum.outputTokens ?? 0),
         };
       },
     );

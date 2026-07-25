@@ -7,7 +7,12 @@ export interface SandboxRequest {
 }
 
 export type CtxRpcMethod =
-  'log' | 'getCredential' | 'callAgent' | 'searchKnowledge' | 'callMcpTool';
+  | 'log'
+  | 'aiTelemetry'
+  | 'getCredential'
+  | 'callAgent'
+  | 'searchKnowledge'
+  | 'callMcpTool';
 
 export interface CtxRpcCall {
   kind: 'rpc';

@@ -137,6 +137,10 @@ export class CopilotService {
         reply: parsed.data.reply,
         proposedGraph: graphValidation.data,
       },
+      model: result.model,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      costUsd: result.costUsd,
     });
 
     return {

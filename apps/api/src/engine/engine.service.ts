@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma, LogLevel } from '@prisma/client';
 import { getNodeDefinition, resolveExpressions } from '@workflow/nodes';
+import { emitTelemetry } from '@workflow/ai';
 import type {
   WorkflowEdge,
   WorkflowGraph,
@@ -356,6 +357,12 @@ export class EngineService {
           log: (event, payload, level) => {
             void this.recordLog(executionId, node.id, event, payload, level);
           },
+          // Nodes ai.* rodam getProvider().chat() dentro do worker_thread do
+          // sandbox (ADR-005) — modulo @workflow/ai isolado, sem o handler
+          // registrado pelo AiTelemetryBridgeService. O evento cruza de volta
+          // via RPC (ver node-worker-entry.ts) e e reemitido aqui, no
+          // processo principal, onde o handler real esta registrado.
+          aiTelemetry: (event) => emitTelemetry(event),
           getCredential: (name) => this.getCredential(workspaceId, name),
           callAgent: async (agentId, message) => {
             const agentResult = await this.agents.chat(
