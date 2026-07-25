@@ -1,3 +1,117 @@
-export const pt = {};
+export const pt = {
+  title: "MCP",
+  description: "Servidores Model Context Protocol conectados ao workspace.",
+  connectServer: "Conectar servidor",
+  empty: {
+    title: "Nenhum servidor MCP conectado",
+    description:
+      "Conecte um servidor Filesystem, GitHub, Postgres ou Browser para dar novas ferramentas aos seus agentes e fluxos.",
+  },
+  statusLabel: {
+    connecting: "Conectando",
+    connected: "Conectado",
+    disconnected: "Desconectado",
+    error: "Erro",
+  },
+  presets: {
+    filesystem: "Filesystem",
+    github: "GitHub",
+    postgres: "Postgres",
+    browser: "Browser",
+    filesystemPath: "/caminho/permitido",
+    postgresUrl: "postgresql://user:senha@host:5432/db",
+  },
+  reconnectTooltip: "Reconectar",
+  disconnect: "Desconectar",
+  toasts: {
+    connected: "Servidor MCP conectado.",
+    connectError: "Nao foi possivel conectar ao servidor MCP.",
+    reconnected: "Reconectado.",
+    reconnectError: "Nao foi possivel reconectar.",
+    disconnected: "Desconectado.",
+    disconnectError: "Nao foi possivel desconectar.",
+    removed: "Servidor removido.",
+    removeError: "Nao foi possivel remover o servidor.",
+  },
+  dialog: {
+    title: "Conectar servidor MCP",
+    nameLabel: "Nome",
+    namePlaceholder: "Ex: Filesystem",
+    transportLabel: "Transport",
+    transportStdio: "stdio (processo local)",
+    transportSse: "SSE (servidor remoto)",
+    transportHttp: "HTTP (servidor remoto)",
+    commandLabel: "Comando",
+    commandPlaceholder: "npx",
+    argsLabel: "Argumentos (um por linha)",
+    envLabel: "Variaveis de ambiente (CHAVE=valor por linha)",
+    urlLabel: "URL",
+    urlPlaceholder: "https://meu-servidor-mcp.com/sse",
+    connecting: "Conectando...",
+    connect: "Conectar",
+  },
+  deleteConfirm: {
+    title: (name?: string) => `Remover o servidor “${name}”?`,
+    description:
+      "Agentes e fluxos que usam tools deste servidor deixarao de funcionar. Esta acao nao pode ser desfeita.",
+  },
+};
 
-export const en = {} satisfies typeof pt;
+export const en = {
+  title: "MCP",
+  description: "Model Context Protocol servers connected to the workspace.",
+  connectServer: "Connect server",
+  empty: {
+    title: "No MCP server connected",
+    description:
+      "Connect a Filesystem, GitHub, Postgres, or Browser server to give your agents and flows new tools.",
+  },
+  statusLabel: {
+    connecting: "Connecting",
+    connected: "Connected",
+    disconnected: "Disconnected",
+    error: "Error",
+  },
+  presets: {
+    filesystem: "Filesystem",
+    github: "GitHub",
+    postgres: "Postgres",
+    browser: "Browser",
+    filesystemPath: "/allowed/path",
+    postgresUrl: "postgresql://user:password@host:5432/db",
+  },
+  reconnectTooltip: "Reconnect",
+  disconnect: "Disconnect",
+  toasts: {
+    connected: "MCP server connected.",
+    connectError: "Could not connect to the MCP server.",
+    reconnected: "Reconnected.",
+    reconnectError: "Could not reconnect.",
+    disconnected: "Disconnected.",
+    disconnectError: "Could not disconnect.",
+    removed: "Server removed.",
+    removeError: "Could not remove the server.",
+  },
+  dialog: {
+    title: "Connect MCP server",
+    nameLabel: "Name",
+    namePlaceholder: "e.g. Filesystem",
+    transportLabel: "Transport",
+    transportStdio: "stdio (local process)",
+    transportSse: "SSE (remote server)",
+    transportHttp: "HTTP (remote server)",
+    commandLabel: "Command",
+    commandPlaceholder: "npx",
+    argsLabel: "Arguments (one per line)",
+    envLabel: "Environment variables (KEY=value per line)",
+    urlLabel: "URL",
+    urlPlaceholder: "https://my-mcp-server.com/sse",
+    connecting: "Connecting...",
+    connect: "Connect",
+  },
+  deleteConfirm: {
+    title: (name?: string) => `Remove server “${name}”?`,
+    description:
+      "Agents and flows using tools from this server will stop working. This action cannot be undone.",
+  },
+} satisfies typeof pt;

@@ -5,6 +5,7 @@ import type { NodeCategory, NodeRetryPolicy } from "@workflow/shared";
 import { Pulse } from "@workflow/ui";
 import { getNodeIcon } from "@/lib/node-icons";
 import { getCatalogEntry } from "@/lib/node-catalog";
+import { useDictionary, type Dictionary } from "@/lib/i18n";
 import type { NodeRunStatus } from "@/hooks/use-execution-stream";
 
 const CATEGORY_COLOR_VAR: Record<NodeCategory, string> = {
@@ -28,10 +29,14 @@ export type WorkflowNodeData = {
 
 export type WorkflowFlowNode = Node<WorkflowNodeData, "workflowNode">;
 
-function subtitleFor(nodeType: string, config: Record<string, unknown>): string | null {
+function subtitleFor(
+  nodeType: string,
+  config: Record<string, unknown>,
+  t: Dictionary["editor"]["workflowNode"],
+): string | null {
   switch (nodeType) {
     case "trigger.webhook":
-      return config.webhookId ? `POST /hooks/${config.webhookId}` : "aguardando salvar...";
+      return config.webhookId ? `POST /hooks/${config.webhookId}` : t.pendingSave;
     case "api.httpRequest":
       return config.url ? `${config.method ?? "GET"} ${config.url}` : null;
     case "logic.if":
@@ -46,7 +51,7 @@ function subtitleFor(nodeType: string, config: Record<string, unknown>): string 
       return typeof config.url === "string" && config.url ? config.url : null;
     default:
       return typeof config.credential === "string" && config.credential
-        ? `conexao: ${config.credential}`
+        ? t.connectionSubtitle(config.credential)
         : null;
   }
 }
@@ -75,10 +80,11 @@ function outputHandleColor(output: string): string {
 }
 
 function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) {
+  const t = useDictionary().editor.workflowNode;
   const entry = getCatalogEntry(data.nodeType);
   const isTrigger = data.category === "trigger";
   const outputs = entry?.outputs ?? ["default"];
-  const subtitle = subtitleFor(data.nodeType, data.config);
+  const subtitle = subtitleFor(data.nodeType, data.config, t);
 
   return (
     <div

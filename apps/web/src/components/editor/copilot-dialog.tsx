@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ProviderModelFields, type ProviderModelValue } from "@/components/ai/provider-model-fields";
 import { useApplyCopilotSuggestion, useCopilotChat, type CopilotHistoryMessage } from "@/hooks/use-copilot";
 import { ApiError } from "@/lib/api-client";
+import { useDictionary } from "@/lib/i18n";
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback;
@@ -19,14 +20,8 @@ interface DisplayMessage extends CopilotHistoryMessage {
   applied?: boolean;
 }
 
-const SUGGESTED_PROMPTS = [
-  "Como melhorar este fluxo?",
-  "Existe um gargalo?",
-  "Posso reduzir custos?",
-  "Como deixar mais rapido?",
-];
-
 export function CopilotDialog({ workflowId }: { workflowId: string }) {
+  const t = useDictionary();
   const [open, setOpen] = useState(false);
   const [aiConfig, setAiConfig] = useState<ProviderModelValue>({
     provider: "anthropic",
@@ -57,7 +52,7 @@ export function CopilotDialog({ workflowId }: { workflowId: string }) {
         { role: "assistant", content: result.content, suggestionId: result.suggestionId },
       ]);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel conversar com o Copilot."));
+      toast.error(errorMessage(error, t.editor.copilot.chatErrorFallback));
       setMessages((prev) => prev.slice(0, -1));
     }
   }
@@ -70,10 +65,10 @@ export function CopilotDialog({ workflowId }: { workflowId: string }) {
           item.suggestionId === suggestionId ? { ...item, applied: true } : item,
         ),
       );
-      toast.success("Alteracao aplicada — recarregando o fluxo...");
+      toast.success(t.editor.copilot.appliedToast);
       setTimeout(() => window.location.reload(), 800);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel aplicar a sugestao."));
+      toast.error(errorMessage(error, t.editor.copilot.applyErrorFallback));
     }
   }
 
@@ -81,7 +76,7 @@ export function CopilotDialog({ workflowId }: { workflowId: string }) {
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
         <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
-        Copilot
+        {t.editor.copilot.title}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-w-lg flex-col">
@@ -89,7 +84,7 @@ export function CopilotDialog({ workflowId }: { workflowId: string }) {
             <DialogTitle>
               <span className="inline-flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4 text-primary" strokeWidth={1.5} />
-                Copilot
+                {t.editor.copilot.title}
               </span>
             </DialogTitle>
           </DialogHeader>
@@ -99,9 +94,9 @@ export function CopilotDialog({ workflowId }: { workflowId: string }) {
           <div className="max-h-80 min-h-[8rem] space-y-3 overflow-y-auto rounded-lg border border-border bg-muted p-3">
             {messages.length === 0 ? (
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Pergunte algo, ou tente:</p>
+                <p className="text-xs text-muted-foreground">{t.editor.copilot.promptHint}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {SUGGESTED_PROMPTS.map((prompt) => (
+                  {t.editor.copilot.suggestedPrompts.map((prompt) => (
                     <button
                       key={prompt}
                       type="button"
@@ -132,7 +127,7 @@ export function CopilotDialog({ workflowId }: { workflowId: string }) {
                       disabled={item.applied || applySuggestion.isPending}
                       onClick={() => onApply(item.suggestionId!)}
                     >
-                      {item.applied ? "Aplicado" : "Aplicar mudanca no grafo"}
+                      {item.applied ? t.common.applied : t.editor.copilot.applyButton}
                     </Button>
                   )}
                 </div>
@@ -145,7 +140,7 @@ export function CopilotDialog({ workflowId }: { workflowId: string }) {
               rows={2}
               value={message}
               onChange={(event) => setMessage(event.target.value)}
-              placeholder="Pergunte sobre o fluxo..."
+              placeholder={t.editor.copilot.messagePlaceholder}
               className="text-sm"
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {

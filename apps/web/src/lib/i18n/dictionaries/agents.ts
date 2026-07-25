@@ -1,3 +1,91 @@
-export const pt = {};
+export const pt = {
+  title: "Agents",
+  description: "Agentes reutilizaveis com ferramentas, memoria e system prompt proprios.",
+  createAgent: "Criar agente",
+  test: "Testar",
+  emptyTitle: "Nenhum agente ainda",
+  emptyDescription: "Crie um agente com ferramentas e memoria para reutilizar em qualquer fluxo.",
+  createdToast: "Agente criado.",
+  createErrorFallback: "Nao foi possivel criar o agente.",
+  chatErrorFallback: "Nao foi possivel conversar com o agente.",
+  deletedToast: "Agente excluido.",
+  deleteErrorFallback: "Nao foi possivel excluir o agente.",
+  tools: {
+    calculator: "Calculator",
+    http: "Internet (HTTP)",
+    sql: "SQL",
+    knowledgeBase: "Knowledge Base",
+    memory: "Memoria persistente",
+  },
+  form: {
+    nameLabel: "Nome",
+    namePlaceholder: "Ex: Financial Analyst",
+    descriptionLabel: "Descricao",
+    systemPromptLabel: "System prompt",
+    providerLabel: "Provider",
+    modelLabel: "Modelo",
+    credentialLabel: "Conexao (credential)",
+    credentialPlaceholder: "Ex: anthropic-default",
+    toolsLabel: "Ferramentas",
+    knowledgeBaseLabel: "Base de conhecimento",
+    knowledgeBaseSelectPlaceholder: "Selecione uma base",
+    mcpToolsLabel: "Tools MCP",
+  },
+  testDialog: {
+    title: (name?: string) => `Testar ${name ?? ""}`,
+    placeholder: "Pergunte algo ao agente...",
+    send: "Enviar",
+    sending: "Enviando...",
+  },
+  deleteConfirm: {
+    title: (name?: string) => `Excluir o agente “${name ?? ""}”?`,
+    description:
+      "Fluxos que usam este agente no node Agent deixarao de funcionar. Esta acao nao pode ser desfeita.",
+  },
+};
 
-export const en = {} satisfies typeof pt;
+export const en = {
+  title: "Agents",
+  description: "Reusable agents with their own tools, memory, and system prompt.",
+  createAgent: "Create agent",
+  test: "Test",
+  emptyTitle: "No agents yet",
+  emptyDescription: "Create an agent with tools and memory to reuse in any flow.",
+  createdToast: "Agent created.",
+  createErrorFallback: "Could not create the agent.",
+  chatErrorFallback: "Could not chat with the agent.",
+  deletedToast: "Agent deleted.",
+  deleteErrorFallback: "Could not delete the agent.",
+  tools: {
+    calculator: "Calculator",
+    http: "Internet (HTTP)",
+    sql: "SQL",
+    knowledgeBase: "Knowledge Base",
+    memory: "Persistent memory",
+  },
+  form: {
+    nameLabel: "Name",
+    namePlaceholder: "e.g. Financial Analyst",
+    descriptionLabel: "Description",
+    systemPromptLabel: "System prompt",
+    providerLabel: "Provider",
+    modelLabel: "Model",
+    credentialLabel: "Connection (credential)",
+    credentialPlaceholder: "e.g. anthropic-default",
+    toolsLabel: "Tools",
+    knowledgeBaseLabel: "Knowledge base",
+    knowledgeBaseSelectPlaceholder: "Select a base",
+    mcpToolsLabel: "MCP Tools",
+  },
+  testDialog: {
+    title: (name?: string) => `Test ${name ?? ""}`,
+    placeholder: "Ask the agent something...",
+    send: "Send",
+    sending: "Sending...",
+  },
+  deleteConfirm: {
+    title: (name?: string) => `Delete the agent “${name ?? ""}”?`,
+    description:
+      "Flows that use this agent in the Agent node will stop working. This action cannot be undone.",
+  },
+} satisfies typeof pt;

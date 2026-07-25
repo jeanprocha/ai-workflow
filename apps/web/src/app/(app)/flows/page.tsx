@@ -44,12 +44,8 @@ import {
   useWorkflows,
 } from "@/hooks/use-workflows";
 import { apiFetch, ApiError } from "@/lib/api-client";
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: "Rascunho",
-  active: "Ativo",
-  archived: "Arquivado",
-};
+import { useDictionary, useLocale } from "@/lib/i18n";
+import { formatDateTime } from "@/lib/format";
 
 const STATUS_STYLE: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -62,6 +58,7 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 function CreateFlowDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const t = useDictionary();
   const [name, setName] = useState("");
   const createWorkflow = useCreateWorkflow();
 
@@ -69,11 +66,11 @@ function CreateFlowDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     if (!name.trim()) return;
     try {
       await createWorkflow.mutateAsync({ name: name.trim() });
-      toast.success("Fluxo criado.");
+      toast.success(t.flows.toasts.created);
       setName("");
       onOpenChange(false);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel criar o fluxo."));
+      toast.error(errorMessage(error, t.flows.toasts.createError));
     }
   }
 
@@ -81,15 +78,15 @@ function CreateFlowDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Criar fluxo</DialogTitle>
+          <DialogTitle>{t.flows.createFlow}</DialogTitle>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label htmlFor="flow-name">Nome</Label>
+          <Label htmlFor="flow-name">{t.flows.nameLabel}</Label>
           <Input
             id="flow-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Ex: Suporte IA"
+            placeholder={t.flows.createDialog.namePlaceholder}
             autoFocus
           />
         </div>
@@ -99,10 +96,10 @@ function CreateFlowDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
             onClick={() => onOpenChange(false)}
             disabled={createWorkflow.isPending}
           >
-            Cancelar
+            {t.common.cancel}
           </Button>
           <Button onClick={onSubmit} disabled={createWorkflow.isPending || !name.trim()}>
-            {createWorkflow.isPending ? "Criando..." : "Criar fluxo"}
+            {createWorkflow.isPending ? t.common.creating : t.flows.createFlow}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -117,6 +114,7 @@ function GenerateWithAiDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const t = useDictionary();
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
   const [aiConfig, setAiConfig] = useState<ProviderModelValue>({
@@ -145,7 +143,7 @@ function GenerateWithAiDialog({
       });
       setPreview(result.graph);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel gerar o fluxo."));
+      toast.error(errorMessage(error, t.flows.toasts.generateError));
     }
   }
 
@@ -154,18 +152,18 @@ function GenerateWithAiDialog({
     setCreating(true);
     try {
       const workflow = await createWorkflow.mutateAsync({
-        name: prompt.trim().slice(0, 60) || "Fluxo gerado por IA",
+        name: prompt.trim().slice(0, 60) || t.flows.generateDialog.defaultName,
       });
       await apiFetch(`/workflows/${workflow.id}/graph`, {
         method: "PUT",
         body: { graph: preview },
       });
-      toast.success("Fluxo gerado e salvo.");
+      toast.success(t.flows.toasts.generatedSaved);
       onOpenChange(false);
       reset();
       router.push(`/flows/${workflow.id}`);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel salvar o fluxo gerado."));
+      toast.error(errorMessage(error, t.flows.toasts.generateSaveError));
     } finally {
       setCreating(false);
     }
@@ -184,7 +182,7 @@ function GenerateWithAiDialog({
           <DialogTitle>
             <span className="inline-flex items-center gap-1.5">
               <Sparkles className="h-4 w-4 text-primary" strokeWidth={1.5} />
-              Gerar fluxo com IA
+              {t.flows.generateDialog.title}
             </span>
           </DialogTitle>
         </DialogHeader>
@@ -192,34 +190,33 @@ function GenerateWithAiDialog({
         {!preview ? (
           <>
             <div className="space-y-1.5">
-              <Label htmlFor="ai-prompt">Descreva o que o fluxo deve fazer</Label>
+              <Label htmlFor="ai-prompt">{t.flows.generateDialog.promptLabel}</Label>
               <Textarea
                 id="ai-prompt"
                 rows={4}
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
-                placeholder="Ex: Quando chegar um email com boleto, extraia os dados, grave no banco, responda confirmando e envie no Slack."
+                placeholder={t.flows.generateDialog.promptPlaceholder}
                 autoFocus
               />
             </div>
             <ProviderModelFields idPrefix="ai-generate" value={aiConfig} onChange={setAiConfig} />
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
+                {t.common.cancel}
               </Button>
               <Button
                 onClick={onGenerate}
                 disabled={generateWorkflow.isPending || !prompt.trim() || !aiConfig.model.trim()}
               >
-                {generateWorkflow.isPending ? "Gerando..." : "Gerar"}
+                {generateWorkflow.isPending ? t.flows.generateDialog.generating : t.flows.generateDialog.generate}
               </Button>
             </DialogFooter>
           </>
         ) : (
           <>
             <p className="text-xs text-muted-foreground">
-              {preview.nodes.length} node(s), {preview.edges.length} conexao(oes). Revise antes de
-              salvar — voce podera editar tudo no canvas depois.
+              {t.flows.generateDialog.previewSummary(preview.nodes.length, preview.edges.length)}
             </p>
             <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-border bg-muted p-2">
               {preview.nodes.map((node) => (
@@ -234,10 +231,10 @@ function GenerateWithAiDialog({
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setPreview(null)}>
-                Gerar de novo
+                {t.flows.generateDialog.regenerate}
               </Button>
               <Button onClick={onAccept} disabled={creating}>
-                {creating ? "Salvando..." : "Aceitar e criar fluxo"}
+                {creating ? t.common.saving : t.flows.generateDialog.accept}
               </Button>
             </DialogFooter>
           </>
@@ -254,6 +251,7 @@ function RenameFlowDialog({
   workflow: Workflow | null;
   onOpenChange: (v: boolean) => void;
 }) {
+  const t = useDictionary();
   const [name, setName] = useState(workflow?.name ?? "");
   const updateWorkflow = useUpdateWorkflow();
 
@@ -261,10 +259,10 @@ function RenameFlowDialog({
     if (!workflow || !name.trim()) return;
     try {
       await updateWorkflow.mutateAsync({ id: workflow.id, name: name.trim() });
-      toast.success("Fluxo renomeado.");
+      toast.success(t.flows.toasts.renamed);
       onOpenChange(false);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel renomear o fluxo."));
+      toast.error(errorMessage(error, t.flows.toasts.renameError));
     }
   }
 
@@ -277,10 +275,10 @@ function RenameFlowDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Renomear fluxo</DialogTitle>
+          <DialogTitle>{t.flows.renameDialog.title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label htmlFor="rename-flow">Nome</Label>
+          <Label htmlFor="rename-flow">{t.flows.nameLabel}</Label>
           <Input
             id="rename-flow"
             value={name}
@@ -290,10 +288,10 @@ function RenameFlowDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
+            {t.common.cancel}
           </Button>
           <Button onClick={onSubmit} disabled={updateWorkflow.isPending}>
-            {updateWorkflow.isPending ? "Salvando..." : "Salvar"}
+            {updateWorkflow.isPending ? t.common.saving : t.common.save}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -308,15 +306,16 @@ function DeleteFlowDialog({
   workflow: Workflow | null;
   onOpenChange: (v: boolean) => void;
 }) {
+  const t = useDictionary();
   const deleteWorkflow = useDeleteWorkflow();
 
   async function onConfirm() {
     if (!workflow) return;
     try {
       await deleteWorkflow.mutateAsync(workflow.id);
-      toast.success("Fluxo excluido.");
+      toast.success(t.flows.toasts.deleted);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel excluir o fluxo."));
+      toast.error(errorMessage(error, t.flows.toasts.deleteError));
     }
   }
 
@@ -324,19 +323,16 @@ function DeleteFlowDialog({
     <AlertDialog open={!!workflow} onOpenChange={(v) => !v && onOpenChange(false)}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Excluir o fluxo &ldquo;{workflow?.name}&rdquo;?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Todas as versoes e o historico de execucoes deste fluxo serao perdidos. Esta acao nao
-            pode ser desfeita.
-          </AlertDialogDescription>
+          <AlertDialogTitle>{t.flows.deleteDialog.title(workflow?.name)}</AlertDialogTitle>
+          <AlertDialogDescription>{t.flows.deleteDialog.description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
           <AlertDialogAction
             className="bg-danger/10 text-danger hover:bg-danger/20"
             onClick={onConfirm}
           >
-            Excluir
+            {t.common.delete}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -345,6 +341,8 @@ function DeleteFlowDialog({
 }
 
 export default function FlowsPage() {
+  const t = useDictionary();
+  const locale = useLocale();
   const { data: workflows, isLoading } = useWorkflows();
   const updateWorkflow = useUpdateWorkflow();
   const [createOpen, setCreateOpen] = useState(false);
@@ -356,9 +354,9 @@ export default function FlowsPage() {
     const nextStatus = workflow.status === "active" ? "archived" : "active";
     try {
       await updateWorkflow.mutateAsync({ id: workflow.id, status: nextStatus });
-      toast.success(nextStatus === "active" ? "Fluxo ativado." : "Fluxo arquivado.");
+      toast.success(nextStatus === "active" ? t.flows.toasts.activated : t.flows.toasts.archived);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel atualizar o status."));
+      toast.error(errorMessage(error, t.flows.toasts.statusError));
     }
   }
 
@@ -366,20 +364,18 @@ export default function FlowsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">Flows</h1>
-          <p className="text-sm text-muted-foreground">
-            Automacoes visuais construidas com nodes independentes.
-          </p>
+          <h1 className="text-lg font-semibold text-foreground">{t.flows.title}</h1>
+          <p className="text-sm text-muted-foreground">{t.flows.description}</p>
         </div>
         {!!workflows?.length && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setGenerateOpen(true)}>
               <Sparkles className="h-4 w-4" strokeWidth={1.5} />
-              Gerar com IA
+              {t.flows.generateWithAi}
             </Button>
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" strokeWidth={1.5} />
-              Criar fluxo
+              {t.flows.createFlow}
             </Button>
           </div>
         )}
@@ -395,17 +391,17 @@ export default function FlowsPage() {
 
       {!isLoading && !workflows?.length && (
         <EmptyState
-          title="Nenhum fluxo ainda"
-          description="Descreva o que voce precisa e a IA monta o fluxo, ou comece do zero / por um template."
+          title={t.flows.emptyState.title}
+          description={t.flows.emptyState.description}
           action={
             <Button onClick={() => setGenerateOpen(true)}>
               <Sparkles className="h-4 w-4" strokeWidth={1.5} />
-              Gerar com IA
+              {t.flows.generateWithAi}
             </Button>
           }
           secondaryAction={
             <Button variant="outline" onClick={() => setCreateOpen(true)}>
-              Criar fluxo
+              {t.flows.createFlow}
             </Button>
           }
         />
@@ -430,16 +426,16 @@ export default function FlowsPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => setRenameTarget(workflow)}>
-                        Renomear
+                        {t.flows.menu.rename}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => toggleStatus(workflow)}>
-                        {workflow.status === "active" ? "Arquivar" : "Ativar"}
+                        {workflow.status === "active" ? t.flows.menu.archive : t.flows.menu.activate}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         variant="destructive"
                         onClick={() => setDeleteTarget(workflow)}
                       >
-                        Excluir
+                        {t.common.delete}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -451,10 +447,10 @@ export default function FlowsPage() {
                   STATUS_STYLE[workflow.status]
                 }
               >
-                {STATUS_LABEL[workflow.status]}
+                {t.flows.statusLabel[workflow.status]}
               </span>
               <p className="mt-auto text-xs text-muted-foreground">
-                Atualizado {new Date(workflow.updatedAt).toLocaleDateString("pt-BR")}
+                {t.flows.updatedAt(formatDateTime(workflow.updatedAt, locale, { dateStyle: "short" }))}
               </p>
             </Link>
           ))}

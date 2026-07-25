@@ -26,6 +26,7 @@ import { EditorToolbar } from "./editor-toolbar";
 import { useSaveGraph, useWorkflow } from "@/hooks/use-workflows";
 import { useExecutionStream } from "@/hooks/use-execution-stream";
 import { getCatalogEntry } from "@/lib/node-catalog";
+import { useDictionary } from "@/lib/i18n";
 
 const DEFAULT_VIEWPORT: Viewport = { x: 0, y: 0, zoom: 1 };
 
@@ -80,6 +81,7 @@ function flowToGraph(
 }
 
 function FlowEditorInner({ workflowId }: { workflowId: string }) {
+  const t = useDictionary();
   const { data: workflow } = useWorkflow(workflowId);
   const saveGraph = useSaveGraph(workflowId);
   const { screenToFlowPosition } = useReactFlow();
@@ -214,7 +216,7 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
     <div className="flex h-screen w-full flex-col">
       <EditorToolbar
         workflowId={workflowId}
-        name={workflow?.name ?? "Carregando..."}
+        name={workflow?.name ?? t.common.loading}
         saveState={saveState}
         onRunStarted={setExecutionId}
         currentVersionId={workflow?.currentVersion?.id ?? null}

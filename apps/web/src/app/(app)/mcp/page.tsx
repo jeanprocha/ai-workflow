@@ -37,60 +37,11 @@ import {
   type McpServerStatus,
 } from "@/hooks/use-mcp";
 import { ApiError } from "@/lib/api-client";
+import { useDictionary } from "@/lib/i18n";
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback;
 }
-
-const PRESETS: Array<{
-  label: string;
-  build: () => Partial<ConnectMcpServerInput>;
-}> = [
-  {
-    label: "Filesystem",
-    build: () => ({
-      name: "Filesystem",
-      transport: "stdio",
-      command: "npx",
-      args: ["-y", "@modelcontextprotocol/server-filesystem", "/caminho/permitido"],
-    }),
-  },
-  {
-    label: "GitHub",
-    build: () => ({
-      name: "GitHub",
-      transport: "stdio",
-      command: "npx",
-      args: ["-y", "@modelcontextprotocol/server-github"],
-      env: { GITHUB_PERSONAL_ACCESS_TOKEN: "" },
-    }),
-  },
-  {
-    label: "Postgres",
-    build: () => ({
-      name: "Postgres",
-      transport: "stdio",
-      command: "npx",
-      args: ["-y", "@modelcontextprotocol/server-postgres", "postgresql://user:senha@host:5432/db"],
-    }),
-  },
-  {
-    label: "Browser",
-    build: () => ({
-      name: "Browser",
-      transport: "stdio",
-      command: "npx",
-      args: ["-y", "@modelcontextprotocol/server-puppeteer"],
-    }),
-  },
-];
-
-const STATUS_LABEL: Record<McpServerStatus, string> = {
-  connecting: "Conectando",
-  connected: "Conectado",
-  disconnected: "Desconectado",
-  error: "Erro",
-};
 
 const STATUS_STYLE: Record<McpServerStatus, string> = {
   connecting: "bg-accent-subtle text-primary",
@@ -100,6 +51,7 @@ const STATUS_STYLE: Record<McpServerStatus, string> = {
 };
 
 function StatusBadge({ status }: { status: McpServerStatus }) {
+  const t = useDictionary();
   const Icon = status === "connected" ? Check : status === "error" ? X : Loader2;
   return (
     <span
@@ -109,7 +61,7 @@ function StatusBadge({ status }: { status: McpServerStatus }) {
         className={`h-3 w-3 ${status === "connecting" ? "animate-spin" : ""}`}
         strokeWidth={2.5}
       />
-      {STATUS_LABEL[status]}
+      {t.mcp.statusLabel[status]}
     </span>
   );
 }
@@ -141,6 +93,7 @@ function textToEnv(text: string): Record<string, string> {
 }
 
 function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const t = useDictionary();
   const [form, setForm] = useState<ConnectMcpServerInput>({
     name: "",
     transport: "stdio",
@@ -153,6 +106,49 @@ function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
   const [argsText, setArgsText] = useState("");
   const [envText, setEnvText] = useState("");
   const connect = useConnectMcpServer();
+
+  const presets: Array<{
+    label: string;
+    build: () => Partial<ConnectMcpServerInput>;
+  }> = [
+    {
+      label: t.mcp.presets.filesystem,
+      build: () => ({
+        name: t.mcp.presets.filesystem,
+        transport: "stdio",
+        command: "npx",
+        args: ["-y", "@modelcontextprotocol/server-filesystem", t.mcp.presets.filesystemPath],
+      }),
+    },
+    {
+      label: t.mcp.presets.github,
+      build: () => ({
+        name: t.mcp.presets.github,
+        transport: "stdio",
+        command: "npx",
+        args: ["-y", "@modelcontextprotocol/server-github"],
+        env: { GITHUB_PERSONAL_ACCESS_TOKEN: "" },
+      }),
+    },
+    {
+      label: t.mcp.presets.postgres,
+      build: () => ({
+        name: t.mcp.presets.postgres,
+        transport: "stdio",
+        command: "npx",
+        args: ["-y", "@modelcontextprotocol/server-postgres", t.mcp.presets.postgresUrl],
+      }),
+    },
+    {
+      label: t.mcp.presets.browser,
+      build: () => ({
+        name: t.mcp.presets.browser,
+        transport: "stdio",
+        command: "npx",
+        args: ["-y", "@modelcontextprotocol/server-puppeteer"],
+      }),
+    },
+  ];
 
   function applyPreset(build: () => Partial<ConnectMcpServerInput>) {
     const preset = build();
@@ -170,13 +166,13 @@ function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
     };
     try {
       await connect.mutateAsync(payload);
-      toast.success("Servidor MCP conectado.");
+      toast.success(t.mcp.toasts.connected);
       setForm({ name: "", transport: "stdio", command: "", args: [], env: {}, url: "", headers: {} });
       setArgsText("");
       setEnvText("");
       onOpenChange(false);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel conectar ao servidor MCP."));
+      toast.error(errorMessage(error, t.mcp.toasts.connectError));
     }
   }
 
@@ -184,11 +180,11 @@ function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Conectar servidor MCP</DialogTitle>
+          <DialogTitle>{t.mcp.dialog.title}</DialogTitle>
         </DialogHeader>
         <div className="max-h-[65vh] space-y-3 overflow-y-auto pr-1">
           <div className="flex flex-wrap gap-2">
-            {PRESETS.map((preset) => (
+            {presets.map((preset) => (
               <Button
                 key={preset.label}
                 type="button"
@@ -202,17 +198,17 @@ function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="mcp-name">Nome</Label>
+            <Label htmlFor="mcp-name">{t.mcp.dialog.nameLabel}</Label>
             <Input
               id="mcp-name"
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
-              placeholder="Ex: Filesystem"
+              placeholder={t.mcp.dialog.namePlaceholder}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="mcp-transport">Transport</Label>
+            <Label htmlFor="mcp-transport">{t.mcp.dialog.transportLabel}</Label>
             <select
               id="mcp-transport"
               value={form.transport}
@@ -221,25 +217,25 @@ function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
               }
               className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm"
             >
-              <option value="stdio">stdio (processo local)</option>
-              <option value="sse">SSE (servidor remoto)</option>
-              <option value="http">HTTP (servidor remoto)</option>
+              <option value="stdio">{t.mcp.dialog.transportStdio}</option>
+              <option value="sse">{t.mcp.dialog.transportSse}</option>
+              <option value="http">{t.mcp.dialog.transportHttp}</option>
             </select>
           </div>
 
           {form.transport === "stdio" ? (
             <>
               <div className="space-y-1.5">
-                <Label htmlFor="mcp-command">Comando</Label>
+                <Label htmlFor="mcp-command">{t.mcp.dialog.commandLabel}</Label>
                 <Input
                   id="mcp-command"
                   value={form.command}
                   onChange={(event) => setForm({ ...form, command: event.target.value })}
-                  placeholder="npx"
+                  placeholder={t.mcp.dialog.commandPlaceholder}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="mcp-args">Argumentos (um por linha)</Label>
+                <Label htmlFor="mcp-args">{t.mcp.dialog.argsLabel}</Label>
                 <Textarea
                   id="mcp-args"
                   rows={3}
@@ -249,7 +245,7 @@ function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="mcp-env">Variaveis de ambiente (CHAVE=valor por linha)</Label>
+                <Label htmlFor="mcp-env">{t.mcp.dialog.envLabel}</Label>
                 <Textarea
                   id="mcp-env"
                   rows={2}
@@ -261,22 +257,22 @@ function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
             </>
           ) : (
             <div className="space-y-1.5">
-              <Label htmlFor="mcp-url">URL</Label>
+              <Label htmlFor="mcp-url">{t.mcp.dialog.urlLabel}</Label>
               <Input
                 id="mcp-url"
                 value={form.url}
                 onChange={(event) => setForm({ ...form, url: event.target.value })}
-                placeholder="https://meu-servidor-mcp.com/sse"
+                placeholder={t.mcp.dialog.urlPlaceholder}
               />
             </div>
           )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
+            {t.common.cancel}
           </Button>
           <Button onClick={onSubmit} disabled={connect.isPending || !form.name.trim()}>
-            {connect.isPending ? "Conectando..." : "Conectar"}
+            {connect.isPending ? t.mcp.dialog.connecting : t.mcp.dialog.connect}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -285,6 +281,7 @@ function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
 }
 
 export default function McpPage() {
+  const t = useDictionary();
   const { data: servers, isLoading } = useMcpServers();
   const reconnect = useReconnectMcpServer();
   const disconnect = useDisconnectMcpServer();
@@ -295,18 +292,18 @@ export default function McpPage() {
   async function onReconnect(id: string) {
     try {
       await reconnect.mutateAsync(id);
-      toast.success("Reconectado.");
+      toast.success(t.mcp.toasts.reconnected);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel reconectar."));
+      toast.error(errorMessage(error, t.mcp.toasts.reconnectError));
     }
   }
 
   async function onDisconnect(id: string) {
     try {
       await disconnect.mutateAsync(id);
-      toast.success("Desconectado.");
+      toast.success(t.mcp.toasts.disconnected);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel desconectar."));
+      toast.error(errorMessage(error, t.mcp.toasts.disconnectError));
     }
   }
 
@@ -314,9 +311,9 @@ export default function McpPage() {
     if (!deleteTarget) return;
     try {
       await remove.mutateAsync(deleteTarget.id);
-      toast.success("Servidor removido.");
+      toast.success(t.mcp.toasts.removed);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel remover o servidor."));
+      toast.error(errorMessage(error, t.mcp.toasts.removeError));
     } finally {
       setDeleteTarget(null);
     }
@@ -326,15 +323,13 @@ export default function McpPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">MCP</h1>
-          <p className="text-sm text-muted-foreground">
-            Servidores Model Context Protocol conectados ao workspace.
-          </p>
+          <h1 className="text-lg font-semibold text-foreground">{t.mcp.title}</h1>
+          <p className="text-sm text-muted-foreground">{t.mcp.description}</p>
         </div>
         {!!servers?.length && (
           <Button onClick={() => setConnectOpen(true)}>
             <Plus className="h-4 w-4" strokeWidth={1.5} />
-            Conectar servidor
+            {t.mcp.connectServer}
           </Button>
         )}
       </div>
@@ -349,9 +344,9 @@ export default function McpPage() {
 
       {!isLoading && !servers?.length && (
         <EmptyState
-          title="Nenhum servidor MCP conectado"
-          description="Conecte um servidor Filesystem, GitHub, Postgres ou Browser para dar novas ferramentas aos seus agentes e fluxos."
-          action={<Button onClick={() => setConnectOpen(true)}>Conectar servidor</Button>}
+          title={t.mcp.empty.title}
+          description={t.mcp.empty.description}
+          action={<Button onClick={() => setConnectOpen(true)}>{t.mcp.connectServer}</Button>}
         />
       )}
 
@@ -372,7 +367,7 @@ export default function McpPage() {
                     size="icon-sm"
                     onClick={() => onReconnect(server.id)}
                     disabled={reconnect.isPending}
-                    title="Reconectar"
+                    title={t.mcp.reconnectTooltip}
                   >
                     <RotateCw className="h-3.5 w-3.5" strokeWidth={1.5} />
                   </Button>
@@ -383,7 +378,7 @@ export default function McpPage() {
                       onClick={() => onDisconnect(server.id)}
                       disabled={disconnect.isPending}
                     >
-                      Desconectar
+                      {t.mcp.disconnect}
                     </Button>
                   )}
                   <Button variant="ghost" size="icon-sm" onClick={() => setDeleteTarget(server)}>
@@ -419,19 +414,16 @@ export default function McpPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover o servidor &ldquo;{deleteTarget?.name}&rdquo;?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Agentes e fluxos que usam tools deste servidor deixarao de funcionar. Esta acao nao
-              pode ser desfeita.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t.mcp.deleteConfirm.title(deleteTarget?.name)}</AlertDialogTitle>
+            <AlertDialogDescription>{t.mcp.deleteConfirm.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-danger/10 text-danger hover:bg-danger/20"
               onClick={onConfirmDelete}
             >
-              Remover
+              {t.common.remove}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

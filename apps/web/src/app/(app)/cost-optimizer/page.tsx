@@ -12,12 +12,16 @@ import {
   useCostOptimizerSuggestions,
 } from "@/hooks/use-cost-optimizer";
 import { ApiError } from "@/lib/api-client";
+import { useDictionary, useLocale } from "@/lib/i18n";
+import { formatUsd } from "@/lib/format";
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback;
 }
 
 export default function CostOptimizerPage() {
+  const t = useDictionary();
+  const locale = useLocale();
   const [analyzed, setAnalyzed] = useState(false);
   const { data: suggestions, isLoading, refetch, isFetching } = useCostOptimizerSuggestions(analyzed);
   const applySuggestion = useApplyCostSuggestion();
@@ -32,9 +36,9 @@ export default function CostOptimizerPage() {
     try {
       await applySuggestion.mutateAsync(suggestionId);
       setAppliedIds((prev) => new Set(prev).add(suggestionId));
-      toast.success("Modelo trocado — uma nova versao do fluxo foi salva.");
+      toast.success(t.costOptimizer.appliedToast);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel aplicar esta sugestao."));
+      toast.error(errorMessage(error, t.costOptimizer.applyErrorFallback));
     }
   }
 
@@ -42,23 +46,20 @@ export default function CostOptimizerPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">Cost Optimizer</h1>
-          <p className="text-sm text-muted-foreground">
-            Analisa o historico real de execucoes (ultimos 30 dias) e sugere trocar por um modelo
-            mais barato quando isso nao compromete a tarefa.
-          </p>
+          <h1 className="text-lg font-semibold text-foreground">{t.costOptimizer.title}</h1>
+          <p className="text-sm text-muted-foreground">{t.costOptimizer.description}</p>
         </div>
         <Button onClick={onAnalyze} disabled={isFetching}>
           <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
-          {isFetching ? "Analisando..." : "Analisar"}
+          {isFetching ? t.costOptimizer.analyzing : t.costOptimizer.analyze}
         </Button>
       </div>
 
       {!analyzed && (
         <EmptyState
-          title="Ainda nao analisado"
-          description="Clique em Analisar para ver oportunidades reais de economia com base no que os seus fluxos ja rodaram."
-          action={<Button onClick={onAnalyze}>Analisar</Button>}
+          title={t.costOptimizer.emptyNotAnalyzed.title}
+          description={t.costOptimizer.emptyNotAnalyzed.description}
+          action={<Button onClick={onAnalyze}>{t.costOptimizer.analyze}</Button>}
         />
       )}
 
@@ -72,8 +73,8 @@ export default function CostOptimizerPage() {
 
       {analyzed && !isLoading && !suggestions?.length && (
         <EmptyState
-          title="Nenhuma oportunidade encontrada"
-          description="Ou os fluxos ja usam modelos economicos, ou ainda nao ha volume suficiente de execucoes (minimo 3 por node) nos ultimos 30 dias."
+          title={t.costOptimizer.emptyNoOpportunities.title}
+          description={t.costOptimizer.emptyNoOpportunities.description}
         />
       )}
 
@@ -98,15 +99,18 @@ export default function CostOptimizerPage() {
                       <span className="text-muted-foreground"> · node {suggestion.nodeId}</span>
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Trocar <span className="font-mono">{suggestion.currentProvider}/{suggestion.currentModel}</span>{" "}
-                      por{" "}
+                      {t.costOptimizer.swapFrom}{" "}
+                      <span className="font-mono">{suggestion.currentProvider}/{suggestion.currentModel}</span>{" "}
+                      {t.costOptimizer.swapTo}{" "}
                       <span className="font-mono text-foreground">
                         {suggestion.suggestedProvider}/{suggestion.suggestedModel}
                       </span>
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Baseado em {suggestion.sampleSize} execucoes · custo medio atual US${" "}
-                      {suggestion.avgCostUsd.toFixed(4)}
+                      {t.costOptimizer.basedOn(
+                        suggestion.sampleSize,
+                        formatUsd(suggestion.avgCostUsd, locale, 4),
+                      )}
                     </p>
                   </div>
                 </div>
@@ -120,7 +124,7 @@ export default function CostOptimizerPage() {
                     disabled={applied || applySuggestion.isPending}
                     onClick={() => onApply(suggestion.suggestionId)}
                   >
-                    {applied ? "Aplicado" : "Aplicar"}
+                    {applied ? t.common.applied : t.common.apply}
                   </Button>
                 </div>
               </div>

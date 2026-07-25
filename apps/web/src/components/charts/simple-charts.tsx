@@ -10,9 +10,17 @@ export interface SeriesPoint {
 }
 
 /** Grafico de linha minimalista, sem dependencias — so SVG. */
-export function LineChart({ data, color = "var(--primary)" }: { data: SeriesPoint[]; color?: string }) {
+export function LineChart({
+  data,
+  color = "var(--primary)",
+  emptyLabel,
+}: {
+  data: SeriesPoint[];
+  color?: string;
+  emptyLabel: string;
+}) {
   if (data.length === 0) {
-    return <p className="text-xs text-muted-foreground">Sem dados no periodo.</p>;
+    return <p className="text-xs text-muted-foreground">{emptyLabel}</p>;
   }
 
   const max = Math.max(...data.map((point) => point.value), 1);
@@ -44,9 +52,17 @@ export function LineChart({ data, color = "var(--primary)" }: { data: SeriesPoin
 }
 
 /** Grafico de barras horizontal minimalista, sem dependencias — so SVG. */
-export function BarList({ data, color = "var(--primary)" }: { data: SeriesPoint[]; color?: string }) {
+export function BarList({
+  data,
+  color = "var(--primary)",
+  emptyLabel,
+}: {
+  data: SeriesPoint[];
+  color?: string;
+  emptyLabel: string;
+}) {
   if (data.length === 0) {
-    return <p className="text-xs text-muted-foreground">Sem dados.</p>;
+    return <p className="text-xs text-muted-foreground">{emptyLabel}</p>;
   }
   const max = Math.max(...data.map((point) => point.value), 1);
 

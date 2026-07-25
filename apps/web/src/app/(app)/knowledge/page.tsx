@@ -35,6 +35,7 @@ import {
   type KnowledgeBase,
 } from "@/hooks/use-knowledge";
 import { ApiError } from "@/lib/api-client";
+import { useDictionary } from "@/lib/i18n";
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback;
@@ -53,16 +54,17 @@ function CreateKnowledgeBaseDialog({
     credential: "",
   });
   const createKb = useCreateKnowledgeBase();
+  const t = useDictionary();
 
   async function onSubmit() {
     if (!form.name.trim()) return;
     try {
       await createKb.mutateAsync(form);
-      toast.success("Base de conhecimento criada.");
+      toast.success(t.knowledge.list.createdToast);
       setForm({ name: "", description: "", credential: "" });
       onOpenChange(false);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel criar a base."));
+      toast.error(errorMessage(error, t.knowledge.list.createErrorFallback));
     }
   }
 
@@ -70,20 +72,20 @@ function CreateKnowledgeBaseDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Criar base de conhecimento</DialogTitle>
+          <DialogTitle>{t.knowledge.list.createDialogTitle}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="kb-name">Nome</Label>
+            <Label htmlFor="kb-name">{t.knowledge.list.nameLabel}</Label>
             <Input
               id="kb-name"
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
-              placeholder="Ex: Manual do Produto"
+              placeholder={t.knowledge.list.namePlaceholder}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="kb-description">Descricao</Label>
+            <Label htmlFor="kb-description">{t.knowledge.list.descriptionLabel}</Label>
             <Textarea
               id="kb-description"
               rows={2}
@@ -92,25 +94,22 @@ function CreateKnowledgeBaseDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="kb-credential">Credencial OpenAI (embeddings)</Label>
+            <Label htmlFor="kb-credential">{t.knowledge.list.credentialLabel}</Label>
             <Input
               id="kb-credential"
               value={form.credential}
               onChange={(event) => setForm({ ...form, credential: event.target.value })}
-              placeholder="Ex: openai-default"
+              placeholder={t.knowledge.list.credentialPlaceholder}
             />
-            <p className="text-xs text-muted-foreground">
-              Os embeddings usam OpenAI (text-embedding-3-small). Claude/Anthropic nao tem API
-              de embeddings.
-            </p>
+            <p className="text-xs text-muted-foreground">{t.knowledge.list.embeddingsHint}</p>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
+            {t.common.cancel}
           </Button>
           <Button onClick={onSubmit} disabled={createKb.isPending || !form.name.trim()}>
-            {createKb.isPending ? "Criando..." : "Criar base"}
+            {createKb.isPending ? t.common.creating : t.knowledge.list.createSubmit}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -123,14 +122,15 @@ export default function KnowledgePage() {
   const deleteKb = useDeleteKnowledgeBase();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeBase | null>(null);
+  const t = useDictionary();
 
   async function onConfirmDelete() {
     if (!deleteTarget) return;
     try {
       await deleteKb.mutateAsync(deleteTarget.id);
-      toast.success("Base de conhecimento excluida.");
+      toast.success(t.knowledge.list.deletedToast);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel excluir a base."));
+      toast.error(errorMessage(error, t.knowledge.list.deleteErrorFallback));
     } finally {
       setDeleteTarget(null);
     }
@@ -140,12 +140,12 @@ export default function KnowledgePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">Knowledge</h1>
-          <p className="text-sm text-muted-foreground">
-            Base de conhecimento para seus agentes consultarem.
-          </p>
+          <h1 className="text-lg font-semibold text-foreground">{t.knowledge.list.title}</h1>
+          <p className="text-sm text-muted-foreground">{t.knowledge.list.description}</p>
         </div>
-        {!!bases?.length && <Button onClick={() => setCreateOpen(true)}>Criar base</Button>}
+        {!!bases?.length && (
+          <Button onClick={() => setCreateOpen(true)}>{t.knowledge.list.createBase}</Button>
+        )}
       </div>
 
       {isLoading && (
@@ -158,9 +158,9 @@ export default function KnowledgePage() {
 
       {!isLoading && !bases?.length && (
         <EmptyState
-          title="Nenhuma base de conhecimento ainda"
-          description="Crie uma base e envie PDF, DOCX, Markdown, TXT ou CSV para comecar."
-          action={<Button onClick={() => setCreateOpen(true)}>Criar base</Button>}
+          title={t.knowledge.list.emptyTitle}
+          description={t.knowledge.list.emptyDescription}
+          action={<Button onClick={() => setCreateOpen(true)}>{t.knowledge.list.createBase}</Button>}
         />
       )}
 
@@ -184,10 +184,10 @@ export default function KnowledgePage() {
                 <p className="text-xs text-muted-foreground">{kb.description}</p>
               )}
               <p className="text-xs text-muted-foreground">
-                {kb._count.documents} documento{kb._count.documents === 1 ? "" : "s"}
+                {t.knowledge.list.documentCount(kb._count.documents)}
               </p>
               <Button variant="outline" size="sm" className="mt-auto" render={<Link href={`/knowledge/${kb.id}`} />}>
-                Ver documentos
+                {t.knowledge.list.viewDocuments}
               </Button>
             </div>
           ))}
@@ -199,19 +199,20 @@ export default function KnowledgePage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir a base &ldquo;{deleteTarget?.name}&rdquo;?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t.knowledge.list.deleteConfirmTitle(deleteTarget?.name ?? "")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Todos os documentos e chunks desta base serao excluidos. Agentes que usam esta
-              base deixarao de ter acesso a ela. Esta acao nao pode ser desfeita.
+              {t.knowledge.list.deleteConfirmDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-danger/10 text-danger hover:bg-danger/20"
               onClick={onConfirmDelete}
             >
-              Excluir
+              {t.common.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

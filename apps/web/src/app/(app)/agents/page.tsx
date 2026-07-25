@@ -37,14 +37,7 @@ import {
 import { useKnowledgeBases } from "@/hooks/use-knowledge";
 import { useMcpServers } from "@/hooks/use-mcp";
 import { ApiError } from "@/lib/api-client";
-
-const AVAILABLE_TOOLS = [
-  { key: "calculator", label: "Calculator" },
-  { key: "http", label: "Internet (HTTP)" },
-  { key: "sql", label: "SQL" },
-  { key: "knowledge_base", label: "Knowledge Base" },
-  { key: "memory", label: "Memoria persistente" },
-];
+import { useDictionary } from "@/lib/i18n";
 
 const MEMORY_TOOL_KEYS = ["memory_get", "memory_set"];
 
@@ -61,6 +54,14 @@ function displayTools(tools: string[]) {
 }
 
 function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const t = useDictionary();
+  const AVAILABLE_TOOLS = [
+    { key: "calculator", label: t.agents.tools.calculator },
+    { key: "http", label: t.agents.tools.http },
+    { key: "sql", label: t.agents.tools.sql },
+    { key: "knowledge_base", label: t.agents.tools.knowledgeBase },
+    { key: "memory", label: t.agents.tools.memory },
+  ];
   const [form, setForm] = useState<CreateAgentInput>({
     name: "",
     description: "",
@@ -104,7 +105,7 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     if (!form.name.trim() || !form.systemPrompt.trim() || !form.model.trim()) return;
     try {
       await createAgent.mutateAsync(form);
-      toast.success("Agente criado.");
+      toast.success(t.agents.createdToast);
       setForm({
         name: "",
         description: "",
@@ -117,7 +118,7 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
       });
       onOpenChange(false);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel criar o agente."));
+      toast.error(errorMessage(error, t.agents.createErrorFallback));
     }
   }
 
@@ -125,20 +126,20 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Criar agente</DialogTitle>
+          <DialogTitle>{t.agents.createAgent}</DialogTitle>
         </DialogHeader>
         <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
           <div className="space-y-1.5">
-            <Label htmlFor="agent-name">Nome</Label>
+            <Label htmlFor="agent-name">{t.agents.form.nameLabel}</Label>
             <Input
               id="agent-name"
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
-              placeholder="Ex: Financial Analyst"
+              placeholder={t.agents.form.namePlaceholder}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="agent-description">Descricao</Label>
+            <Label htmlFor="agent-description">{t.agents.form.descriptionLabel}</Label>
             <Input
               id="agent-description"
               value={form.description}
@@ -146,7 +147,7 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="agent-prompt">System prompt</Label>
+            <Label htmlFor="agent-prompt">{t.agents.form.systemPromptLabel}</Label>
             <Textarea
               id="agent-prompt"
               rows={4}
@@ -156,7 +157,7 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1.5">
-              <Label htmlFor="agent-provider">Provider</Label>
+              <Label htmlFor="agent-provider">{t.agents.form.providerLabel}</Label>
               <select
                 id="agent-provider"
                 value={form.provider}
@@ -171,7 +172,7 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
               </select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="agent-model">Modelo</Label>
+              <Label htmlFor="agent-model">{t.agents.form.modelLabel}</Label>
               <Input
                 id="agent-model"
                 value={form.model}
@@ -180,16 +181,16 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="agent-credential">Conexao (credential)</Label>
+            <Label htmlFor="agent-credential">{t.agents.form.credentialLabel}</Label>
             <Input
               id="agent-credential"
               value={form.credential}
               onChange={(event) => setForm({ ...form, credential: event.target.value })}
-              placeholder="Ex: anthropic-default"
+              placeholder={t.agents.form.credentialPlaceholder}
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Ferramentas</Label>
+            <Label>{t.agents.form.toolsLabel}</Label>
             <div className="flex flex-wrap gap-3">
               {AVAILABLE_TOOLS.map((tool) => (
                 <label key={tool.key} className="flex items-center gap-1.5 text-sm text-foreground">
@@ -206,7 +207,7 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
           </div>
           {isToolChecked("knowledge_base") && (
             <div className="space-y-1.5">
-              <Label htmlFor="agent-kb">Base de conhecimento</Label>
+              <Label htmlFor="agent-kb">{t.agents.form.knowledgeBaseLabel}</Label>
               <select
                 id="agent-kb"
                 value={form.knowledgeBaseId ?? ""}
@@ -215,7 +216,7 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                 }
                 className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm"
               >
-                <option value="">Selecione uma base</option>
+                <option value="">{t.agents.form.knowledgeBaseSelectPlaceholder}</option>
                 {knowledgeBases?.map((kb) => (
                   <option key={kb.id} value={kb.id}>
                     {kb.name}
@@ -226,7 +227,7 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
           )}
           {!!mcpServers?.filter((server) => server.status === "connected").length && (
             <div className="space-y-1.5">
-              <Label>Tools MCP</Label>
+              <Label>{t.agents.form.mcpToolsLabel}</Label>
               <div className="flex flex-col gap-2">
                 {mcpServers
                   .filter((server) => server.status === "connected")
@@ -260,10 +261,10 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
+            {t.common.cancel}
           </Button>
           <Button onClick={onSubmit} disabled={createAgent.isPending}>
-            {createAgent.isPending ? "Criando..." : "Criar agente"}
+            {createAgent.isPending ? t.common.creating : t.agents.createAgent}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -272,6 +273,7 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 }
 
 function TestAgentDialog({ agent, onOpenChange }: { agent: Agent | null; onOpenChange: (v: boolean) => void }) {
+  const t = useDictionary();
   const [message, setMessage] = useState("");
   const [response, setResponse] = useState<string | null>(null);
   const chat = useChatWithAgent(agent?.id ?? "");
@@ -282,7 +284,7 @@ function TestAgentDialog({ agent, onOpenChange }: { agent: Agent | null; onOpenC
       const result = await chat.mutateAsync(message);
       setResponse(result.content);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel conversar com o agente."));
+      toast.error(errorMessage(error, t.agents.chatErrorFallback));
     }
   }
 
@@ -290,13 +292,13 @@ function TestAgentDialog({ agent, onOpenChange }: { agent: Agent | null; onOpenC
     <Dialog open={!!agent} onOpenChange={(v) => !v && onOpenChange(false)}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Testar {agent?.name}</DialogTitle>
+          <DialogTitle>{t.agents.testDialog.title(agent?.name)}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <Textarea
             value={message}
             onChange={(event) => setMessage(event.target.value)}
-            placeholder="Pergunte algo ao agente..."
+            placeholder={t.agents.testDialog.placeholder}
             rows={3}
           />
           {response && (
@@ -307,10 +309,10 @@ function TestAgentDialog({ agent, onOpenChange }: { agent: Agent | null; onOpenC
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Fechar
+            {t.common.close}
           </Button>
           <Button onClick={onSend} disabled={chat.isPending || !message.trim()}>
-            {chat.isPending ? "Enviando..." : "Enviar"}
+            {chat.isPending ? t.agents.testDialog.sending : t.agents.testDialog.send}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -319,6 +321,7 @@ function TestAgentDialog({ agent, onOpenChange }: { agent: Agent | null; onOpenC
 }
 
 export default function AgentsPage() {
+  const t = useDictionary();
   const { data: agents, isLoading } = useAgents();
   const deleteAgent = useDeleteAgent();
   const [createOpen, setCreateOpen] = useState(false);
@@ -329,9 +332,9 @@ export default function AgentsPage() {
     if (!deleteTarget) return;
     try {
       await deleteAgent.mutateAsync(deleteTarget.id);
-      toast.success("Agente excluido.");
+      toast.success(t.agents.deletedToast);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel excluir o agente."));
+      toast.error(errorMessage(error, t.agents.deleteErrorFallback));
     } finally {
       setDeleteTarget(null);
     }
@@ -341,15 +344,13 @@ export default function AgentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">Agents</h1>
-          <p className="text-sm text-muted-foreground">
-            Agentes reutilizaveis com ferramentas, memoria e system prompt proprios.
-          </p>
+          <h1 className="text-lg font-semibold text-foreground">{t.agents.title}</h1>
+          <p className="text-sm text-muted-foreground">{t.agents.description}</p>
         </div>
         {!!agents?.length && (
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" strokeWidth={1.5} />
-            Criar agente
+            {t.agents.createAgent}
           </Button>
         )}
       </div>
@@ -364,9 +365,9 @@ export default function AgentsPage() {
 
       {!isLoading && !agents?.length && (
         <EmptyState
-          title="Nenhum agente ainda"
-          description="Crie um agente com ferramentas e memoria para reutilizar em qualquer fluxo."
-          action={<Button onClick={() => setCreateOpen(true)}>Criar agente</Button>}
+          title={t.agents.emptyTitle}
+          description={t.agents.emptyDescription}
+          action={<Button onClick={() => setCreateOpen(true)}>{t.agents.createAgent}</Button>}
         />
       )}
 
@@ -411,7 +412,7 @@ export default function AgentsPage() {
                 onClick={() => setTestTarget(agent)}
               >
                 <MessageCircle className="h-3.5 w-3.5" strokeWidth={1.5} />
-                Testar
+                {t.agents.test}
               </Button>
             </div>
           ))}
@@ -428,19 +429,16 @@ export default function AgentsPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir o agente &ldquo;{deleteTarget?.name}&rdquo;?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Fluxos que usam este agente no node Agent deixarao de funcionar. Esta acao nao pode
-              ser desfeita.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t.agents.deleteConfirm.title(deleteTarget?.name)}</AlertDialogTitle>
+            <AlertDialogDescription>{t.agents.deleteConfirm.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-danger/10 text-danger hover:bg-danger/20"
               onClick={onConfirmDelete}
             >
-              Excluir
+              {t.common.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

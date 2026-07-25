@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { NODE_CATALOG, CATEGORY_LABELS, type NodeCatalogEntry } from "@/lib/node-catalog";
 import { getNodeIcon } from "@/lib/node-icons";
+import { useDictionary } from "@/lib/i18n";
 import type { NodeCategory } from "@workflow/shared";
 
 function groupByCategory(
@@ -21,13 +22,14 @@ function onDragStart(event: React.DragEvent, nodeType: string) {
 }
 
 export function NodePalette() {
+  const t = useDictionary().editor.nodePalette;
   const groups = groupByCategory(NODE_CATALOG);
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-border bg-card">
       <div className="border-b border-border px-3 py-2.5">
-        <h2 className="text-sm font-medium text-foreground">Nodes</h2>
-        <p className="text-xs text-muted-foreground">Arraste para o canvas.</p>
+        <h2 className="text-sm font-medium text-foreground">{t.title}</h2>
+        <p className="text-xs text-muted-foreground">{t.hint}</p>
       </div>
       <div className="flex-1 space-y-4 p-3">
         {groups.map(([category, entries]) => (

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { getAccessToken, getWorkspaceId } from "@/lib/auth-storage";
+import { useDictionary } from "@/lib/i18n";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333";
 
@@ -93,6 +94,7 @@ export function useDocuments(knowledgeBaseId: string) {
 
 export function useUploadDocument(knowledgeBaseId: string) {
   const queryClient = useQueryClient();
+  const t = useDictionary();
   return useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
@@ -109,7 +111,7 @@ export function useUploadDocument(knowledgeBaseId: string) {
 
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        throw new Error(body?.message ?? "Falha ao enviar o documento.");
+        throw new Error(body?.message ?? t.knowledge.detail.uploadErrorFallbackGeneric);
       }
       return response.json() as Promise<KnowledgeDocument>;
     },

@@ -29,15 +29,18 @@ import {
   type WorkflowVersionSummary,
 } from "@/hooks/use-workflow-versions";
 import { ApiError } from "@/lib/api-client";
+import { useDictionary, useLocale } from "@/lib/i18n";
+import { formatDateTime } from "@/lib/format";
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback;
 }
 
 function DiffSummary({ diff }: { diff: GraphDiff }) {
+  const t = useDictionary().editor.versionHistory;
   const entries = Object.entries(diff.nodes).filter(([, entry]) => entry.status !== "unchanged");
   if (entries.length === 0) {
-    return <p className="text-xs text-muted-foreground">Sem diferencas de nodes entre as versoes.</p>;
+    return <p className="text-xs text-muted-foreground">{t.noDiff}</p>;
   }
   return (
     <div className="space-y-1">
@@ -71,6 +74,8 @@ function VersionRow({
   workflowId: string;
   onRestored: () => void;
 }) {
+  const t = useDictionary();
+  const locale = useLocale();
   const [showDiff, setShowDiff] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const { data: thisVersion } = useWorkflowVersion(workflowId, showDiff ? version.id : null);
@@ -86,11 +91,11 @@ function VersionRow({
   async function onConfirmRollback() {
     try {
       await rollback.mutateAsync(version.id);
-      toast.success(`Restaurado para a v${version.versionNumber}.`);
+      toast.success(t.editor.versionHistory.restoredToast(version.versionNumber));
       setConfirmOpen(false);
       onRestored();
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel restaurar esta versao."));
+      toast.error(errorMessage(error, t.editor.versionHistory.restoreErrorFallback));
     }
   }
 
@@ -102,22 +107,22 @@ function VersionRow({
             v{version.versionNumber}
             {version.isCurrent && (
               <span className="ml-2 rounded-full bg-accent-subtle px-2 py-0.5 text-xs text-primary">
-                atual
+                {t.editor.versionHistory.current}
               </span>
             )}
           </p>
           <p className="text-xs text-muted-foreground">
-            {new Date(version.createdAt).toLocaleString("pt-BR")} · {version.createdByName}
+            {formatDateTime(version.createdAt, locale)} · {version.createdByName}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowDiff((v) => !v)}>
-            {showDiff ? "Ocultar diff" : "Ver diff"}
+            {showDiff ? t.editor.versionHistory.hideDiff : t.editor.versionHistory.viewDiff}
           </Button>
           {!version.isCurrent && (
             <Button variant="outline" size="sm" onClick={() => setConfirmOpen(true)}>
               <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.5} />
-              Restaurar
+              {t.editor.versionHistory.restore}
             </Button>
           )}
         </div>
@@ -132,15 +137,18 @@ function VersionRow({
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Restaurar a v{version.versionNumber}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t.editor.versionHistory.confirmTitle(version.versionNumber)}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Isso cria uma nova versao com o grafo desta versao antiga e a torna a atual. O
-              historico e preservado — nada e perdido.
+              {t.editor.versionHistory.confirmDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={onConfirmRollback}>Restaurar</AlertDialogAction>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirmRollback}>
+              {t.editor.versionHistory.restore}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -155,6 +163,7 @@ export function VersionHistoryDialog({
   workflowId: string;
   currentVersionId: string;
 }) {
+  const t = useDictionary().editor.versionHistory;
   const [open, setOpen] = useState(false);
   const { data: versions, isLoading } = useWorkflowVersions(workflowId, open);
 
@@ -162,12 +171,12 @@ export function VersionHistoryDialog({
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
         <History className="h-3.5 w-3.5" strokeWidth={1.5} />
-        Historico
+        {t.openButton}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Historico de versoes</DialogTitle>
+            <DialogTitle>{t.dialogTitle}</DialogTitle>
           </DialogHeader>
           <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
             {isLoading && (

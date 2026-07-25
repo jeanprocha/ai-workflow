@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { MODEL_REGISTRY } from "@workflow/ai/models";
 import { Label } from "@/components/ui/label";
 import { useCredentials } from "@/hooks/use-credentials";
+import { useDictionary } from "@/lib/i18n";
 
 export interface ProviderModelValue {
   provider: string;
@@ -24,6 +25,7 @@ export function ProviderModelFields({
   idPrefix: string;
 }) {
   const { data: credentials } = useCredentials();
+  const t = useDictionary();
 
   const modelsForProvider = useMemo(
     () => MODEL_REGISTRY.filter((model) => model.provider === value.provider),
@@ -56,7 +58,7 @@ export function ProviderModelFields({
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-provider`}>Provider</Label>
+          <Label htmlFor={`${idPrefix}-provider`}>{t.editor.providerFields.providerLabel}</Label>
           <select
             id={`${idPrefix}-provider`}
             value={value.provider}
@@ -71,7 +73,7 @@ export function ProviderModelFields({
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-model`}>Modelo</Label>
+          <Label htmlFor={`${idPrefix}-model`}>{t.editor.providerFields.modelLabel}</Label>
           <select
             id={`${idPrefix}-model`}
             value={value.model}
@@ -79,7 +81,9 @@ export function ProviderModelFields({
             className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm"
             disabled={!modelsForProvider.length}
           >
-            {modelsForProvider.length === 0 && <option value="">Nenhum modelo</option>}
+            {modelsForProvider.length === 0 && (
+              <option value="">{t.editor.providerFields.noModel}</option>
+            )}
             {modelsForProvider.map((model) => (
               <option key={model.id} value={model.id}>
                 {model.label}
@@ -89,12 +93,10 @@ export function ProviderModelFields({
         </div>
       </div>
       {value.provider === "ollama" ? (
-        <p className="text-xs text-muted-foreground">
-          Ollama roda local — nao precisa de credencial.
-        </p>
+        <p className="text-xs text-muted-foreground">{t.editor.providerFields.ollamaNote}</p>
       ) : (
         <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-credential`}>Conexao (credential)</Label>
+          <Label htmlFor={`${idPrefix}-credential`}>{t.editor.providerFields.credentialLabel}</Label>
           <select
             id={`${idPrefix}-credential`}
             value={value.credential}
@@ -103,7 +105,7 @@ export function ProviderModelFields({
             disabled={!credentialsForProvider.length}
           >
             {credentialsForProvider.length === 0 && (
-              <option value="">Nenhuma credencial de {value.provider} cadastrada</option>
+              <option value="">{t.editor.providerFields.noCredential(value.provider)}</option>
             )}
             {credentialsForProvider.map((credential) => (
               <option key={credential.id} value={credential.name}>
@@ -114,7 +116,7 @@ export function ProviderModelFields({
           </select>
           {credentialsForProvider.length === 0 && (
             <p className="text-xs text-muted-foreground">
-              Cadastre uma credencial de {value.provider} em Configuracoes → Credenciais.
+              {t.editor.providerFields.registerCredentialHint(value.provider)}
             </p>
           )}
         </div>

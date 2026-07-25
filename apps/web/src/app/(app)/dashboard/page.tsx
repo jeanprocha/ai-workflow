@@ -13,36 +13,44 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAnalyticsSummary, useRecentExecutions } from "@/hooks/use-analytics";
+import { useDictionary, useLocale } from "@/lib/i18n";
+import { formatDateTime, formatDuration, formatNumber, formatUsd } from "@/lib/format";
 
 function toBadgeStatus(status: string): ExecutionStatus {
   return status === "canceled" ? "failed" : (status as ExecutionStatus);
 }
 
-function formatDuration(ms: number | null) {
-  if (ms === null) return "—";
-  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
-}
-
 export default function DashboardPage() {
+  const t = useDictionary();
+  const locale = useLocale();
   const { data: summary, isLoading: loadingSummary } = useAnalyticsSummary();
   const { data: recent, isLoading: loadingRecent } = useRecentExecutions();
 
   const metrics = summary
     ? [
-        { label: "Fluxos", value: String(summary.workflowsCount) },
-        { label: "Execucoes", value: summary.executionsCount.toLocaleString("pt-BR") },
-        { label: "IA Requests", value: summary.aiRequestsCount.toLocaleString("pt-BR") },
-        { label: "Tempo medio", value: `${(summary.avgDurationMs / 1000).toFixed(1)}s` },
-        { label: "Falhas", value: String(summary.failuresCount) },
-        { label: "Custo IA", value: `US$ ${summary.costUsdTotal.toFixed(2)}` },
+        { label: t.dashboard.metrics.workflows, value: String(summary.workflowsCount) },
+        {
+          label: t.dashboard.metrics.executions,
+          value: formatNumber(summary.executionsCount, locale),
+        },
+        {
+          label: t.dashboard.metrics.aiRequests,
+          value: formatNumber(summary.aiRequestsCount, locale),
+        },
+        {
+          label: t.dashboard.metrics.avgDuration,
+          value: `${(summary.avgDurationMs / 1000).toFixed(1)}s`,
+        },
+        { label: t.dashboard.metrics.failures, value: String(summary.failuresCount) },
+        { label: t.dashboard.metrics.aiCost, value: formatUsd(summary.costUsdTotal, locale) },
       ]
     : [];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Visao geral da plataforma.</p>
+        <h1 className="text-lg font-semibold text-foreground">{t.dashboard.title}</h1>
+        <p className="text-sm text-muted-foreground">{t.dashboard.description}</p>
       </div>
 
       {loadingSummary ? (
@@ -61,9 +69,11 @@ export default function DashboardPage() {
 
       <div className="rounded-lg border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="text-md font-medium text-foreground">Execucoes recentes</h2>
+          <h2 className="text-md font-medium text-foreground">
+            {t.dashboard.recentExecutions.title}
+          </h2>
           <Button size="sm" variant="ghost" render={<Link href="/executions" />}>
-            Ver todas
+            {t.dashboard.recentExecutions.viewAll}
           </Button>
         </div>
 
@@ -72,8 +82,8 @@ export default function DashboardPage() {
         {!loadingRecent && !recent?.length && (
           <div className="p-4">
             <EmptyState
-              title="Nenhuma execucao ainda"
-              description="Execute um fluxo para ver o historico aqui."
+              title={t.dashboard.recentExecutions.empty.title}
+              description={t.dashboard.recentExecutions.empty.description}
             />
           </div>
         )}
@@ -82,10 +92,14 @@ export default function DashboardPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Fluxo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Duracao</TableHead>
-                <TableHead className="text-right">Iniciado</TableHead>
+                <TableHead>{t.dashboard.recentExecutions.columns.workflow}</TableHead>
+                <TableHead>{t.dashboard.recentExecutions.columns.status}</TableHead>
+                <TableHead className="text-right">
+                  {t.dashboard.recentExecutions.columns.duration}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t.dashboard.recentExecutions.columns.startedAt}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -100,10 +114,10 @@ export default function DashboardPage() {
                     <StatusBadge status={toBadgeStatus(execution.status)} />
                   </TableCell>
                   <TableCell className="tabular text-right font-mono text-sm">
-                    {formatDuration(execution.durationMs)}
+                    {execution.durationMs === null ? "—" : formatDuration(execution.durationMs, locale)}
                   </TableCell>
                   <TableCell className="text-right text-sm text-muted-foreground">
-                    {new Date(execution.startedAt).toLocaleString("pt-BR")}
+                    {formatDateTime(execution.startedAt, locale)}
                   </TableCell>
                 </TableRow>
               ))}

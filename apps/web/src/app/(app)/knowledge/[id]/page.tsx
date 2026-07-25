@@ -17,16 +17,19 @@ import {
   type DocumentStatus,
 } from "@/hooks/use-knowledge";
 import { ApiError } from "@/lib/api-client";
+import { useDictionary, useLocale } from "@/lib/i18n";
+import { formatPercent } from "@/lib/format";
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback;
 }
 
 function StatusPill({ status, error }: { status: DocumentStatus; error: string | null }) {
+  const t = useDictionary();
   if (status === "ready") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-success-subtle px-2 py-0.5 text-xs text-success">
-        <Check className="h-3 w-3" strokeWidth={2.5} /> Pronto
+        <Check className="h-3 w-3" strokeWidth={2.5} /> {t.knowledge.detail.statusReady}
       </span>
     );
   }
@@ -36,13 +39,13 @@ function StatusPill({ status, error }: { status: DocumentStatus; error: string |
         className="inline-flex items-center gap-1 rounded-full bg-danger-subtle px-2 py-0.5 text-xs text-danger"
         title={error ?? undefined}
       >
-        <X className="h-3 w-3" strokeWidth={2.5} /> Falhou
+        <X className="h-3 w-3" strokeWidth={2.5} /> {t.knowledge.detail.statusFailed}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-accent-subtle px-2 py-0.5 text-xs text-primary">
-      <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2.5} /> Processando
+      <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2.5} /> {t.knowledge.detail.statusProcessing}
     </span>
   );
 }
@@ -58,6 +61,8 @@ export default function KnowledgeBaseDetailPage({
   const uploadDocument = useUploadDocument(id);
   const deleteDocument = useDeleteDocument(id);
   const searchKnowledge = useSearchKnowledge(id);
+  const t = useDictionary();
+  const locale = useLocale();
 
   const [dragOver, setDragOver] = useState(false);
   const [query, setQuery] = useState("");
@@ -68,9 +73,9 @@ export default function KnowledgeBaseDetailPage({
     for (const file of Array.from(files)) {
       try {
         await uploadDocument.mutateAsync(file);
-        toast.success(`"${file.name}" enviado — processando.`);
+        toast.success(t.knowledge.detail.uploadSuccess(file.name));
       } catch (error) {
-        toast.error(errorMessage(error, `Falha ao enviar "${file.name}".`));
+        toast.error(errorMessage(error, t.knowledge.detail.uploadErrorFallback(file.name)));
       }
     }
   }
@@ -84,9 +89,9 @@ export default function KnowledgeBaseDetailPage({
   async function onDeleteDocument(documentId: string) {
     try {
       await deleteDocument.mutateAsync(documentId);
-      toast.success("Documento excluido.");
+      toast.success(t.knowledge.detail.deletedDocumentToast);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel excluir o documento."));
+      toast.error(errorMessage(error, t.knowledge.detail.deleteDocumentErrorFallback));
     }
   }
 
@@ -95,7 +100,7 @@ export default function KnowledgeBaseDetailPage({
     try {
       await searchKnowledge.mutateAsync(query);
     } catch (error) {
-      toast.error(errorMessage(error, "Busca falhou."));
+      toast.error(errorMessage(error, t.knowledge.detail.searchErrorFallback));
     }
   }
 
@@ -107,7 +112,7 @@ export default function KnowledgeBaseDetailPage({
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-          Knowledge
+          {t.knowledge.detail.backLink}
         </Link>
         <h1 className="mt-1 text-lg font-semibold text-foreground">{kb?.name ?? "..."}</h1>
         {kb?.description && <p className="text-sm text-muted-foreground">{kb.description}</p>}
@@ -127,8 +132,8 @@ export default function KnowledgeBaseDetailPage({
         }
       >
         <UploadCloud className="h-6 w-6 text-muted-foreground" strokeWidth={1.5} />
-        <p className="text-sm text-foreground">Arraste um arquivo aqui ou clique para enviar</p>
-        <p className="text-xs text-muted-foreground">PDF, DOCX, Markdown, TXT ou CSV</p>
+        <p className="text-sm text-foreground">{t.knowledge.detail.dropzoneText}</p>
+        <p className="text-xs text-muted-foreground">{t.knowledge.detail.dropzoneFormats}</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -139,10 +144,13 @@ export default function KnowledgeBaseDetailPage({
       </div>
 
       <div>
-        <h2 className="mb-2 text-sm font-medium text-foreground">Documentos</h2>
+        <h2 className="mb-2 text-sm font-medium text-foreground">{t.knowledge.detail.documentsTitle}</h2>
         {isLoading && <Skeleton className="h-24 rounded-lg" />}
         {!isLoading && !documents?.length && (
-          <EmptyState title="Nenhum documento ainda" description="Envie um arquivo acima para comecar." />
+          <EmptyState
+            title={t.knowledge.detail.emptyDocumentsTitle}
+            description={t.knowledge.detail.emptyDocumentsDescription}
+          />
         )}
         {!!documents?.length && (
           <div className="space-y-2">
@@ -154,8 +162,7 @@ export default function KnowledgeBaseDetailPage({
                 <div>
                   <p className="text-sm font-medium text-foreground">{doc.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {doc.sourceType.toUpperCase()} · {doc.chunkCount} chunk
-                    {doc.chunkCount === 1 ? "" : "s"}
+                    {doc.sourceType.toUpperCase()} · {t.knowledge.detail.chunkCount(doc.chunkCount)}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -171,17 +178,17 @@ export default function KnowledgeBaseDetailPage({
       </div>
 
       <div>
-        <h2 className="mb-2 text-sm font-medium text-foreground">Testar busca</h2>
+        <h2 className="mb-2 text-sm font-medium text-foreground">{t.knowledge.detail.testSearchTitle}</h2>
         <div className="flex gap-2">
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Faca uma pergunta sobre os documentos..."
+            placeholder={t.knowledge.detail.searchPlaceholder}
             onKeyDown={(event) => event.key === "Enter" && onSearch()}
           />
           <Button onClick={onSearch} disabled={searchKnowledge.isPending || !query.trim()}>
             <Search className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Buscar
+            {t.knowledge.detail.searchButton}
           </Button>
         </div>
 
@@ -192,7 +199,7 @@ export default function KnowledgeBaseDetailPage({
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-foreground">{result.documentName}</span>
                   <span className="font-mono text-xs text-muted-foreground">
-                    {(result.similarity * 100).toFixed(1)}%
+                    {formatPercent(result.similarity * 100, locale)}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">{result.content}</p>
@@ -202,7 +209,7 @@ export default function KnowledgeBaseDetailPage({
         )}
 
         {searchKnowledge.isSuccess && searchKnowledge.data?.length === 0 && (
-          <p className="mt-3 text-sm text-muted-foreground">Nenhum resultado encontrado.</p>
+          <p className="mt-3 text-sm text-muted-foreground">{t.knowledge.detail.noResults}</p>
         )}
       </div>
     </div>

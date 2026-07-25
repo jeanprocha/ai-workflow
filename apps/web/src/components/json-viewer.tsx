@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { useDictionary } from "@/lib/i18n";
 
 export function JsonViewer({ value, className }: { value: unknown; className?: string }) {
+  const t = useDictionary();
   const [copied, setCopied] = useState(false);
   const text = value === null || value === undefined ? "—" : JSON.stringify(value, null, 2);
 
@@ -19,7 +21,7 @@ export function JsonViewer({ value, className }: { value: unknown; className?: s
         type="button"
         onClick={onCopy}
         className="absolute right-2 top-2 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent-subtle hover:text-primary group-hover:opacity-100"
-        aria-label="Copiar JSON"
+        aria-label={t.executions.detail.copyJson}
       >
         {copied ? <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> : <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />}
       </button>

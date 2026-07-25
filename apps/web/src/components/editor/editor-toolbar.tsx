@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { useRunWorkflow } from "@/hooks/use-workflows";
 import { ApiError } from "@/lib/api-client";
+import { useDictionary } from "@/lib/i18n";
 import { VersionHistoryDialog } from "./version-history-dialog";
 import { CopilotDialog } from "./copilot-dialog";
 
@@ -26,12 +27,6 @@ export interface EditorToolbarProps {
   currentVersionId: string | null;
 }
 
-const SAVE_LABEL: Record<EditorToolbarProps["saveState"], string> = {
-  saved: "Salvo",
-  saving: "Salvando...",
-  dirty: "Alteracoes nao salvas",
-};
-
 export function EditorToolbar({
   workflowId,
   name,
@@ -39,26 +34,34 @@ export function EditorToolbar({
   onRunStarted,
   currentVersionId,
 }: EditorToolbarProps) {
+  const dictionary = useDictionary();
+  const t = dictionary.editor.toolbar;
   const [runOpen, setRunOpen] = useState(false);
   const [payload, setPayload] = useState("{}");
   const runWorkflow = useRunWorkflow(workflowId);
+
+  const saveLabel: Record<EditorToolbarProps["saveState"], string> = {
+    saved: t.saveLabel.saved,
+    saving: t.saveLabel.saving,
+    dirty: t.saveLabel.dirty,
+  };
 
   async function onRun() {
     let input: Record<string, unknown>;
     try {
       input = payload.trim() ? JSON.parse(payload) : {};
     } catch {
-      toast.error("O payload precisa ser um JSON valido.");
+      toast.error(t.invalidPayloadToast);
       return;
     }
 
     try {
       const execution = await runWorkflow.mutateAsync(input);
-      toast.success("Execucao iniciada.");
+      toast.success(t.runStartedToast);
       setRunOpen(false);
       onRunStarted(execution.id);
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Nao foi possivel executar o fluxo.");
+      toast.error(error instanceof ApiError ? error.message : t.runErrorFallback);
     }
   }
 
@@ -69,7 +72,7 @@ export function EditorToolbar({
           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
         </Button>
         <span className="text-sm font-medium text-foreground">{name}</span>
-        <span className="text-xs text-muted-foreground">{SAVE_LABEL[saveState]}</span>
+        <span className="text-xs text-muted-foreground">{saveLabel[saveState]}</span>
       </div>
 
       <div className="flex items-center gap-2">
@@ -79,17 +82,17 @@ export function EditorToolbar({
         )}
         <Button onClick={() => setRunOpen(true)}>
           <Play className="h-4 w-4" strokeWidth={1.5} />
-          Executar
+          {t.run}
         </Button>
       </div>
 
       <Dialog open={runOpen} onOpenChange={setRunOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Executar fluxo</DialogTitle>
+            <DialogTitle>{t.runDialogTitle}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Payload de entrada (JSON) para o trigger manual.
+            {t.payloadDescription}
           </p>
           <Textarea
             value={payload}
@@ -99,10 +102,10 @@ export function EditorToolbar({
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setRunOpen(false)}>
-              Cancelar
+              {useDictionary().common.cancel}
             </Button>
             <Button onClick={onRun} disabled={runWorkflow.isPending}>
-              {runWorkflow.isPending ? "Executando..." : "Executar"}
+              {runWorkflow.isPending ? t.running : t.run}
             </Button>
           </DialogFooter>
         </DialogContent>

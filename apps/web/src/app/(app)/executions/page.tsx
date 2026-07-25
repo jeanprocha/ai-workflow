@@ -18,6 +18,8 @@ import {
 import { useExecutions, useRetryExecution, type ExecutionFilters } from "@/hooks/use-executions";
 import { useWorkflows } from "@/hooks/use-workflows";
 import { ApiError } from "@/lib/api-client";
+import { useDictionary, useLocale } from "@/lib/i18n";
+import { formatDateTime, formatDuration, formatUsd } from "@/lib/format";
 
 const STATUS_OPTIONS = ["queued", "running", "success", "failed", "canceled"];
 
@@ -25,20 +27,13 @@ function toBadgeStatus(status: string): ExecutionStatus {
   return status === "canceled" ? "failed" : (status as ExecutionStatus);
 }
 
-function formatDuration(ms: number | null) {
-  if (ms === null) return "—";
-  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
-}
-
-function formatCost(value: number) {
-  return value === 0 ? "—" : `US$ ${value.toFixed(4)}`;
-}
-
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback;
 }
 
 export default function ExecutionsPage() {
+  const t = useDictionary();
+  const locale = useLocale();
   const [filters, setFilters] = useState<ExecutionFilters>({ page: 1, pageSize: 20 });
   const { data, isLoading } = useExecutions(filters);
   const { data: workflows } = useWorkflows();
@@ -56,17 +51,17 @@ export default function ExecutionsPage() {
   async function onRetry(id: string) {
     try {
       await retryExecution.mutateAsync(id);
-      toast.success("Nova execucao enfileirada.");
+      toast.success(t.executions.list.retryQueuedToast);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel reexecutar."));
+      toast.error(errorMessage(error, t.executions.list.retryErrorFallback));
     }
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-foreground">Executions</h1>
-        <p className="text-sm text-muted-foreground">Historico de execucoes dos seus fluxos.</p>
+        <h1 className="text-lg font-semibold text-foreground">{t.executions.list.title}</h1>
+        <p className="text-sm text-muted-foreground">{t.executions.list.description}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -75,7 +70,7 @@ export default function ExecutionsPage() {
           onChange={(event) => updateFilter({ workflowId: event.target.value || undefined })}
           className="h-8 rounded-md border border-border bg-background px-2.5 text-sm text-foreground"
         >
-          <option value="">Todos os fluxos</option>
+          <option value="">{t.executions.list.allFlows}</option>
           {workflows?.map((workflow) => (
             <option key={workflow.id} value={workflow.id}>
               {workflow.name}
@@ -88,7 +83,7 @@ export default function ExecutionsPage() {
           onChange={(event) => updateFilter({ status: event.target.value || undefined })}
           className="h-8 rounded-md border border-border bg-background px-2.5 text-sm text-foreground"
         >
-          <option value="">Todos os status</option>
+          <option value="">{t.executions.list.allStatuses}</option>
           {STATUS_OPTIONS.map((status) => (
             <option key={status} value={status}>
               {status}
@@ -97,7 +92,7 @@ export default function ExecutionsPage() {
         </select>
 
         <Input
-          placeholder="Buscar por nome do fluxo..."
+          placeholder={t.executions.list.searchPlaceholder}
           className="h-8 w-56"
           defaultValue={filters.search ?? ""}
           onChange={(event) => updateFilter({ search: event.target.value || undefined })}
@@ -114,9 +109,9 @@ export default function ExecutionsPage() {
 
       {!isLoading && !data?.items.length && (
         <EmptyState
-          title="Nenhuma execucao ainda"
-          description="Execute um fluxo para ver o historico aqui."
-          action={<Button render={<Link href="/flows" />}>Ir para Flows</Button>}
+          title={t.executions.list.emptyTitle}
+          description={t.executions.list.emptyDescription}
+          action={<Button render={<Link href="/flows" />}>{t.executions.list.goToFlows}</Button>}
         />
       )}
 
@@ -125,14 +120,14 @@ export default function ExecutionsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Fluxo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Trigger</TableHead>
-                <TableHead className="text-right">Duracao</TableHead>
-                <TableHead className="text-right">Tokens</TableHead>
-                <TableHead className="text-right">Custo</TableHead>
-                <TableHead className="text-right">Iniciado</TableHead>
-                <TableHead className="text-right">Acoes</TableHead>
+                <TableHead>{t.executions.list.columnFlow}</TableHead>
+                <TableHead>{t.executions.list.columnStatus}</TableHead>
+                <TableHead>{t.executions.list.columnTrigger}</TableHead>
+                <TableHead className="text-right">{t.executions.list.columnDuration}</TableHead>
+                <TableHead className="text-right">{t.executions.list.columnTokens}</TableHead>
+                <TableHead className="text-right">{t.executions.list.columnCost}</TableHead>
+                <TableHead className="text-right">{t.executions.list.columnStarted}</TableHead>
+                <TableHead className="text-right">{t.executions.list.columnActions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -143,7 +138,9 @@ export default function ExecutionsPage() {
                       {execution.workflow.name}
                     </Link>
                     {execution.parentExecutionId && (
-                      <span className="ml-2 text-xs text-muted-foreground">(replay)</span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {t.executions.list.replayTag}
+                      </span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -153,16 +150,18 @@ export default function ExecutionsPage() {
                     {execution.triggerType}
                   </TableCell>
                   <TableCell className="tabular text-right font-mono text-sm">
-                    {formatDuration(execution.durationMs)}
+                    {execution.durationMs === null
+                      ? "—"
+                      : formatDuration(execution.durationMs, locale)}
                   </TableCell>
                   <TableCell className="tabular text-right font-mono text-sm">
                     {execution.tokensTotal || "—"}
                   </TableCell>
                   <TableCell className="tabular text-right font-mono text-sm">
-                    {formatCost(execution.costUsd)}
+                    {execution.costUsd === 0 ? "—" : formatUsd(execution.costUsd, locale, 4)}
                   </TableCell>
                   <TableCell className="text-right text-sm text-muted-foreground">
-                    {new Date(execution.startedAt).toLocaleString("pt-BR")}
+                    {formatDateTime(execution.startedAt, locale)}
                   </TableCell>
                   <TableCell className="text-right">
                     {execution.status === "failed" && (
@@ -172,7 +171,7 @@ export default function ExecutionsPage() {
                         disabled={retryExecution.isPending}
                         onClick={() => onRetry(execution.id)}
                       >
-                        Reexecutar
+                        {t.executions.list.retry}
                       </Button>
                     )}
                   </TableCell>
@@ -183,8 +182,7 @@ export default function ExecutionsPage() {
 
           <div className="flex items-center justify-between border-t border-border px-4 py-3">
             <p className="text-xs text-muted-foreground">
-              {data.total} execucao{data.total === 1 ? "" : "es"} · pagina {data.page} de{" "}
-              {totalPages}
+              {t.executions.list.paginationSummary(data.total, data.page, totalPages)}
             </p>
             <div className="flex gap-2">
               <Button
@@ -193,7 +191,7 @@ export default function ExecutionsPage() {
                 disabled={data.page <= 1}
                 onClick={() => updateFilter({ page: data.page - 1 })}
               >
-                Anterior
+                {t.executions.list.previous}
               </Button>
               <Button
                 size="sm"
@@ -201,7 +199,7 @@ export default function ExecutionsPage() {
                 disabled={data.page >= totalPages}
                 onClick={() => updateFilter({ page: data.page + 1 })}
               >
-                Proxima
+                {t.executions.list.next}
               </Button>
             </div>
           </div>

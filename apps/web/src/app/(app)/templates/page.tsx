@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTemplates, useUseTemplate, type Template } from "@/hooks/use-templates";
 import { ApiError } from "@/lib/api-client";
+import { useDictionary } from "@/lib/i18n";
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback;
@@ -16,14 +17,15 @@ function errorMessage(error: unknown, fallback: string) {
 function TemplateCard({ template }: { template: Template }) {
   const router = useRouter();
   const useTemplateMutation = useUseTemplate();
+  const t = useDictionary();
 
   async function onUse() {
     try {
       const workflow = await useTemplateMutation.mutateAsync(template.id);
-      toast.success(`Fluxo "${workflow.name}" criado a partir do template.`);
+      toast.success(t.templates.useSuccessToast(workflow.name));
       router.push(`/flows/${workflow.id}`);
     } catch (error) {
-      toast.error(errorMessage(error, "Nao foi possivel usar este template."));
+      toast.error(errorMessage(error, t.templates.useErrorFallback));
     }
   }
 
@@ -54,7 +56,7 @@ function TemplateCard({ template }: { template: Template }) {
         onClick={onUse}
         disabled={useTemplateMutation.isPending}
       >
-        {useTemplateMutation.isPending ? "Criando..." : "Usar template"}
+        {useTemplateMutation.isPending ? t.common.creating : t.templates.useButton}
         <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
       </Button>
     </div>
@@ -63,14 +65,13 @@ function TemplateCard({ template }: { template: Template }) {
 
 export default function TemplatesPage() {
   const { data: templates, isLoading } = useTemplates();
+  const t = useDictionary();
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-foreground">Templates</h1>
-        <p className="text-sm text-muted-foreground">
-          Fluxos prontos para usar como ponto de partida.
-        </p>
+        <h1 className="text-lg font-semibold text-foreground">{t.templates.title}</h1>
+        <p className="text-sm text-muted-foreground">{t.templates.description}</p>
       </div>
 
       {isLoading && (
@@ -83,8 +84,8 @@ export default function TemplatesPage() {
 
       {!isLoading && !templates?.length && (
         <EmptyState
-          title="Nenhum template disponivel"
-          description="Os templates oficiais aparecerao aqui assim que forem publicados."
+          title={t.templates.emptyTitle}
+          description={t.templates.emptyDescription}
         />
       )}
 
