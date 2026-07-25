@@ -1,4 +1,4 @@
-import type { APIRequestContext } from "@playwright/test";
+import type { APIRequestContext, BrowserContext } from "@playwright/test";
 
 export const API_URL = process.env.E2E_API_URL ?? "http://localhost:3333";
 export const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
@@ -139,4 +139,33 @@ export async function buildStorageState(
       },
     ],
   };
+}
+
+/**
+ * Deixa o contexto "logado" (cookie + localStorage) ANTES de qualquer
+ * navegacao, via addInitScript — que roda antes do JS da propria pagina.
+ *
+ * Nao use o padrao "goto('/login') -> evaluate -> goto(rota)" pra preparar
+ * sessao: com o cookie ja presente, o proxy (apps/web/src/proxy.ts) redireciona
+ * /login pra /dashboard no proprio servidor, entao o browser pode terminar
+ * carregando o dashboard ANTES do evaluate rodar — e nesse instante o
+ * localStorage ainda esta vazio, o que dispara um 401 real (sem tokens) e
+ * corre contra o resto do setup do teste (net::ERR_ABORTED, redirects
+ * inesperados). addInitScript elimina essa janela por completo.
+ */
+export async function authenticateContext(
+  context: BrowserContext,
+  storageState: PlaywrightStorageState,
+  overrides: Partial<Record<"wf.accessToken" | "wf.refreshToken" | "wf.workspaceId", string>> = {},
+): Promise<void> {
+  await context.addCookies(storageState.cookies);
+  const items = storageState.origins[0]!.localStorage.map((item) => {
+    const override = overrides[item.name as keyof typeof overrides];
+    return override !== undefined ? { ...item, value: override } : item;
+  });
+  await context.addInitScript((localStorageItems) => {
+    for (const item of localStorageItems) {
+      localStorage.setItem(item.name, item.value);
+    }
+  }, items);
 }

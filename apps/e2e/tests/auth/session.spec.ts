@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { buildTestUser, buildStorageState, registerViaApi } from "../../helpers/auth";
+import {
+  authenticateContext,
+  buildTestUser,
+  buildStorageState,
+  registerViaApi,
+} from "../../helpers/auth";
 
 const PROTECTED_ROUTES = [
   "/dashboard",
@@ -59,20 +64,9 @@ test.describe("Sessao", () => {
     const user = buildTestUser();
     const tokens = await registerViaApi(request, user);
     const storageState = await buildStorageState(request, tokens);
-    await context.addCookies(storageState.cookies);
-
-    // Grava os tokens numa pagina segura (nao-protegida) ANTES de navegar pra
-    // rota protegida — se fizermos goto("/dashboard") primeiro, a pagina
-    // dispara fetches sem nenhum token no localStorage ainda, cai em 401 sem
-    // refreshToken disponivel, e o api-client ja redireciona pro /login
-    // (clearSession) antes do teste terminar de montar o cenario.
-    await page.goto("/login");
-    await page.evaluate((state) => {
-      for (const item of state.origins[0]!.localStorage) {
-        localStorage.setItem(item.name, item.value);
-      }
-      localStorage.setItem("wf.accessToken", "token.invalido.corrompido");
-    }, storageState);
+    await authenticateContext(context, storageState, {
+      "wf.accessToken": "token.invalido.corrompido",
+    });
 
     await page.goto("/dashboard");
 
@@ -96,21 +90,77 @@ test.describe("Sessao", () => {
     const user = buildTestUser();
     const tokens = await registerViaApi(request, user);
     const storageState = await buildStorageState(request, tokens);
-    await context.addCookies(storageState.cookies);
+    await authenticateContext(context, storageState, {
+      "wf.accessToken": "token.invalido",
+      "wf.refreshToken": "refresh.tambem.invalido",
+    });
 
-    await page.goto("/login");
-    await page.evaluate((state) => {
-      for (const item of state.origins[0]!.localStorage) {
-        localStorage.setItem(item.name, item.value);
-      }
-      localStorage.setItem("wf.accessToken", "token.invalido");
-      localStorage.setItem("wf.refreshToken", "refresh.tambem.invalido");
-    }, storageState);
-
-    await page.goto("/dashboard");
+    // waitUntil: "commit" em vez do default "load" — o api-client dispara o
+    // redirect client-side pro /login assim que o refresh falha, o que pode
+    // acontecer antes do evento "load" da navegacao original, fazendo
+    // page.goto() estourar net::ERR_ABORTED esperando um "load" que nao vem.
+    await page.goto("/dashboard", { waitUntil: "commit" });
 
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
     const cookie = await page.evaluate(() => document.cookie);
     expect(cookie).not.toContain("wf_session=1");
+  });
+
+  test("logout em outra aba: aba com sessao aberta redireciona pro login sozinha (nao trava)", async ({
+    page,
+    context,
+    request,
+  }) => {
+    const user = buildTestUser();
+    const tokens = await registerViaApi(request, user);
+    const storageState = await buildStorageState(request, tokens);
+    await authenticateContext(context, storageState);
+
+    // /executions tem polling ativo (refetchInterval), como o dashboard —
+    // e o cenario onde o bug apareceu: sem esse polling batendo em 401
+    // depois da sessao sumir, nada dispara o redirect.
+    await page.goto("/executions");
+    await expect(page).toHaveURL(/\/executions$/);
+
+    // Localstorage e cookies sao compartilhados entre abas da mesma origem —
+    // simula o logout feito em OUTRA aba sem tocar nesta.
+    await page.evaluate(() => {
+      localStorage.removeItem("wf.accessToken");
+      localStorage.removeItem("wf.refreshToken");
+      localStorage.removeItem("wf.workspaceId");
+      document.cookie = "wf_session=; path=/; max-age=0";
+    });
+
+    // Regressao: com ambos os tokens ja ausentes (nao so invalidos), o
+    // api-client so tentava recuperar a sessao quando havia refreshToken —
+    // sem ele, o 401 do polling era silenciosamente ignorado e a aba ficava
+    // presa exibindo dados desatualizados ate um reload manual.
+    await expect(page).toHaveURL(/\/login/, { timeout: 20_000 });
+  });
+});
+
+test.describe("Command palette", () => {
+  test("Ctrl+K abre sem crashar e aceita digitacao", async ({ page, context, request }) => {
+    const user = buildTestUser();
+    const tokens = await registerViaApi(request, user);
+    const storageState = await buildStorageState(request, tokens);
+    await authenticateContext(context, storageState);
+
+    await page.goto("/dashboard");
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+
+    const pageErrors: string[] = [];
+    page.on("pageerror", (err) => pageErrors.push(err.message));
+
+    // Regressao: CommandDialog nunca envolvia os filhos no <Command> raiz do
+    // cmdk, entao CommandInput lia um contexto/store inexistente e derrubava
+    // a arvore React inteira ("Cannot read properties of undefined (reading
+    // 'subscribe')") a primeira vez que alguem abria o Ctrl+K.
+    await page.keyboard.press("Control+k");
+    const input = page.getByPlaceholder(/Pesquisar fluxos/);
+    await expect(input).toBeVisible();
+    await input.fill("teste");
+
+    expect(pageErrors).toEqual([]);
   });
 });
