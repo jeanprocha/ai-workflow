@@ -1,4 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { Logger } from 'nestjs-pino';
 import { Public } from '../auth/decorators/public.decorator';

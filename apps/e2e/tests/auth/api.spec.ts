@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../../helpers/fixtures";
 import { API_URL, buildTestUser, loginViaApi, registerViaApi } from "../../helpers/auth";
 
 test.describe("Auth via API", () => {

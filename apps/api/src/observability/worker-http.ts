@@ -1,8 +1,10 @@
 import * as http from 'node:http';
+import { URL } from 'node:url';
 import type { INestApplicationContext } from '@nestjs/common';
 import { MetricsService } from './metrics.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
+import { logRingBuffer } from './log-ring-buffer';
 
 const CHECK_TIMEOUT_MS = 1500;
 
@@ -45,6 +47,23 @@ async function handleRequest(
   cache: CacheService,
 ): Promise<void> {
   const url = req.url ?? '';
+
+  if (url.startsWith('/debug/logs')) {
+    if (process.env.OBS_DEBUG_ENDPOINT !== '1') {
+      res.statusCode = 404;
+      res.end('Not found');
+      return;
+    }
+    const params = new URL(url, 'http://localhost').searchParams;
+    const logs = logRingBuffer.query({
+      testRun: params.get('testRun') ?? undefined,
+      requestId: params.get('requestId') ?? undefined,
+      level: params.get('level') ?? undefined,
+    });
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(logs));
+    return;
+  }
 
   if (url.startsWith('/metrics')) {
     res.setHeader('Content-Type', metrics.registry.contentType);

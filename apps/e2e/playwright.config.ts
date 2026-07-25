@@ -12,7 +12,10 @@ export default defineConfig({
   globalSetup: require.resolve("./global-setup.ts"),
   use: {
     baseURL,
-    trace: "on-first-retry",
+    // "on-first-retry" nunca gera trace localmente (retries: 0 fora do CI) —
+    // "retain-on-failure" grava sempre e so mantem o trace de quem falhou,
+    // dando diagnostico completo (Fase 7) mesmo rodando local sem retry.
+    trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   projects: [

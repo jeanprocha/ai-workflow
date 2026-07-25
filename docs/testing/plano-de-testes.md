@@ -63,6 +63,42 @@ de Postgres/Redis/API/Web reais rodando, então é sempre um comando explícito.
   `@ai` no título do teste e **não** rodam por padrão — só sob demanda
   (`playwright test --grep @ai`), porque cada rodada gasta tokens reais.
 
+## Diagnóstico de falhas
+
+Todo teste passa pela fixture de `helpers/fixtures.ts` (reexporta `test`/
+`expect` — specs importam dali, não de `@playwright/test` direto). Ela faz
+duas coisas automaticamente, só quando um teste **falha**:
+
+1. **Anexa ao report** o console do browser (`browser-console.json`), erros
+   de página não capturados (`browser-page-errors.json`) e requests que
+   falharam (`browser-requests-failed.json`).
+2. **Busca os logs do servidor** daquele teste especifico via
+   `GET /debug/logs?testRun=...` — na API (`:3333`) e no worker (`:3334`) — e
+   anexa como `server-logs-api.json` / `server-logs-worker.json`. A
+   correlação usa o mesmo `x-test-run` (header enviado pelo
+   `apps/web/src/lib/api-client.ts` quando `window.__E2E_TEST_RUN__` está
+   setado, injetado pela fixture via `addInitScript` antes de qualquer JS da
+   página) que alimenta o campo `testRun` em todo log estruturado da API/
+   worker (Fase 2 da observabilidade).
+
+Pré-requisito: `OBS_DEBUG_ENDPOINT=1` no `.env` da API (já é o padrão em
+dev — nunca setar em produção) — **precisa reiniciar** `pnpm --filter
+@workflow/api dev`/`dev:worker` depois de mudar o `.env`, variáveis de
+ambiente não recarregam sozinhas. Sem isso, `/debug/logs` responde 404 e a
+fixture simplesmente não anexa os logs do servidor (não quebra o teste por
+causa disso).
+
+`trace: 'retain-on-failure'` no `playwright.config.ts` garante que rodando
+local (sem retry) o trace completo (DOM snapshots, network, console passo a
+passo) fica disponível pra quem falhou:
+
+```bash
+pnpm --filter @workflow/e2e exec playwright show-trace test-results/<pasta-do-teste>/trace.zip
+```
+
+Ou simplesmente `pnpm --filter @workflow/e2e report` pra ver tudo (trace +
+anexos) no report HTML.
+
 ## Roadmap das fases
 
 | # | Fase | Escopo | Status |

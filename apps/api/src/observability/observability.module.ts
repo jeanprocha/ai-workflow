@@ -4,6 +4,7 @@ import { createLoggerParams } from './logger.config';
 import { MetricsService } from './metrics.service';
 import { MetricsController } from './metrics.controller';
 import { AiTelemetryBridgeService } from './ai-telemetry.bridge';
+import { DebugController } from './debug.controller';
 import { QueueModule } from '../queue/queue.module';
 
 /**
@@ -21,7 +22,15 @@ import { QueueModule } from '../queue/queue.module';
     LoggerModule.forRootAsync({ useFactory: createLoggerParams }),
     QueueModule,
   ],
-  controllers: [MetricsController],
+  // DebugController so entra em dev/CI local (OBS_DEBUG_ENDPOINT=1) — nunca
+  // registrado em producao. process.env ja esta populado neste ponto: main.ts
+  // e worker.main.ts importam load-env.ts ANTES de qualquer outro modulo (ver
+  // request-context.ts), e a metadata do @Module() so e avaliada quando esta
+  // classe e importada, depois disso.
+  controllers: [
+    MetricsController,
+    ...(process.env.OBS_DEBUG_ENDPOINT === '1' ? [DebugController] : []),
+  ],
   providers: [MetricsService, AiTelemetryBridgeService],
   exports: [LoggerModule, MetricsService],
 })

@@ -1,5 +1,7 @@
+import pino from 'pino';
 import type { Params } from 'nestjs-pino';
 import { getContext } from './request-context';
+import { logRingBufferStream } from './log-ring-buffer';
 
 /**
  * Config do pino compartilhada por API e worker (LoggerModule.forRootAsync em
@@ -16,20 +18,30 @@ export function createLoggerParams(): Params {
     ? process.env.LOG_PRETTY === '1'
     : process.env.NODE_ENV !== 'production';
 
+  // Sempre em paralelo com o ring buffer em memoria (log-ring-buffer.ts) —
+  // por isso `stream` (pino.multistream) em vez de `transport`: os dois sao
+  // mutuamente exclusivos no pino, e o ring buffer so existe pro endpoint de
+  // debug (Fase 7) conseguir ver os logs independente do destino "normal"
+  // (pretty em dev, JSON puro em producao).
+  const destinationStream = pretty
+    ? pino.transport({
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          singleLine: true,
+          translateTime: 'HH:MM:ss.l',
+          ignore: 'pid,hostname',
+        },
+      })
+    : process.stdout;
+
   return {
     pinoHttp: {
       level,
-      transport: pretty
-        ? {
-            target: 'pino-pretty',
-            options: {
-              colorize: true,
-              singleLine: true,
-              translateTime: 'HH:MM:ss.l',
-              ignore: 'pid,hostname',
-            },
-          }
-        : undefined,
+      stream: pino.multistream([
+        { stream: destinationStream },
+        { stream: logRingBufferStream },
+      ]),
       // Injeta o contexto de correlacao (requestId, executionId, etc.) em
       // TODO log emitido durante a request/job atual, sem precisar passar
       // manualmente em cada chamada de logger. IMPORTANTE: devolve uma COPIA
