@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { streamSse } from "@/lib/sse-client";
+import { streamSse, type SseConnectionStatus } from "@/lib/sse-client";
 
 type LiveEvent =
   | { type: "execution.started"; executionId: string }
@@ -33,6 +33,7 @@ export interface LiveLogEntry {
 export interface ExecutionLiveState {
   logs: LiveLogEntry[];
   finished: boolean;
+  connectionStatus: SseConnectionStatus;
 }
 
 /**
@@ -44,7 +45,11 @@ export function useExecutionLive(
   executionId: string | null,
   active: boolean,
 ): ExecutionLiveState {
-  const [state, setState] = useState<ExecutionLiveState>({ logs: [], finished: false });
+  const [state, setState] = useState<ExecutionLiveState>({
+    logs: [],
+    finished: false,
+    connectionStatus: "connecting",
+  });
 
   useEffect(() => {
     if (!executionId || !active) return;
@@ -73,8 +78,10 @@ export function useExecutionLive(
         }
       },
       controller.signal,
+      (connectionStatus) => setState((prev) => ({ ...prev, connectionStatus })),
     ).catch(() => {
-      // stream encerrado — silencioso
+      // streamSse ja trata reconexao internamente — chegar aqui so acontece
+      // num erro verdadeiramente irrecuperavel, entao so evita unhandled rejection.
     });
 
     return () => controller.abort();

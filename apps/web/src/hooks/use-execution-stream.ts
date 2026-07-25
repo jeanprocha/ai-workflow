@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { streamSse } from "@/lib/sse-client";
+import { streamSse, type SseConnectionStatus } from "@/lib/sse-client";
 
 export type NodeRunStatus = "running" | "success" | "failed";
 export type ExecutionRunStatus = "running" | "success" | "failed";
@@ -20,6 +20,8 @@ type ExecutionEvent =
 export interface ExecutionStreamState {
   nodeStatuses: Record<string, NodeRunStatus>;
   executionStatus: ExecutionRunStatus | null;
+  /** "reconnecting" sinaliza queda momentanea da conexao (ver sse-client.ts) — util pra um indicador discreto na UI. */
+  connectionStatus: SseConnectionStatus;
 }
 
 /**
@@ -30,6 +32,7 @@ export function useExecutionStream(executionId: string | null): ExecutionStreamS
   const [state, setState] = useState<ExecutionStreamState>({
     nodeStatuses: {},
     executionStatus: null,
+    connectionStatus: "connecting",
   });
 
   useEffect(() => {
@@ -61,8 +64,10 @@ export function useExecutionStream(executionId: string | null): ExecutionStreamS
         });
       },
       controller.signal,
+      (connectionStatus) => setState((prev) => ({ ...prev, connectionStatus })),
     ).catch(() => {
-      // conexao encerrada (aborto ou execucao ja finalizada) — silencioso
+      // streamSse ja trata reconexao internamente — chegar aqui so acontece
+      // num erro verdadeiramente irrecuperavel, entao so evita unhandled rejection.
     });
 
     return () => controller.abort();

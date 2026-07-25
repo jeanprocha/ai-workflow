@@ -7,12 +7,8 @@ import { EmptyState } from "@workflow/ui";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTemplates, useUseTemplate, type Template } from "@/hooks/use-templates";
-import { ApiError } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { useDictionary, type Dictionary } from "@/lib/i18n";
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof ApiError ? error.message : fallback;
-}
 
 /**
  * name/description/category dos templates oficiais vem do banco, sempre em

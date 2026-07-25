@@ -32,12 +32,8 @@ import {
   useDeleteCredential,
 } from "@/hooks/use-credentials";
 import { useCreateVariable, useDeleteVariable, useVariables } from "@/hooks/use-variables";
-import { ApiError } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { useDictionary, useLocale, setLocale, type Locale } from "@/lib/i18n";
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof ApiError ? error.message : fallback;
-}
 
 function LanguageSelect() {
   const locale = useLocale();

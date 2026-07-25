@@ -29,6 +29,7 @@ import { AutocompleteModule } from './autocomplete/autocomplete.module';
 import { DebuggerModule } from './debugger/debugger.module';
 import { CostOptimizerModule } from './cost-optimizer/cost-optimizer.module';
 import { CopilotModule } from './copilot/copilot.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { CopilotModule } from './copilot/copilot.module';
     DebuggerModule,
     CostOptimizerModule,
     CopilotModule,
+    TelemetryModule,
   ],
   controllers: [AppController],
   providers: [

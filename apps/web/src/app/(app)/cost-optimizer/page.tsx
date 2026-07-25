@@ -11,13 +11,9 @@ import {
   useApplyCostSuggestion,
   useCostOptimizerSuggestions,
 } from "@/hooks/use-cost-optimizer";
-import { ApiError } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { useDictionary, useLocale } from "@/lib/i18n";
 import { formatUsd } from "@/lib/format";
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof ApiError ? error.message : fallback;
-}
 
 export default function CostOptimizerPage() {
   const t = useDictionary();

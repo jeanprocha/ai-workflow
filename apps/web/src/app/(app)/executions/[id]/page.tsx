@@ -30,7 +30,7 @@ import {
   useDiagnoseExecution,
   type DiagnosisResult,
 } from "@/hooks/use-debugger";
-import { ApiError } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { useDictionary, useLocale, type Dictionary } from "@/lib/i18n";
 import { formatDuration, formatMegabytes, formatUsd } from "@/lib/format";
 
@@ -41,10 +41,6 @@ function suggestionLabel(t: Dictionary, tipo: string): string | undefined {
     fallback: t.executions.detail.suggestionFallback,
   };
   return map[tipo];
-}
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof ApiError ? error.message : fallback;
 }
 
 function toBadgeStatus(status: string): ExecutionStatus {

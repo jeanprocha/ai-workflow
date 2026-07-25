@@ -43,7 +43,8 @@ import {
   useUpdateWorkflow,
   useWorkflows,
 } from "@/hooks/use-workflows";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { useDictionary, useLocale } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/format";
 
@@ -52,10 +53,6 @@ const STATUS_STYLE: Record<string, string> = {
   active: "bg-success-subtle text-success",
   archived: "bg-muted text-text-muted",
 };
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof ApiError ? error.message : fallback;
-}
 
 function CreateFlowDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const t = useDictionary();

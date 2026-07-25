@@ -16,13 +16,9 @@ import {
   useUploadDocument,
   type DocumentStatus,
 } from "@/hooks/use-knowledge";
-import { ApiError } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { useDictionary, useLocale } from "@/lib/i18n";
 import { formatPercent } from "@/lib/format";
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof ApiError ? error.message : fallback;
-}
 
 function StatusPill({ status, error }: { status: DocumentStatus; error: string | null }) {
   const t = useDictionary();

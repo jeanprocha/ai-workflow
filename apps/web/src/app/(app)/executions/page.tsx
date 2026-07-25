@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { useExecutions, useRetryExecution, type ExecutionFilters } from "@/hooks/use-executions";
 import { useWorkflows } from "@/hooks/use-workflows";
-import { ApiError } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { useDictionary, useLocale } from "@/lib/i18n";
 import { formatDateTime, formatDuration, formatUsd } from "@/lib/format";
 
@@ -25,10 +25,6 @@ const STATUS_OPTIONS = ["queued", "running", "success", "failed", "canceled"];
 
 function toBadgeStatus(status: string): ExecutionStatus {
   return status === "canceled" ? "failed" : (status as ExecutionStatus);
-}
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof ApiError ? error.message : fallback;
 }
 
 export default function ExecutionsPage() {

@@ -28,13 +28,9 @@ import {
   useWorkflowVersions,
   type WorkflowVersionSummary,
 } from "@/hooks/use-workflow-versions";
-import { ApiError } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { useDictionary, useLocale } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/format";
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof ApiError ? error.message : fallback;
-}
 
 function DiffSummary({ diff }: { diff: GraphDiff }) {
   const t = useDictionary().editor.versionHistory;

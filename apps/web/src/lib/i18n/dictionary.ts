@@ -14,6 +14,7 @@ import * as analytics from "./dictionaries/analytics";
 import * as costOptimizer from "./dictionaries/cost-optimizer";
 import * as templates from "./dictionaries/templates";
 import * as nodeCatalog from "./dictionaries/node-catalog";
+import * as errors from "./dictionaries/errors";
 
 /**
  * Cada dominio (pagina/area) mora no seu proprio arquivo em ./dictionaries,
@@ -39,6 +40,7 @@ export const pt = {
   costOptimizer: costOptimizer.pt,
   templates: templates.pt,
   nodeCatalog: nodeCatalog.pt,
+  errors: errors.pt,
 };
 
 export const en = {
@@ -58,6 +60,7 @@ export const en = {
   costOptimizer: costOptimizer.en,
   templates: templates.en,
   nodeCatalog: nodeCatalog.en,
+  errors: errors.en,
 } satisfies typeof pt;
 
 export type Dictionary = typeof pt;

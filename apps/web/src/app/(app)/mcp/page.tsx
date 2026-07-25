@@ -36,12 +36,8 @@ import {
   type McpServer,
   type McpServerStatus,
 } from "@/hooks/use-mcp";
-import { ApiError } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { useDictionary } from "@/lib/i18n";
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof ApiError ? error.message : fallback;
-}
 
 const STATUS_STYLE: Record<McpServerStatus, string> = {
   connecting: "bg-accent-subtle text-primary",

@@ -36,14 +36,10 @@ import {
 } from "@/hooks/use-agents";
 import { useKnowledgeBases } from "@/hooks/use-knowledge";
 import { useMcpServers } from "@/hooks/use-mcp";
-import { ApiError } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { useDictionary } from "@/lib/i18n";
 
 const MEMORY_TOOL_KEYS = ["memory_get", "memory_set"];
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof ApiError ? error.message : fallback;
-}
 
 function displayTools(tools: string[]) {
   const hasMemory = MEMORY_TOOL_KEYS.every((key) => tools.includes(key));

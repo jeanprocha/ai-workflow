@@ -6,19 +6,12 @@ import {
   setTokens,
 } from "./auth-storage";
 import { getLocale } from "./i18n/store";
+import { ApiError, NetworkError, TimeoutError } from "./errors";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333";
+const REQUEST_TIMEOUT_MS = 30_000;
 
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    public body: unknown,
-    /** Mesmo valor enviado no header x-request-id — correlaciona com os logs do servidor (GET /debug/logs). */
-    public requestId?: string,
-  ) {
-    super(typeof body === "object" && body && "message" in body ? String(body.message) : "Erro na API");
-  }
-}
+export { ApiError };
 
 declare global {
   interface Window {
@@ -29,7 +22,16 @@ declare global {
 
 let refreshPromise: Promise<boolean> | null = null;
 
-async function tryRefresh(): Promise<boolean> {
+/**
+ * `false` = refresh confirmado invalido pelo servidor (sessao realmente
+ * acabou). Falha de REDE (fetch rejeitou antes de qualquer resposta) lanca
+ * NetworkError em vez de virar `false` — sem essa distincao, uma queda de
+ * conexao momentanea durante o refresh derrubava a sessao do usuario
+ * (clearSession + redirect pro /login) por um problema que nao tinha nada a
+ * ver com o token em si. Ver o bloco de 401 em apiFetch().
+ */
+/** Exportado pra sse-client.ts renovar o token antes de reconectar apos uma queda. */
+export async function tryRefresh(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
 
@@ -45,7 +47,10 @@ async function tryRefresh(): Promise<boolean> {
         setTokens(tokens);
         return true;
       })
-      .catch(() => false)
+      .catch((error) => {
+        if (error instanceof TypeError) throw new NetworkError(error);
+        throw error;
+      })
       .finally(() => {
         refreshPromise = null;
       });
@@ -86,19 +91,47 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     if (accessToken) finalHeaders.Authorization = `Bearer ${accessToken}`;
     if (withWorkspace && workspaceId) finalHeaders["x-workspace-id"] = workspaceId;
 
-    return fetch(`${API_URL}${path}`, {
-      ...rest,
-      headers: finalHeaders,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+    const signal = rest.signal ? AbortSignal.any([rest.signal, timeoutSignal]) : timeoutSignal;
+
+    try {
+      return await fetch(`${API_URL}${path}`, {
+        ...rest,
+        signal,
+        headers: finalHeaders,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    } catch (error) {
+      // "TimeoutError" == nosso AbortSignal.timeout(); "AbortError" == abort
+      // do CALLER (unmount, cancelamento do React Query) — esse propaga como
+      // esta, quem escuta signal.aborted sabe reconhecer. TypeError == fetch
+      // rejeitou antes de qualquer resposta (offline, DNS, CORS, conexao
+      // recusada) — sem essa distincao, os 3 casos apareciam identicos pro
+      // caller como "deu erro", sem forma de decidir se vale a pena retentar.
+      if (error instanceof Error && error.name === "TimeoutError") {
+        throw new TimeoutError();
+      }
+      if (error instanceof TypeError) {
+        throw new NetworkError(error);
+      }
+      throw error;
+    }
   }
 
   let response = await doFetch();
 
   if (response.status === 401 && handleAuthErrors) {
-    const refreshed = getRefreshToken() ? await tryRefresh() : false;
-    if (refreshed) {
-      response = await doFetch();
+    if (getRefreshToken()) {
+      // Se tryRefresh() lancar NetworkError, propaga direto pro caller sem
+      // passar pelo else abaixo — uma queda de rede aqui NAO significa que o
+      // refresh token e invalido, entao nao deve limpar a sessao.
+      const refreshed = await tryRefresh();
+      if (refreshed) {
+        response = await doFetch();
+      } else {
+        clearSession();
+        if (typeof window !== "undefined") window.location.href = "/login";
+      }
     } else {
       clearSession();
       if (typeof window !== "undefined") window.location.href = "/login";
