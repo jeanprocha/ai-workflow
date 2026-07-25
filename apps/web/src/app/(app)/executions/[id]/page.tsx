@@ -318,7 +318,7 @@ export default function ExecutionDetailPage({
         <div className="mt-1 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-semibold text-foreground">{execution.workflow.name}</h1>
-            <StatusBadge status={toBadgeStatus(execution.status)} />
+            <StatusBadge status={toBadgeStatus(execution.status)} labels={t.common.executionStatus} />
           </div>
           {execution.status === "failed" && (
             <div className="flex gap-2">
@@ -386,7 +386,7 @@ export default function ExecutionDetailPage({
             <div key={step.id} className="rounded-lg border border-border bg-card p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <StatusBadge status={toBadgeStatus(step.status)} />
+                  <StatusBadge status={toBadgeStatus(step.status)} labels={t.common.executionStatus} />
                   <span className="font-mono text-sm text-foreground">{step.nodeId}</span>
                   <span className="text-xs text-muted-foreground">{step.nodeType}</span>
                   {step.attempt > 1 && (

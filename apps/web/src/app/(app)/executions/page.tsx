@@ -144,7 +144,7 @@ export default function ExecutionsPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={toBadgeStatus(execution.status)} />
+                    <StatusBadge status={toBadgeStatus(execution.status)} labels={t.common.executionStatus} />
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {execution.triggerType}

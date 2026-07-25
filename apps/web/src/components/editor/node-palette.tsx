@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { NODE_CATALOG, CATEGORY_LABELS, type NodeCatalogEntry } from "@/lib/node-catalog";
+import { NODE_CATALOG, getNodeDescription, type NodeCatalogEntry } from "@/lib/node-catalog";
 import { getNodeIcon } from "@/lib/node-icons";
 import { useDictionary } from "@/lib/i18n";
 import type { NodeCategory } from "@workflow/shared";
@@ -22,7 +22,8 @@ function onDragStart(event: React.DragEvent, nodeType: string) {
 }
 
 export function NodePalette() {
-  const t = useDictionary().editor.nodePalette;
+  const dict = useDictionary();
+  const t = dict.editor.nodePalette;
   const groups = groupByCategory(NODE_CATALOG);
 
   return (
@@ -35,7 +36,7 @@ export function NodePalette() {
         {groups.map(([category, entries]) => (
           <div key={category}>
             <p className="mb-1.5 px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              {CATEGORY_LABELS[category]}
+              {dict.nodeCatalog.categories[category]}
             </p>
             <div className="space-y-1">
               {entries.map((entry) => (
@@ -43,7 +44,7 @@ export function NodePalette() {
                   key={entry.type}
                   draggable
                   onDragStart={(event) => onDragStart(event, entry.type)}
-                  title={entry.description}
+                  title={getNodeDescription(entry, dict)}
                   className="flex cursor-grab items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-sm text-foreground transition-colors hover:border-border hover:bg-accent active:cursor-grabbing"
                 >
                   {createElement(getNodeIcon(entry.icon), {

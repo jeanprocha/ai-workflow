@@ -20,6 +20,15 @@ export const pt = {
   applied: "Aplicado",
   retry: "Tentar novamente",
   errorGeneric: "Erro na API",
+  /** Labels do StatusBadge (@workflow/ui) — o pacote fica agnostico de idioma, so recebe via prop. */
+  executionStatus: {
+    running: "Executando",
+    success: "Sucesso",
+    failed: "Falhou",
+    queued: "Na fila",
+    retry: "Retentando",
+  },
+  liveExecutionAriaLabel: "Em execucao",
 };
 
 export const en = {
@@ -44,4 +53,12 @@ export const en = {
   applied: "Applied",
   retry: "Try again",
   errorGeneric: "API error",
+  executionStatus: {
+    running: "Running",
+    success: "Success",
+    failed: "Failed",
+    queued: "Queued",
+    retry: "Retrying",
+  },
+  liveExecutionAriaLabel: "Running",
 } satisfies typeof pt;

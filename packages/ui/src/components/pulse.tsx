@@ -12,20 +12,22 @@ export interface PulseProps {
   className?: string;
   /** Tamanho do dot em px (variant="dot") ou altura da barra em px (variant="bar"). */
   size?: number;
+  /** aria-label pro screen reader — fallback pt-BR se o app consumidor nao passar (i18n fica por conta do app). */
+  ariaLabel?: string;
 }
 
 function joinClassNames(...classes: Array<string | undefined | false>) {
   return classes.filter(Boolean).join(" ");
 }
 
-export function Pulse({ variant = "dot", className, size }: PulseProps) {
+export function Pulse({ variant = "dot", className, size, ariaLabel }: PulseProps) {
   if (variant === "bar") {
     return (
       <div
         className={joinClassNames("relative w-full overflow-hidden bg-border", className)}
         style={{ height: size ?? 2 }}
         role="status"
-        aria-label="Carregando"
+        aria-label={ariaLabel ?? "Carregando"}
       >
         <span
           className="absolute top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-primary motion-reduce:left-1/2 motion-reduce:animate-none"
@@ -43,7 +45,7 @@ export function Pulse({ variant = "dot", className, size }: PulseProps) {
       className={joinClassNames("relative inline-flex", className)}
       style={{ width: dotSize, height: dotSize }}
       role="status"
-      aria-label="Em execucao"
+      aria-label={ariaLabel ?? "Em execucao"}
     >
       <span
         className="absolute inset-0 rounded-full bg-primary motion-reduce:animate-none"

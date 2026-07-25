@@ -3,7 +3,10 @@ import { Pulse } from "./pulse";
 
 export type ExecutionStatus = "running" | "success" | "failed" | "queued" | "retry";
 
-const LABELS: Record<ExecutionStatus, string> = {
+export type StatusBadgeLabels = Record<ExecutionStatus, string>;
+
+/** Fallback pt-BR pra quem consome o componente sem passar `labels` (i18n fica por conta do app). */
+const DEFAULT_LABELS: StatusBadgeLabels = {
   running: "Executando",
   success: "Sucesso",
   failed: "Falhou",
@@ -37,12 +40,13 @@ function StatusIcon({ status }: { status: ExecutionStatus }) {
 export interface StatusBadgeProps {
   status: ExecutionStatus;
   className?: string;
+  labels?: StatusBadgeLabels;
 }
 
 /**
  * Estado nunca e comunicado so por cor (style.md 2.4): sempre cor + forma + label.
  */
-export function StatusBadge({ status, className }: StatusBadgeProps) {
+export function StatusBadge({ status, className, labels = DEFAULT_LABELS }: StatusBadgeProps) {
   return (
     <span
       className={
@@ -52,7 +56,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
       }
     >
       <StatusIcon status={status} />
-      {LABELS[status]}
+      {labels[status]}
     </span>
   );
 }

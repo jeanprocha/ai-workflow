@@ -59,7 +59,12 @@ export function Sidebar() {
               <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
               {!collapsed && <span className="truncate">{label}</span>}
               {!collapsed && item.showLiveIndicator && hasLiveExecution && (
-                <Pulse variant="dot" size={6} className="ml-auto" />
+                <Pulse
+                  variant="dot"
+                  size={6}
+                  className="ml-auto"
+                  ariaLabel={t.common.liveExecutionAriaLabel}
+                />
               )}
             </Link>
           );

@@ -56,8 +56,8 @@ function subtitleFor(
   }
 }
 
-function StatusDot({ status }: { status?: NodeRunStatus }) {
-  if (status === "running") return <Pulse variant="dot" size={8} />;
+function StatusDot({ status, runningAriaLabel }: { status?: NodeRunStatus; runningAriaLabel: string }) {
+  if (status === "running") return <Pulse variant="dot" size={8} ariaLabel={runningAriaLabel} />;
   if (status === "success")
     return (
       <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-success-subtle text-success">
@@ -80,7 +80,8 @@ function outputHandleColor(output: string): string {
 }
 
 function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) {
-  const t = useDictionary().editor.workflowNode;
+  const dict = useDictionary();
+  const t = dict.editor.workflowNode;
   const entry = getCatalogEntry(data.nodeType);
   const isTrigger = data.category === "trigger";
   const outputs = entry?.outputs ?? ["default"];
@@ -113,7 +114,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) 
           })}
         </span>
         <span className="flex-1 truncate text-sm font-medium">{data.label}</span>
-        <StatusDot status={data.status} />
+        <StatusDot status={data.status} runningAriaLabel={dict.common.liveExecutionAriaLabel} />
       </div>
 
       {subtitle && (

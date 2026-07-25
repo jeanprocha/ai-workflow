@@ -111,7 +111,7 @@ export default function DashboardPage() {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={toBadgeStatus(execution.status)} />
+                    <StatusBadge status={toBadgeStatus(execution.status)} labels={t.common.executionStatus} />
                   </TableCell>
                   <TableCell className="tabular text-right font-mono text-sm">
                     {execution.durationMs === null ? "—" : formatDuration(execution.durationMs, locale)}

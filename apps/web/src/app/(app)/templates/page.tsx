@@ -8,16 +8,35 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTemplates, useUseTemplate, type Template } from "@/hooks/use-templates";
 import { ApiError } from "@/lib/api-client";
-import { useDictionary } from "@/lib/i18n";
+import { useDictionary, type Dictionary } from "@/lib/i18n";
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback;
+}
+
+/**
+ * name/description/category dos templates oficiais vem do banco, sempre em
+ * pt-BR (sem coluna de traducao) — resolve pela tabela client-side em
+ * dictionaries/templates.ts (chave = id do template), com fallback pro dado
+ * cru se o id nao tiver entrada (templates novos criados fora do seed).
+ */
+function getTemplateCopy(template: Template, t: Dictionary) {
+  const catalog: Record<string, { name: string; description: string; category: string }> =
+    t.templates.catalog;
+  return (
+    catalog[template.id] ?? {
+      name: template.name,
+      description: template.description,
+      category: template.category,
+    }
+  );
 }
 
 function TemplateCard({ template }: { template: Template }) {
   const router = useRouter();
   const useTemplateMutation = useUseTemplate();
   const t = useDictionary();
+  const copy = getTemplateCopy(template, t);
 
   async function onUse() {
     try {
@@ -33,10 +52,10 @@ function TemplateCard({ template }: { template: Template }) {
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
       <div>
         <span className="text-xs font-medium uppercase tracking-wide text-primary">
-          {template.category}
+          {copy.category}
         </span>
-        <h3 className="mt-1 text-sm font-medium text-foreground">{template.name}</h3>
-        <p className="mt-1 text-xs text-muted-foreground">{template.description}</p>
+        <h3 className="mt-1 text-sm font-medium text-foreground">{copy.name}</h3>
+        <p className="mt-1 text-xs text-muted-foreground">{copy.description}</p>
       </div>
 
       <div className="flex flex-wrap gap-1">
