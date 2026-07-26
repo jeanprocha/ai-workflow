@@ -1,4 +1,4 @@
-import { createElement, useState } from "react";
+import { cloneElement, createElement, isValidElement, useId, useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import type { NodeRetryPolicy } from "@workflow/shared";
 import { Input } from "@/components/ui/input";
@@ -21,11 +21,26 @@ export interface ConfigPanelProps {
   onClose: () => void;
 }
 
+/**
+ * Sem htmlFor/id, getByLabel() nao alcancava NENHUM campo do painel (Label e
+ * irmao do input, nao wrapper) — todo o painel so era testavel por locators
+ * posicionais/de placeholder. Quando children e um unico elemento controlavel
+ * (Input/Textarea/select — o caso comum), clona um id gerado nele e aponta o
+ * htmlFor do Label pra la. Campos compostos (ex.: lista de headers, que
+ * envolvem varios inputs num <div>) ficam como estavam: o clone e inofensivo
+ * (um id num <div> nao vira alvo de getByLabel), cada linha ja tem seu
+ * proprio locator por placeholder.
+ */
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  const id = useId();
+  const control = isValidElement<{ id?: string }>(children)
+    ? cloneElement(children, { id: children.props.id ?? id })
+    : children;
+
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
-      {children}
+      <Label htmlFor={id}>{label}</Label>
+      {control}
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
@@ -731,7 +746,7 @@ export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: C
             <p className="font-mono text-xs text-muted-foreground">{node.data.nodeType}</p>
           </div>
         </div>
-        <Button variant="ghost" size="icon-sm" onClick={onClose}>
+        <Button variant="ghost" size="icon-sm" aria-label={t.closeAria} onClick={onClose}>
           <X className="h-4 w-4" strokeWidth={1.5} />
         </Button>
       </div>

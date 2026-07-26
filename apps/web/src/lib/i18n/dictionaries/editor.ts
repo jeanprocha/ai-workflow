@@ -130,6 +130,8 @@ export const pt = {
       attempts: "Tentativas",
       interval: "Intervalo (ms)",
     },
+    /** aria-label do botao X que fecha o painel — so icone, sem texto. */
+    closeAria: "Fechar painel de configuracao",
   },
   versionHistory: {
     openButton: "Historico",
@@ -158,6 +160,8 @@ export const pt = {
     invalidPayloadToast: "O payload precisa ser um JSON valido.",
     runStartedToast: "Execucao iniciada.",
     runErrorFallback: "Nao foi possivel executar o fluxo.",
+    /** aria-label do botao voltar — so icone, sem texto. */
+    backAria: "Voltar para Flows",
   },
   copilot: {
     title: "Copilot",
@@ -173,6 +177,8 @@ export const pt = {
     appliedToast: "Alteracao aplicada — recarregando o fluxo...",
     chatErrorFallback: "Nao foi possivel conversar com o Copilot.",
     applyErrorFallback: "Nao foi possivel aplicar a sugestao.",
+    /** aria-label do botao de enviar mensagem — so icone, sem texto. */
+    sendAria: "Enviar mensagem",
   },
   nodePalette: {
     title: "Nodes",
@@ -315,6 +321,7 @@ export const en = {
       attempts: "Attempts",
       interval: "Interval (ms)",
     },
+    closeAria: "Close configuration panel",
   },
   versionHistory: {
     openButton: "History",
@@ -343,6 +350,7 @@ export const en = {
     invalidPayloadToast: "The payload must be valid JSON.",
     runStartedToast: "Run started.",
     runErrorFallback: "Could not run the flow.",
+    backAria: "Back to Flows",
   },
   copilot: {
     title: "Copilot",
@@ -358,6 +366,7 @@ export const en = {
     appliedToast: "Change applied — reloading the flow...",
     chatErrorFallback: "Could not chat with Copilot.",
     applyErrorFallback: "Could not apply the suggestion.",
+    sendAria: "Send message",
   },
   nodePalette: {
     title: "Nodes",

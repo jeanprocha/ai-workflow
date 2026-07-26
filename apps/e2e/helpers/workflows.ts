@@ -9,6 +9,13 @@ export interface WorkflowSummary {
   currentVersionId: string | null;
 }
 
+/**
+ * O label do node exibido no canvas vem do proprio JSON do grafo (nao e
+ * re-derivado do catalogo pelo editor — ver flow-editor.tsx graphToFlow) —
+ * por isso os labels aqui casam com os do catalogo real (@workflow/nodes),
+ * pra bater com o texto que a Fase 04 (editor) espera ver na tela.
+ */
+
 /** Grafo minimo valido: so um trigger manual — o suficiente pra rodar sem falhar no worker. */
 export const MINIMAL_GRAPH = {
   nodes: [
@@ -16,12 +23,71 @@ export const MINIMAL_GRAPH = {
       id: "n1",
       type: "trigger.manual",
       category: "trigger",
-      label: "Manual",
+      label: "Manual Trigger",
       position: { x: 0, y: 0 },
       config: {},
     },
   ],
   edges: [],
+  viewport: { x: 0, y: 0, zoom: 1 },
+};
+
+/** trigger.manual (n1) -> logic.log (n2), conectados — base pro editor (config panel, autosave, delete). */
+export const TWO_NODE_GRAPH = {
+  nodes: [
+    {
+      id: "n1",
+      type: "trigger.manual",
+      category: "trigger",
+      label: "Manual Trigger",
+      position: { x: 0, y: 0 },
+      config: {},
+    },
+    {
+      id: "n2",
+      type: "logic.log",
+      category: "logic",
+      label: "Log",
+      position: { x: 320, y: 0 },
+      config: { message: "" },
+    },
+  ],
+  edges: [{ id: "e1", source: "n1", target: "n2" }],
+  viewport: { x: 0, y: 0, zoom: 1 },
+};
+
+/** Dois nodes SEM edge — pra testar a criacao de conexao arrastando de handle a handle. */
+export const DISCONNECTED_GRAPH = {
+  nodes: TWO_NODE_GRAPH.nodes,
+  edges: [],
+  viewport: { x: 0, y: 0, zoom: 1 },
+};
+
+/** trigger.manual -> logic.delay (visivel por tempo suficiente pra pegar o status "running" via SSE) -> logic.log. */
+export const DELAY_GRAPH = {
+  nodes: [
+    ...TWO_NODE_GRAPH.nodes.slice(0, 1),
+    {
+      id: "n2",
+      type: "logic.delay",
+      category: "logic",
+      label: "Delay",
+      position: { x: 320, y: 0 },
+      config: { ms: 3000 },
+    },
+    {
+      id: "n3",
+      type: "logic.log",
+      category: "logic",
+      label: "Log",
+      position: { x: 640, y: 0 },
+      config: { message: "concluido" },
+    },
+  ],
+  edges: [
+    { id: "e1", source: "n1", target: "n2" },
+    { id: "e2", source: "n2", target: "n3" },
+  ],
   viewport: { x: 0, y: 0, zoom: 1 },
 };
 

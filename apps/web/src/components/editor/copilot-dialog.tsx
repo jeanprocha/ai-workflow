@@ -147,6 +147,7 @@ export function CopilotDialog({ workflowId }: { workflowId: string }) {
             />
             <Button
               size="icon"
+              aria-label={t.editor.copilot.sendAria}
               onClick={() => sendMessage(message)}
               disabled={chat.isPending || !message.trim() || !aiConfig.model.trim()}
             >

@@ -68,7 +68,12 @@ export function EditorToolbar({
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-3">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon-sm" render={<Link href="/flows" />}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t.backAria}
+          render={<Link href="/flows" />}
+        >
           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
         </Button>
         <span className="text-sm font-medium text-foreground">{name}</span>

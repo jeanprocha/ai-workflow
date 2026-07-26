@@ -92,15 +92,37 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "dirty">("saved");
   const [executionId, setExecutionId] = useState<string | null>(null);
-  const loadedVersionId = useRef<string | null>(null);
+  // Numero de versao (nao id) de proposito: o id so diz "e diferente da
+  // ultima", nao "e mais novo" — uma resposta atrasada com versionNumber
+  // menor que a que ja aplicamos e ignorada, nao importa a ordem de chegada.
+  const loadedVersionNumber = useRef<number>(-1);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Espelha saveState pra ler o valor ATUAL dentro do effect de sync abaixo
+  // sem precisar dele nas deps (isso faria o effect re-rodar a cada
+  // transicao de estado, nao so quando `workflow` muda). Atualizado num
+  // effect proprio, nao durante o render (refs nao devem ser escritas em
+  // render — react-hooks/refs).
+  const saveStateRef = useRef(saveState);
+  useEffect(() => {
+    saveStateRef.current = saveState;
+  }, [saveState]);
 
   const { nodeStatuses } = useExecutionStream(executionId);
 
   useEffect(() => {
     const version = workflow?.currentVersion;
-    if (!version || loadedVersionId.current === version.id) return;
-    loadedVersionId.current = version.id;
+    if (!version || version.versionNumber <= loadedVersionNumber.current) return;
+    // O GET inicial (disparado no mount) pode ser mais lento que um usuario
+    // dropar um node ou editar um campo nos primeiros instantes da pagina —
+    // se isso acontecer, `saveState` ja vira "dirty"/"saving" ANTES dessa
+    // resposta atrasada chegar. Sem essa guarda, o efeito aplicaria o grafo
+    // antigo (o que veio no GET, sem a edicao) por cima do estado local,
+    // apagando a edicao que o usuario acabou de fazer — mesmo sendo,
+    // tecnicamente, "a primeira versao valida que vimos" (achado ao vivo
+    // pela suite E2E: um node dropado sumia sozinho ~1s depois de aparecer).
+    // So sincroniza quando nao ha edicao local pendente.
+    if (saveStateRef.current !== "saved") return;
+    loadedVersionNumber.current = version.versionNumber;
     const graph = version.graph as unknown as WorkflowGraph;
     const flow = graphToFlow(graph);
     setNodes(flow.nodes);
@@ -115,7 +137,23 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
       saveTimer.current = setTimeout(() => {
         setSaveState("saving");
         saveGraph.mutate(flowToGraph(nextNodes, nextEdges, viewport), {
-          onSuccess: () => setSaveState("saved"),
+          onSuccess: (data) => {
+            // Cada save cria uma versao nova no servidor — useSaveGraph.
+            // onSuccess atualiza o cache de useWorkflow() com essa resposta,
+            // o que reexecutaria o effect de sync acima e substituiria
+            // nodes/edges por objetos NOVOS vindos do servidor. O React Flow
+            // trata isso como troca completa de identidade dos nodes, remede
+            // dimensoes e dispara onNodesChange de novo — que chama
+            // scheduleSave outra vez, criando um loop de save infinito
+            // (achado ao vivo: 23 PUT /graph pra UMA unica marcacao de
+            // checkbox). Marcar a versao como "ja carregada" aqui, antes do
+            // effect rodar, corta o loop: o echo do nosso proprio save nunca
+            // re-sincroniza o canvas.
+            if (data.currentVersion && data.currentVersion.versionNumber > loadedVersionNumber.current) {
+              loadedVersionNumber.current = data.currentVersion.versionNumber;
+            }
+            setSaveState("saved");
+          },
           onError: () => setSaveState("dirty"),
         });
       }, 800);
@@ -127,7 +165,17 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
     (changes) => {
       setNodes((current) => {
         const next = applyNodeChanges(changes, current);
-        scheduleSave(next, edges);
+        // "dimensions" (medicao inicial de tamanho pelo ResizeObserver do
+        // React Flow, dispara pra TODO node ao montar) e "select" (clique
+        // pra selecionar, so estado de UI) nunca sao persistidos —
+        // flowToGraph so grava id/type/label/position/config/retry. Sem
+        // filtrar esses dois tipos, so ABRIR um fluxo ja salvo disparava um
+        // autosave (e uma versao nova) sem nenhuma edicao real do usuario
+        // (achado ao vivo pela suite E2E: numero de versao avancava sozinho).
+        const persistable = changes.some(
+          (change) => change.type !== "dimensions" && change.type !== "select",
+        );
+        if (persistable) scheduleSave(next, edges);
         return next;
       });
     },
@@ -176,8 +224,10 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
         },
       };
 
+      console.log("DEBUG onDrop", nodeType, position);
       setNodes((current) => {
         const next = [...current, newNode];
+        console.log("DEBUG onDrop setNodes", next.length);
         scheduleSave(next, edges);
         return next;
       });
