@@ -10,6 +10,8 @@ export const pt = {
   chatErrorFallback: "Nao foi possivel conversar com o agente.",
   deletedToast: "Agente excluido.",
   deleteErrorFallback: "Nao foi possivel excluir o agente.",
+  /** Prefixo do aria-label do botao de lixeira — o nome do agente e concatenado. */
+  deleteAria: "Excluir agente",
   tools: {
     calculator: "Calculator",
     http: "Internet (HTTP)",
@@ -34,6 +36,8 @@ export const pt = {
   testDialog: {
     title: (name?: string) => `Testar ${name ?? ""}`,
     placeholder: "Pergunte algo ao agente...",
+    /** aria-label da textarea — sem <label>, so placeholder. */
+    messageAria: "Mensagem para o agente",
     send: "Enviar",
     sending: "Enviando...",
   },
@@ -56,6 +60,7 @@ export const en = {
   chatErrorFallback: "Could not chat with the agent.",
   deletedToast: "Agent deleted.",
   deleteErrorFallback: "Could not delete the agent.",
+  deleteAria: "Delete agent",
   tools: {
     calculator: "Calculator",
     http: "Internet (HTTP)",
@@ -80,6 +85,7 @@ export const en = {
   testDialog: {
     title: (name?: string) => `Test ${name ?? ""}`,
     placeholder: "Ask the agent something...",
+    messageAria: "Message to the agent",
     send: "Send",
     sending: "Sending...",
   },

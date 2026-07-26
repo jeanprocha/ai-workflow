@@ -34,6 +34,8 @@ export const STATIC_TRANSLATIONS: Record<string, string> = {
   'Agente nao encontrado.': 'Agent not found.',
   'Variavel nao encontrada.': 'Variable not found.',
   'Base de conhecimento nao encontrada.': 'Knowledge base not found.',
+  'Base de conhecimento nao encontrada neste workspace.':
+    'Knowledge base not found in this workspace.',
   'Documento nao encontrado.': 'Document not found.',
   'O arquivo nao contem texto extraivel.': 'The file has no extractable text.',
   'Falha ao gerar embedding da busca.': 'Failed to generate search embedding.',
@@ -73,7 +75,10 @@ export const DYNAMIC_TRANSLATIONS: Array<{
     translate: (m) => `Node "${m[1]}" not found in this execution's graph.`,
   },
   {
-    pattern: /^Credencial "(.+)" nao encontrada neste workspace\.$/,
+    // (.*) e nao (.+): o caso mais comum e a credencial VAZIA (agente criado
+    // sem preencher o campo fica com credential: ""), e com (.+) essa
+    // mensagem escapava sem traducao mesmo com x-lang: en.
+    pattern: /^Credencial "(.*)" nao encontrada neste workspace\.$/,
     translate: (m) => `Credential "${m[1]}" not found in this workspace.`,
   },
   {

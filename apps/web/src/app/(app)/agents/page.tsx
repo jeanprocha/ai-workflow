@@ -42,7 +42,11 @@ import { useDictionary } from "@/lib/i18n";
 const MEMORY_TOOL_KEYS = ["memory_get", "memory_set"];
 
 function displayTools(tools: string[]) {
-  const hasMemory = MEMORY_TOOL_KEYS.every((key) => tools.includes(key));
+  // `some`, nao `every`: o checkbox "Memoria persistente" sempre grava as duas
+  // chaves juntas, mas um agente criado via API pode ter so uma delas — com
+  // `every` a chave crua (memory_get) vazava como chip no card, em vez do
+  // chip "memory" que o resto da UI usa.
+  const hasMemory = MEMORY_TOOL_KEYS.some((key) => tools.includes(key));
   const rest = tools
     .filter((tool) => !MEMORY_TOOL_KEYS.includes(tool))
     .map((tool) => (tool.startsWith("mcp:") ? (tool.split(":")[2] ?? tool) : tool));
@@ -295,6 +299,7 @@ function TestAgentDialog({ agent, onOpenChange }: { agent: Agent | null; onOpenC
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             placeholder={t.agents.testDialog.placeholder}
+            aria-label={t.agents.testDialog.messageAria}
             rows={3}
           />
           {response && (
@@ -379,7 +384,12 @@ export default function AgentsPage() {
                   <Bot className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                   <h3 className="text-sm font-medium text-foreground">{agent.name}</h3>
                 </div>
-                <Button variant="ghost" size="icon-sm" onClick={() => setDeleteTarget(agent)}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`${t.agents.deleteAria} ${agent.name}`}
+                  onClick={() => setDeleteTarget(agent)}
+                >
                   <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                 </Button>
               </div>

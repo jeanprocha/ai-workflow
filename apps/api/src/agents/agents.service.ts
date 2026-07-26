@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { getProvider, type ChatMessage } from '@workflow/ai';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -47,7 +51,32 @@ export class AgentsService {
     return agent;
   }
 
-  create(workspaceId: string, dto: CreateAgentDto) {
+  /**
+   * O DTO so valida que knowledgeBaseId e string — sem esta checagem, um id
+   * inexistente estoura a FK do Prisma (P2003), que nao e HttpException e
+   * termina como 500 "Internal server error" no filtro global. Filtrar por
+   * workspaceId de quebra fecha um vazamento: a FK sozinha aceitaria uma base
+   * de OUTRO workspace, ja que ela so checa existencia.
+   */
+  private async assertKnowledgeBase(
+    workspaceId: string,
+    knowledgeBaseId: string,
+  ) {
+    const base = await this.prisma.knowledgeBase.findFirst({
+      where: { id: knowledgeBaseId, workspaceId },
+      select: { id: true },
+    });
+    if (!base) {
+      throw new BadRequestException(
+        'Base de conhecimento nao encontrada neste workspace.',
+      );
+    }
+  }
+
+  async create(workspaceId: string, dto: CreateAgentDto) {
+    if (dto.knowledgeBaseId) {
+      await this.assertKnowledgeBase(workspaceId, dto.knowledgeBaseId);
+    }
     return this.prisma.agent.create({
       data: {
         workspaceId,
@@ -66,6 +95,9 @@ export class AgentsService {
 
   async update(workspaceId: string, id: string, dto: UpdateAgentDto) {
     await this.findOne(workspaceId, id);
+    if (dto.knowledgeBaseId) {
+      await this.assertKnowledgeBase(workspaceId, dto.knowledgeBaseId);
+    }
     return this.prisma.agent.update({
       where: { id },
       data: {

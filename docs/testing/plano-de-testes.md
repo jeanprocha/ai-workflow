@@ -108,7 +108,7 @@ anexos) no report HTML.
 | 03 | Flows (lista) | CRUD de fluxo, criar do zero / por template / por IA, arquivar, renomear, excluir | ✅ suíte pronta (`tests/flows/`) |
 | 04 | Editor | Canvas (React Flow), paleta de nodes, config panel, salvar grafo, executar, versões/rollback | ✅ suíte pronta (`tests/editor/`) |
 | 05 | Executions | Lista com filtros, detalhe/timeline, replay total e parcial, stream SSE ao vivo | ✅ suíte pronta (`tests/executions/`) |
-| 06 | Agents | CRUD de agentes, ferramentas, memória, chat de teste | pendente |
+| 06 | Agents | CRUD de agentes, ferramentas, memória, chat de teste | ✅ suíte pronta (`tests/agents/`) |
 | 07 | Knowledge | Upload de documento, ingestão (precisa do worker rodando), busca semântica | pendente |
 | 08 | MCP | Conectar servidor, listar tools, chamar tool, desconectar | pendente |
 | 09 | Dashboard/Analytics | Métricas agregadas, gráficos, timeseries | pendente |
