@@ -172,7 +172,12 @@ export default function KnowledgePage() {
                   <Database className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                   <h3 className="text-sm font-medium text-foreground">{kb.name}</h3>
                 </div>
-                <Button variant="ghost" size="icon-sm" onClick={() => setDeleteTarget(kb)}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`${t.knowledge.list.deleteAria} ${kb.name}`}
+                  onClick={() => setDeleteTarget(kb)}
+                >
                   <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                 </Button>
               </div>

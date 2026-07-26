@@ -109,7 +109,7 @@ anexos) no report HTML.
 | 04 | Editor | Canvas (React Flow), paleta de nodes, config panel, salvar grafo, executar, versões/rollback | ✅ suíte pronta (`tests/editor/`) |
 | 05 | Executions | Lista com filtros, detalhe/timeline, replay total e parcial, stream SSE ao vivo | ✅ suíte pronta (`tests/executions/`) |
 | 06 | Agents | CRUD de agentes, ferramentas, memória, chat de teste | ✅ suíte pronta (`tests/agents/`) |
-| 07 | Knowledge | Upload de documento, ingestão (precisa do worker rodando), busca semântica | pendente |
+| 07 | Knowledge | Upload de documento, ingestão (precisa do worker rodando), busca semântica | ✅ suíte pronta (`tests/knowledge/`) |
 | 08 | MCP | Conectar servidor, listar tools, chamar tool, desconectar | pendente |
 | 09 | Dashboard/Analytics | Métricas agregadas, gráficos, timeseries | pendente |
 | 10 | Fase 11 (IA de plataforma) | Autocomplete, Copilot, AI Debugger, Cost Optimizer — marcados `@ai` | pendente |

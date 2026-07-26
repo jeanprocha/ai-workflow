@@ -63,6 +63,7 @@ export const STATIC_TRANSLATIONS: Record<string, string> = {
   'Configure a credencial do provider de embeddings na base de conhecimento.':
     'Set the embeddings provider credential on the knowledge base.',
   'Grafo invalido.': 'Invalid graph.',
+  'Envie um arquivo no campo "file".': 'Send a file in the "file" field.',
 };
 
 /** Mensagens com valor interpolado (nome, id, erro concatenado) — regex + template. */

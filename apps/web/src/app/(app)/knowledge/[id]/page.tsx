@@ -46,6 +46,12 @@ function StatusPill({ status, error }: { status: DocumentStatus; error: string |
   );
 }
 
+/** Mensagem de erro da ingestao — antes so existia no atributo title do StatusPill (invisivel sem hover). */
+function DocumentError({ error }: { error: string | null }) {
+  if (!error) return null;
+  return <p className="mt-1 text-xs text-danger">{error}</p>;
+}
+
 export default function KnowledgeBaseDetailPage({
   params,
 }: {
@@ -115,6 +121,9 @@ export default function KnowledgeBaseDetailPage({
       </div>
 
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={t.knowledge.detail.dropzoneAria}
         onDragOver={(event) => {
           event.preventDefault();
           setDragOver(true);
@@ -122,6 +131,12 @@ export default function KnowledgeBaseDetailPage({
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         onClick={() => fileInputRef.current?.click()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         className={
           "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-center transition-colors " +
           (dragOver ? "border-primary bg-accent-subtle" : "border-border hover:border-border-strong")
@@ -160,10 +175,16 @@ export default function KnowledgeBaseDetailPage({
                   <p className="text-xs text-muted-foreground">
                     {doc.sourceType.toUpperCase()} · {t.knowledge.detail.chunkCount(doc.chunkCount)}
                   </p>
+                  {doc.status === "failed" && <DocumentError error={doc.error} />}
                 </div>
                 <div className="flex items-center gap-3">
                   <StatusPill status={doc.status} error={doc.error} />
-                  <Button variant="ghost" size="icon-sm" onClick={() => onDeleteDocument(doc.id)}>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`${t.knowledge.detail.deleteDocumentAria} ${doc.name}`}
+                    onClick={() => onDeleteDocument(doc.id)}
+                  >
                     <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                   </Button>
                 </div>
@@ -180,6 +201,7 @@ export default function KnowledgeBaseDetailPage({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t.knowledge.detail.searchPlaceholder}
+            aria-label={t.knowledge.detail.searchAria}
             onKeyDown={(event) => event.key === "Enter" && onSearch()}
           />
           <Button onClick={onSearch} disabled={searchKnowledge.isPending || !query.trim()}>

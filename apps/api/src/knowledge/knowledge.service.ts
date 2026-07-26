@@ -110,9 +110,18 @@ export class KnowledgeService {
   async uploadDocument(
     workspaceId: string,
     knowledgeBaseId: string,
-    file: { originalname: string; mimetype: string; buffer: Buffer },
+    file:
+      { originalname: string; mimetype: string; buffer: Buffer } | undefined,
   ) {
     await this.findKnowledgeBase(workspaceId, knowledgeBaseId);
+
+    // @UploadedFile() e undefined quando o multipart nao tem a parte "file"
+    // (campo ausente ou nome errado) — sem esta guarda, inferSourceType
+    // estourava um TypeError fora de qualquer try/catch, que o filtro global
+    // de excecoes trata como 500 generico em vez de um 400 de validacao.
+    if (!file) {
+      throw new BadRequestException('Envie um arquivo no campo "file".');
+    }
 
     const sourceType = inferSourceType(file.originalname, file.mimetype);
     let text: string;

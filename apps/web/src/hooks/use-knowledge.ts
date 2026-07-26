@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { getAccessToken, getWorkspaceId } from "@/lib/auth-storage";
-import { useDictionary } from "@/lib/i18n";
+import { ApiError } from "@/lib/errors";
+import { getLocale } from "@/lib/i18n/store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333";
 
@@ -94,24 +95,35 @@ export function useDocuments(knowledgeBaseId: string) {
 
 export function useUploadDocument(knowledgeBaseId: string) {
   const queryClient = useQueryClient();
-  const t = useDictionary();
   return useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
 
+      // fetch cru (nao apiFetch) porque o body e FormData, nao JSON — mas
+      // precisa espelhar os mesmos headers de correlacao/i18n, senao a
+      // mensagem de erro do servidor nunca chega ao toast (Error puro nao e
+      // desembrulhado por errorMessage(), so ApiError e) e o upload some da
+      // correlacao de logs da suite E2E (sem x-test-run).
+      const requestId = crypto.randomUUID();
+      const testRun = typeof window !== "undefined" ? window.__E2E_TEST_RUN__ : undefined;
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${getAccessToken() ?? ""}`,
+        "x-workspace-id": getWorkspaceId() ?? "",
+        "x-lang": getLocale(),
+        "x-request-id": requestId,
+      };
+      if (testRun) headers["x-test-run"] = testRun;
+
       const response = await fetch(`${API_URL}/knowledge/${knowledgeBaseId}/documents`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${getAccessToken() ?? ""}`,
-          "x-workspace-id": getWorkspaceId() ?? "",
-        },
+        headers,
         body: formData,
       });
 
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        throw new Error(body?.message ?? t.knowledge.detail.uploadErrorFallbackGeneric);
+        throw new ApiError(response.status, body, requestId);
       }
       return response.json() as Promise<KnowledgeDocument>;
     },
