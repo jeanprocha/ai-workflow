@@ -173,6 +173,8 @@ export const pt = {
     ],
     promptHint: "Pergunte algo, ou tente:",
     messagePlaceholder: "Pergunte sobre o fluxo...",
+    /** aria-label da textarea — so tinha placeholder, sem nome acessivel. */
+    messageAria: "Mensagem para o Copilot",
     applyButton: "Aplicar mudanca no grafo",
     appliedToast: "Alteracao aplicada — recarregando o fluxo...",
     chatErrorFallback: "Nao foi possivel conversar com o Copilot.",
@@ -362,6 +364,7 @@ export const en = {
     ],
     promptHint: "Ask something, or try:",
     messagePlaceholder: "Ask about the flow...",
+    messageAria: "Message to Copilot",
     applyButton: "Apply change to graph",
     appliedToast: "Change applied — reloading the flow...",
     chatErrorFallback: "Could not chat with Copilot.",

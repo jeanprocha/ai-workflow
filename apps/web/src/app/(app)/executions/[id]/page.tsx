@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -119,9 +120,9 @@ function DebuggerDialog({
 
         {!diagnosis ? (
           <>
-            <p className="text-xs text-muted-foreground">
+            <DialogDescription className="text-xs">
               {t.executions.detail.debuggerDescription}
-            </p>
+            </DialogDescription>
             <ProviderModelFields idPrefix="debugger" value={aiConfig} onChange={setAiConfig} />
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>

@@ -5,7 +5,13 @@ import { toast } from "sonner";
 import { Sparkles, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ProviderModelFields, type ProviderModelValue } from "@/components/ai/provider-model-fields";
 import { useApplyCopilotSuggestion, useCopilotChat, type CopilotHistoryMessage } from "@/hooks/use-copilot";
 import { errorMessage } from "@/lib/errors";
@@ -90,7 +96,7 @@ export function CopilotDialog({ workflowId }: { workflowId: string }) {
           <div className="max-h-80 min-h-[8rem] space-y-3 overflow-y-auto rounded-lg border border-border bg-muted p-3">
             {messages.length === 0 ? (
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">{t.editor.copilot.promptHint}</p>
+                <DialogDescription>{t.editor.copilot.promptHint}</DialogDescription>
                 <div className="flex flex-wrap gap-1.5">
                   {t.editor.copilot.suggestedPrompts.map((prompt) => (
                     <button
@@ -137,6 +143,7 @@ export function CopilotDialog({ workflowId }: { workflowId: string }) {
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               placeholder={t.editor.copilot.messagePlaceholder}
+              aria-label={t.editor.copilot.messageAria}
               className="text-sm"
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {

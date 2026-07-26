@@ -122,6 +122,22 @@ export class CostOptimizerService {
     }
 
     const results: CostOptimizerSuggestion[] = [];
+    // Cache por workflowId — varios grupos podem ser do mesmo fluxo
+    // (nodes diferentes), sem isso seria um SELECT por grupo.
+    const graphCache = new Map<string, WorkflowGraph | undefined>();
+    const getGraph = async (
+      workflowId: string,
+    ): Promise<WorkflowGraph | undefined> => {
+      if (graphCache.has(workflowId)) return graphCache.get(workflowId);
+      const workflow = await this.prisma.workflow.findUnique({
+        where: { id: workflowId },
+        select: { currentVersion: { select: { graph: true } } },
+      });
+      const graph = workflow?.currentVersion?.graph as unknown as
+        WorkflowGraph | undefined;
+      graphCache.set(workflowId, graph);
+      return graph;
+    };
 
     for (const group of groups.values()) {
       if (group.count < MIN_SAMPLE_SIZE) continue;
@@ -154,6 +170,14 @@ export class CostOptimizerService {
       if (savingsPercent < MIN_SAVINGS_PERCENT) continue;
 
       const avgCostUsd = group.costSum / group.count;
+      // nodeLabel antes era sempre igual a nodeId (ex.: "node n2" no card,
+      // em vez do label humano do node) — resolve o label real no grafo da
+      // versao atual do fluxo, com fallback pro id se o node nao existir
+      // mais la (fluxo editado depois das execucoes analisadas).
+      const graph = await getGraph(group.workflowId);
+      const nodeLabel =
+        graph?.nodes.find((node) => node.id === group.nodeId)?.label ??
+        group.nodeId;
 
       const suggestionRow = await this.suggestions.create({
         workspaceId,
@@ -176,7 +200,7 @@ export class CostOptimizerService {
         workflowId: group.workflowId,
         workflowName: group.workflowName,
         nodeId: group.nodeId,
-        nodeLabel: group.nodeId,
+        nodeLabel,
         currentProvider: currentModel.provider,
         currentModel: currentModel.id,
         suggestedProvider: best.provider,

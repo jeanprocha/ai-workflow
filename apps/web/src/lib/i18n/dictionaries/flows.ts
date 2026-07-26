@@ -41,6 +41,7 @@ export const pt = {
   },
   generateDialog: {
     title: "Gerar fluxo com IA",
+    description: "Descreva o que o fluxo deve fazer e a IA gera o grafo pra voce revisar.",
     promptLabel: "Descreva o que o fluxo deve fazer",
     promptPlaceholder:
       "Ex: Quando chegar um email com boleto, extraia os dados, grave no banco, responda confirmando e envie no Slack.",
@@ -104,6 +105,7 @@ export const en = {
   },
   generateDialog: {
     title: "Generate flow with AI",
+    description: "Describe what the flow should do and AI generates the graph for you to review.",
     promptLabel: "Describe what the flow should do",
     promptPlaceholder:
       "e.g. When an invoice email arrives, extract the data, save it to the database, reply confirming and send it on Slack.",

@@ -112,7 +112,7 @@ anexos) no report HTML.
 | 07 | Knowledge | Upload de documento, ingestão (precisa do worker rodando), busca semântica | ✅ suíte pronta (`tests/knowledge/`) |
 | 08 | MCP | Conectar servidor, listar tools, chamar tool, desconectar | ✅ suíte pronta (`tests/mcp/`) |
 | 09 | Dashboard/Analytics | Métricas agregadas, gráficos, timeseries | ✅ suíte pronta (`tests/analytics/`) |
-| 10 | Fase 11 (IA de plataforma) | Autocomplete, Copilot, AI Debugger, Cost Optimizer — marcados `@ai` | pendente |
+| 10 | Fase 11 (IA de plataforma) | Autocomplete, Copilot, AI Debugger, Cost Optimizer — marcados `@ai` | ✅ suíte pronta (`tests/platform-ai/`) |
 | 11 | Busca global / Scheduler | Ctrl+K, agendamento cron de fluxo | pendente |
 
 Cada fase futura ganha seu próprio `tests/<fase>/*.spec.ts` seguindo o mesmo

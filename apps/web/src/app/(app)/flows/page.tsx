@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -182,6 +183,7 @@ function GenerateWithAiDialog({
               {t.flows.generateDialog.title}
             </span>
           </DialogTitle>
+          <DialogDescription>{t.flows.generateDialog.description}</DialogDescription>
         </DialogHeader>
 
         {!preview ? (
