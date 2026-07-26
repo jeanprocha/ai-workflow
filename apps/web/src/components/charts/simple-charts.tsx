@@ -14,10 +14,13 @@ export function LineChart({
   data,
   color = "var(--primary)",
   emptyLabel,
+  ariaLabel,
 }: {
   data: SeriesPoint[];
   color?: string;
   emptyLabel: string;
+  /** Nome acessivel do grafico (role="img") — tambem o locator estavel dos testes. */
+  ariaLabel: string;
 }) {
   if (data.length === 0) {
     return <p className="text-xs text-muted-foreground">{emptyLabel}</p>;
@@ -33,7 +36,13 @@ export function LineChart({
   });
 
   return (
-    <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" preserveAspectRatio="none">
+    <svg
+      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      className="w-full"
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={ariaLabel}
+    >
       <polyline
         points={points.join(" ")}
         fill="none"

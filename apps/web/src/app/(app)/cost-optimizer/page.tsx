@@ -45,10 +45,16 @@ export default function CostOptimizerPage() {
           <h1 className="text-lg font-semibold text-foreground">{t.costOptimizer.title}</h1>
           <p className="text-sm text-muted-foreground">{t.costOptimizer.description}</p>
         </div>
-        <Button onClick={onAnalyze} disabled={isFetching}>
-          <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
-          {isFetching ? t.costOptimizer.analyzing : t.costOptimizer.analyze}
-        </Button>
+        {/* So depois da 1a analise — antes disso a acao do EmptyState e o
+            unico "Analisar" da tela (mesmo padrao de Agents/Knowledge/MCP:
+            botao do header ausente ate haver conteudo). Sem isso, o estado
+            inicial tinha DOIS botoes "Analisar" visiveis ao mesmo tempo. */}
+        {analyzed && (
+          <Button onClick={onAnalyze} disabled={isFetching}>
+            <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
+            {isFetching ? t.costOptimizer.analyzing : t.costOptimizer.analyze}
+          </Button>
+        )}
       </div>
 
       {!analyzed && (

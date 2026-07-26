@@ -111,7 +111,7 @@ anexos) no report HTML.
 | 06 | Agents | CRUD de agentes, ferramentas, memória, chat de teste | ✅ suíte pronta (`tests/agents/`) |
 | 07 | Knowledge | Upload de documento, ingestão (precisa do worker rodando), busca semântica | ✅ suíte pronta (`tests/knowledge/`) |
 | 08 | MCP | Conectar servidor, listar tools, chamar tool, desconectar | ✅ suíte pronta (`tests/mcp/`) |
-| 09 | Dashboard/Analytics | Métricas agregadas, gráficos, timeseries | pendente |
+| 09 | Dashboard/Analytics | Métricas agregadas, gráficos, timeseries | ✅ suíte pronta (`tests/analytics/`) |
 | 10 | Fase 11 (IA de plataforma) | Autocomplete, Copilot, AI Debugger, Cost Optimizer — marcados `@ai` | pendente |
 | 11 | Busca global / Scheduler | Ctrl+K, agendamento cron de fluxo | pendente |
 

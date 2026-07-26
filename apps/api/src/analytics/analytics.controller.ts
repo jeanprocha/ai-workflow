@@ -24,10 +24,13 @@ export class AnalyticsController {
     @Query('days') days?: string,
   ) {
     const parsed = days ? Number.parseInt(days, 10) : 14;
-    return this.analyticsService.timeseries(
-      workspaceId,
-      Number.isFinite(parsed) && parsed > 0 ? parsed : 14,
-    );
+    // Sem cap, um `days` gigante (ex.: 999999999999) faz o SQL raw calcular
+    // `NOW() - (days || ' days')::interval` e o Postgres estoura "interval
+    // field value out of range" — erro do driver, nao HttpException, que
+    // o filtro global de excecoes transforma em 500 generico.
+    const clamped =
+      Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 365) : 14;
+    return this.analyticsService.timeseries(workspaceId, clamped);
   }
 
   @Get('cost-by-provider')

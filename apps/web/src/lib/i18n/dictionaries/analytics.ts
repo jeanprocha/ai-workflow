@@ -20,6 +20,9 @@ export const pt = {
     costByProvider: "Custo de IA por provider",
     noDataInPeriod: "Sem dados no periodo.",
     noData: "Sem dados.",
+    /** aria-label dos graficos SVG — tambem o locator estavel dos testes (role="img"). */
+    executionsByDayAria: "Grafico de execucoes por dia",
+    failuresByDayAria: "Grafico de falhas por dia",
   },
 };
 
@@ -45,5 +48,7 @@ export const en = {
     costByProvider: "AI cost by provider",
     noDataInPeriod: "No data for this period.",
     noData: "No data.",
+    executionsByDayAria: "Executions per day chart",
+    failuresByDayAria: "Failures per day chart",
   },
 } satisfies typeof pt;

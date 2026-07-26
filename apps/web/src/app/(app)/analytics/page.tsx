@@ -61,6 +61,7 @@ export default function AnalyticsPage() {
           ) : (
             <LineChart
               emptyLabel={t.analytics.charts.noDataInPeriod}
+              ariaLabel={t.analytics.charts.executionsByDayAria}
               data={(timeseries ?? []).map((point) => ({
                 label: formatShortDate(point.date, locale),
                 value: point.executions,
@@ -77,6 +78,7 @@ export default function AnalyticsPage() {
             <LineChart
               color="var(--danger)"
               emptyLabel={t.analytics.charts.noDataInPeriod}
+              ariaLabel={t.analytics.charts.failuresByDayAria}
               data={(timeseries ?? []).map((point) => ({
                 label: formatShortDate(point.date, locale),
                 value: point.failures,

@@ -15,6 +15,8 @@ export interface MetricCardProps {
 export function MetricCard({ label, value, delta, className }: MetricCardProps) {
   return (
     <div
+      role="group"
+      aria-label={label}
       className={
         "rounded-lg border border-border bg-card p-4" + (className ? ` ${className}` : "")
       }
