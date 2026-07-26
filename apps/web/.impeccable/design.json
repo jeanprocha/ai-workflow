@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-26T00:00:00.000Z",
+  "title": "Design System: Workflow AI Platform",
+  "extensions": {
+    "colorMeta": {
+      "cobalto": {
+        "role": "primary",
+        "displayName": "Cobalto",
+        "canonical": "#5b7cfa",
+        "tonalRamp": ["#020e3b", "#03196d", "#05259e", "#0734df", "#2f59f9", "#6b88fa", "#a6b8fc", "#d7dffe"]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Sucesso",
+        "canonical": "#3dd68c",
+        "tonalRamp": ["#0b331f", "#145d39", "#1c8753", "#28bd75", "#4eda96", "#81e4b4", "#b3efd2", "#ddf8eb"]
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "Atenção",
+        "canonical": "#f0b429",
+        "tonalRamp": ["#392904", "#694b07", "#996e0b", "#d69a0f", "#f1b937", "#f5cd70", "#f9e1a9", "#fcf2d9"]
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "Erro",
+        "canonical": "#f2555a",
+        "tonalRamp": ["#390406", "#68080b", "#980c10", "#d51017", "#f0383e", "#f47175", "#f8aaac", "#fcd9da"]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Grafite",
+        "canonical": "#5e646e",
+        "tonalRamp": ["#1c1e21", "#34373d", "#4b5058", "#6a717c", "#8b929c", "#adb1b8", "#cdd0d5", "#e9eaec"]
+      }
+    },
+    "typographyMeta": {
+      "text-xl": { "displayName": "Métrica de dashboard", "purpose": "Valor grande de card de métrica; sempre mono e tabular." },
+      "text-lg": { "displayName": "Título de página", "purpose": "Cabeçalho de cada tela/rota." },
+      "text-md": { "displayName": "Título de card/painel", "purpose": "Cabeçalho de card ou painel de configuração." },
+      "text-base": { "displayName": "Corpo padrão", "purpose": "Corpo, inputs, células de tabela — o tamanho mais usado no produto." },
+      "text-sm": { "displayName": "Label / secundário", "purpose": "Labels, células secundárias, badges." },
+      "text-xs": { "displayName": "Metadado / eyebrow", "purpose": "Timestamps, metadados, eyebrows uppercase." }
+    },
+    "shadows": [
+      {
+        "name": "overlay",
+        "value": "0 8px 24px rgb(0 0 0 / 0.32)",
+        "purpose": "Único uso de sombra no sistema: popovers, dropdowns, modais, command palette (nível 2 de elevação). Valor light: 0 8px 24px rgb(23 24 28 / 0.12)."
+      }
+    ],
+    "motion": [
+      { "name": "micro", "value": "120ms ease-out", "purpose": "Hover, press, toggle." },
+      { "name": "panel", "value": "200ms cubic-bezier(0.32, 0.72, 0, 1)", "purpose": "Painéis, dropdowns, drawers." },
+      { "name": "overlay", "value": "240ms cubic-bezier(0.32, 0.72, 0, 1)", "purpose": "Modais, command palette." },
+      { "name": "pulse-travel", "value": "1.2s linear infinite", "purpose": "O Pulso, variante bar (edge do canvas em execução)." },
+      { "name": "pulse-breathe", "value": "1.2s ease-in-out infinite", "purpose": "O Pulso, variante dot (indicador de execução ao vivo)." }
+    ],
+    "breakpoints": [
+      { "name": "mobile-floor", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal da vista — no máximo um por tela.",
+      "html": "<button class=\"ds-btn-primary\">Executar fluxo</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 10px; gap: 6px; border-radius: 10px; background: #5b7cfa; color: #f7f8fa; font-size: 14px; font-weight: 500; font-family: 'Geist Sans', Inter, system-ui; border: none; transition: background 0.12s ease-out, transform 0.12s ease-out; } .ds-btn-primary:hover { background: #6b88fa; } .ds-btn-primary:focus-visible { outline: 2px solid rgb(91 124 250 / 0.24); outline-offset: 2px; } .ds-btn-primary:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Ações em tabelas e toolbars — sem borda, sem fundo em repouso.",
+      "html": "<button class=\"ds-btn-ghost\">Ver detalhes</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 10px; border-radius: 10px; background: transparent; color: #9ba1aa; font-size: 14px; font-weight: 500; font-family: 'Geist Sans', Inter, system-ui; border: none; transition: background 0.12s ease-out, color 0.12s ease-out; } .ds-btn-ghost:hover { background: #20242b; color: #e6e8eb; } .ds-btn-ghost:focus-visible { outline: 2px solid rgb(91 124 250 / 0.24); outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Badge — Running",
+      "kind": "chip",
+      "refersTo": "status-badge-running",
+      "description": "Pill de status com dot pulsante + label — cor nunca comunica estado sozinha.",
+      "html": "<span class=\"ds-badge ds-badge-running\"><span class=\"ds-badge-dot\"></span>Executando</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; padding: 2px 8px; font-size: 12.5px; font-weight: 500; font-family: 'Geist Sans', Inter, system-ui; } .ds-badge-running { background: rgb(91 124 250 / 0.12); color: #5b7cfa; } .ds-badge-dot { width: 8px; height: 8px; border-radius: 9999px; background: currentColor; animation: ds-breathe 1.2s ease-in-out infinite; } @keyframes ds-breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.55; transform: scale(0.85); } }"
+    },
+    {
+      "name": "Metric Card",
+      "kind": "card",
+      "refersTo": "metric-card",
+      "description": "Card de métrica do dashboard — label em cima, valor mono tabular embaixo, delta opcional.",
+      "html": "<div class=\"ds-metric-card\"><p class=\"ds-metric-label\">Execuções hoje</p><div class=\"ds-metric-row\"><span class=\"ds-metric-value\">1.284</span><span class=\"ds-metric-delta ds-metric-delta-up\">▲ 12%</span></div></div>",
+      "css": ".ds-metric-card { border-radius: 10px; border: 1px solid #262a31; background: #14161b; padding: 16px; } .ds-metric-label { font-size: 12.5px; color: #9ba1aa; margin: 0; } .ds-metric-row { display: flex; align-items: baseline; gap: 8px; margin-top: 8px; } .ds-metric-value { font-family: 'Geist Mono', monospace; font-variant-numeric: tabular-nums; font-size: 28px; font-weight: 600; color: #e6e8eb; } .ds-metric-delta { font-size: 12px; font-weight: 500; } .ds-metric-delta-up { color: #3dd68c; } .ds-metric-delta-down { color: #f2555a; }"
+    },
+    {
+      "name": "Node Card",
+      "kind": "custom",
+      "refersTo": "node-card",
+      "description": "Card de node no canvas do editor — chip de ícone com tint de categoria, dot de status no canto.",
+      "html": "<div class=\"ds-node-card\"><div class=\"ds-node-header\"><span class=\"ds-node-icon-chip\">⚡</span><span class=\"ds-node-title\">Webhook</span><span class=\"ds-node-status\">●</span></div><p class=\"ds-node-subtitle\">POST /hooks/abc123</p></div>",
+      "css": ".ds-node-card { width: 240px; border-radius: 10px; border: 1px solid #262a31; background: #1b1e24; padding: 10px 12px; font-family: 'Geist Sans', Inter, system-ui; } .ds-node-header { display: flex; align-items: center; gap: 8px; } .ds-node-icon-chip { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; background: rgb(240 180 41 / 0.12); color: #f0b429; font-size: 12px; } .ds-node-title { flex: 1; font-size: 14px; font-weight: 500; color: #e6e8eb; } .ds-node-status { color: #3dd68c; font-size: 10px; } .ds-node-subtitle { margin: 8px 0 0; font-family: 'Geist Mono', monospace; font-size: 11px; color: #9ba1aa; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Instrumento de precisão",
+    "overview": "Workflow AI é uma ferramenta de trabalho intensivo — canvas, logs, execuções, dados — não uma vitrine. A interface se comporta como um instrumento: o chrome recua, o fluxo do usuário é o protagonista, e nada compete com o conteúdo. Isso se traduz numa superfície quase monocromática (escala de grafite) onde a única cor de marca — o Cobalto — aparece apenas para ação primária, seleção, foco e a assinatura visual do produto. Cores semânticas (verde/âmbar/vermelho) pertencem exclusivamente a estados de execução; nunca decoram.\n\nA densidade é alta (tabelas, logs, métricas em uma tela só) mas calma — resolvida com hierarquia tipográfica e espaçamento, nunca com caixas, sombras ou cores extras. Todo valor de máquina (IDs, custos, cron, JSON, logs) usa a família mono; o olho aprende a distinguir dado de interface por isso, não por cor. Rejeitado explicitamente: gradiente roxo/azul \"de IA\", sparkles, glassmorphism, glow neon, qualquer decoração que não carregue informação.",
+    "keyCharacteristics": [
+      "Quase monocromático: grafite + um único acento (Cobalto), usado com raridade deliberada.",
+      "Densidade calma via tipografia e espaço, nunca via caixas/sombras extras.",
+      "Dado é sempre mono; interface é sempre sans — a distinção é a segunda camada de hierarquia.",
+      "Flat por padrão; sombra existe só onde há sobreposição real (overlays).",
+      "Movimento é causal (mostra que algo aconteceu), nunca decorativo."
+    ],
+    "rules": [
+      { "name": "A Regra da Cor-Sinal", "body": "Cor nunca é decoração. Quando uma cor aparece fora da escala de grafite, ela significa algo específico: estado de execução, seleção ou erro. Um botão de marketing nunca é verde; nada é vermelho por estilo.", "section": "colors" },
+      { "name": "A Regra da Redundância (daltonismo)", "body": "Estado nunca é comunicado só por cor — todo status combina cor + ícone/forma + label.", "section": "colors" },
+      { "name": "A Regra do Número Tabular", "body": "Todo número em métrica, tabela ou custo usa font-variant-numeric: tabular-nums — colunas alinham, dashboards não \"dançam\" ao atualizar.", "section": "typography" },
+      { "name": "A Regra Borda-Antes-de-Sombra", "body": "Nunca sombra colorida, sombra em hover de card, ou borda dupla. Se dois elementos de nível 1 precisam se distinguir, a resposta é borda ou fundo, não sombra.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do usar Cobalto (#5b7cfa) exclusivamente para ação primária, seleção, foco e O Pulso.",
+      "Do combinar toda cor de estado com ícone/forma + label — nunca só cor.",
+      "Do usar Geist Mono pra todo dado de máquina (IDs, custos, cron, JSON, logs) e Geist Sans pra tudo mais.",
+      "Do aplicar tabular-nums em todo número de métrica, tabela ou custo.",
+      "Do limitar a um botão primário por vista.",
+      "Do manter sombra restrita a overlays de nível 2 (popover, dropdown, modal, command palette)."
+    ],
+    "donts": [
+      "Don't usar gradiente roxo/azul \"de IA\", sparkles, glassmorphism ou glow neon.",
+      "Don't usar cor semântica fora de estado (verde decorativo, vermelho num CTA de marketing).",
+      "Don't aplicar sombra em hover de card, ou borda + sombra juntas em nível 1.",
+      "Don't usar O Pulso fora dos quatro contextos definidos — a raridade é o que o torna assinatura.",
+      "Don't truncar dado crítico sem tooltip, ou esconder erro atrás de \"Algo deu errado\"."
+    ]
+  }
+}

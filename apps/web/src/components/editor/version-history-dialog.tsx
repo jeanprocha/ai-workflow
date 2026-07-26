@@ -29,8 +29,8 @@ import {
   type WorkflowVersionSummary,
 } from "@/hooks/use-workflow-versions";
 import { errorMessage } from "@/lib/errors";
-import { useDictionary, useLocale } from "@/lib/i18n";
-import { formatDateTime } from "@/lib/format";
+import { useDictionary } from "@/lib/i18n";
+import { RelativeTime } from "@/components/relative-time";
 
 function DiffSummary({ diff }: { diff: GraphDiff }) {
   const t = useDictionary().editor.versionHistory;
@@ -71,7 +71,6 @@ function VersionRow({
   onRestored: () => void;
 }) {
   const t = useDictionary();
-  const locale = useLocale();
   const [showDiff, setShowDiff] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const { data: thisVersion } = useWorkflowVersion(workflowId, showDiff ? version.id : null);
@@ -108,7 +107,7 @@ function VersionRow({
             )}
           </p>
           <p className="text-xs text-muted-foreground">
-            {formatDateTime(version.createdAt, locale)} · {version.createdByName}
+            <RelativeTime value={version.createdAt} /> · {version.createdByName}
           </p>
         </div>
         <div className="flex gap-2">
@@ -165,9 +164,14 @@ export function VersionHistoryDialog({
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        aria-label={t.openButton}
+      >
         <History className="h-3.5 w-3.5" strokeWidth={1.5} />
-        {t.openButton}
+        <span className="hidden sm:inline">{t.openButton}</span>
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xl">

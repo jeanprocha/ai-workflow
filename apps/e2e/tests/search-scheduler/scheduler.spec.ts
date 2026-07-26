@@ -49,12 +49,12 @@ test.describe("CronFields (config panel)", () => {
 
       const panel = page.locator("aside").last();
       await expect(panel.getByText("Schedule", { exact: true })).toBeVisible();
-      await expect(panel.getByLabel("Expressao cron")).toHaveValue(UTC_DAILY_9AM);
+      await expect(panel.getByLabel("Expressão cron")).toHaveValue(UTC_DAILY_9AM);
 
       await panel.getByLabel("Presets").selectOption({ label: "A cada hora" });
-      await expect(panel.getByLabel("Expressao cron")).toHaveValue("0 * * * *");
+      await expect(panel.getByLabel("Expressão cron")).toHaveValue("0 * * * *");
 
-      const nextRuns = panel.getByRole("list", { name: "Proximas execucoes calculadas" });
+      const nextRuns = panel.getByRole("list", { name: "Próximas execuções calculadas" });
       await expect(nextRuns).toBeVisible();
       await expect(nextRuns.locator("li")).toHaveCount(5);
     } finally {
@@ -80,7 +80,7 @@ test.describe("CronFields (config panel)", () => {
       await page.locator('[data-testid="rf__node-n1"]').click();
       const panel = page.locator("aside").last();
 
-      const expression = panel.getByLabel("Expressao cron");
+      const expression = panel.getByLabel("Expressão cron");
       await expression.fill("* * * * * * *");
       await page.keyboard.press("Tab");
 
@@ -92,7 +92,7 @@ test.describe("CronFields (config panel)", () => {
       await page.keyboard.press("Tab");
 
       await expect(alert).not.toBeVisible();
-      await expect(panel.getByRole("list", { name: "Proximas execucoes calculadas" })).toBeVisible();
+      await expect(panel.getByRole("list", { name: "Próximas execuções calculadas" })).toBeVisible();
     } finally {
       await request.delete(`${API_URL}/workflows/${workflow.id}`, { headers });
     }
@@ -117,8 +117,8 @@ test.describe("CronFields (config panel)", () => {
       await page.locator('[data-testid="rf__node-n1"]').click();
       const panel = page.locator("aside").last();
 
-      await panel.getByRole("button", { name: "Calcular proximas execucoes" }).click();
-      const firstRun = panel.getByRole("list", { name: "Proximas execucoes calculadas" }).locator("li").first();
+      await panel.getByRole("button", { name: "Calcular próximas execuções" }).click();
+      const firstRun = panel.getByRole("list", { name: "Próximas execuções calculadas" }).locator("li").first();
       await expect(firstRun).toBeVisible();
       const utcText = await firstRun.textContent();
 

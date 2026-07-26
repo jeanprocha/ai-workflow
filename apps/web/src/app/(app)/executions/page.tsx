@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { EmptyState, StatusBadge, type ExecutionStatus } from "@workflow/ui";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,8 @@ import { useExecutions, useRetryExecution, type ExecutionFilters } from "@/hooks
 import { useWorkflows } from "@/hooks/use-workflows";
 import { errorMessage } from "@/lib/errors";
 import { useDictionary, useLocale } from "@/lib/i18n";
-import { formatDateTime, formatDuration, formatUsd } from "@/lib/format";
+import { formatDuration, formatUsd } from "@/lib/format";
+import { RelativeTime } from "@/components/relative-time";
 
 const STATUS_OPTIONS = ["queued", "running", "success", "failed", "canceled"];
 
@@ -27,10 +29,19 @@ function toBadgeStatus(status: string): ExecutionStatus {
   return status === "canceled" ? "failed" : (status as ExecutionStatus);
 }
 
-export default function ExecutionsPage() {
+function ExecutionsPageInner() {
   const t = useDictionary();
   const locale = useLocale();
-  const [filters, setFilters] = useState<ExecutionFilters>({ page: 1, pageSize: 20 });
+  // O dashboard linka pra ca com ?status=failed ("o que quebrou hoje").
+  // Sem ler a query, aquele link abria a lista inteira sem filtro — uma
+  // promessa quebrada.
+  const searchParams = useSearchParams();
+  const statusParam = searchParams.get("status");
+  const [filters, setFilters] = useState<ExecutionFilters>({
+    page: 1,
+    pageSize: 20,
+    status: statusParam && STATUS_OPTIONS.includes(statusParam) ? statusParam : undefined,
+  });
   const { data, isLoading } = useExecutions(filters);
   const { data: workflows } = useWorkflows();
   const retryExecution = useRetryExecution();
@@ -159,7 +170,7 @@ export default function ExecutionsPage() {
                     {execution.costUsd === 0 ? "—" : formatUsd(execution.costUsd, locale, 4)}
                   </TableCell>
                   <TableCell className="text-right text-sm text-muted-foreground">
-                    {formatDateTime(execution.startedAt, locale)}
+                    <RelativeTime value={execution.startedAt} />
                   </TableCell>
                   <TableCell className="text-right">
                     {execution.status === "failed" && (
@@ -204,5 +215,17 @@ export default function ExecutionsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * useSearchParams exige um limite de Suspense no App Router — sem ele o
+ * build falha ao pre-renderizar esta rota.
+ */
+export default function ExecutionsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ExecutionsPageInner />
+    </Suspense>
   );
 }

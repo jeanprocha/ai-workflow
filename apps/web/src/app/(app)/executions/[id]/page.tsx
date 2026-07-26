@@ -319,6 +319,7 @@ export default function ExecutionDetailPage({
       <div>
         <Link
           href="/executions"
+          aria-label={t.executions.detail.backLinkAria}
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />

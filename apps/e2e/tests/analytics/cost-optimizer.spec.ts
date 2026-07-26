@@ -26,11 +26,11 @@ test.describe("Cost Optimizer", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/cost-optimizer");
 
-    await expect(page.getByRole("heading", { level: 1, name: "Cost Optimizer" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Ainda nao analisado" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Otimizador de Custo" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Ainda não analisado" })).toBeVisible();
     await expect(
       page.getByText(
-        "Clique em Analisar para ver oportunidades reais de economia com base no que os seus fluxos ja rodaram.",
+        "Clique em Analisar para ver oportunidades reais de economia com base no que os seus fluxos já rodaram.",
       ),
     ).toBeVisible();
 
@@ -43,14 +43,14 @@ test.describe("Cost Optimizer", () => {
     await expect(page.getByRole("heading", { name: "Nenhuma oportunidade encontrada" })).toBeVisible();
     await expect(
       page.getByText(
-        "Ou os fluxos ja usam modelos economicos, ou ainda nao ha volume suficiente de execucoes (minimo 3 por node) nos ultimos 30 dias.",
+        "Ou os fluxos já usam modelos econômicos, ou ainda não há volume suficiente de execuções (mínimo 3 por node) nos últimos 30 dias.",
       ),
     ).toBeVisible();
     // Analisado: continua havendo so UM botao "Analisar" (agora o do header).
     await expect(page.getByRole("button", { name: "Analisar", exact: true })).toHaveCount(1);
   });
 
-  test('nav "Otimizador de Custo" leva pra /cost-optimizer (h1 diferente do label do menu)', async ({
+  test('nav "Otimizador de Custo" leva pra /cost-optimizer', async ({
     page,
     context,
     request,
@@ -61,6 +61,8 @@ test.describe("Cost Optimizer", () => {
 
     await page.getByRole("link", { name: "Otimizador de Custo" }).click();
     await expect(page).toHaveURL(/\/cost-optimizer$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Cost Optimizer" })).toBeVisible();
+    // O h1 e o label do menu agora sao o mesmo texto — escopar por
+    // heading/level 1 e o que separa o titulo da pagina do link do sidebar.
+    await expect(page.getByRole("heading", { level: 1, name: "Otimizador de Custo" })).toBeVisible();
   });
 });

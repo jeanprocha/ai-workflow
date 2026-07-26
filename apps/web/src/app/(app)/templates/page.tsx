@@ -45,7 +45,7 @@ function TemplateCard({ template }: { template: Template }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+    <div className="group flex flex-col gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-border-strong">
       <div>
         <span className="text-xs font-medium uppercase tracking-wide text-primary">
           {copy.category}
@@ -65,14 +65,21 @@ function TemplateCard({ template }: { template: Template }) {
         ))}
       </div>
 
+      {/* variant="outline", nao primario: sao 7 cards por tela, e o primario
+          e reservado a uma acao por vista (style.md 8.2). A seta so anda no
+          hover do card — movimento causal, nao decorativo. */}
       <Button
+        variant="outline"
         size="sm"
         className="mt-auto"
         onClick={onUse}
         disabled={useTemplateMutation.isPending}
       >
         {useTemplateMutation.isPending ? t.common.creating : t.templates.useButton}
-        <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+        <ArrowRight
+          className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
+          strokeWidth={1.5}
+        />
       </Button>
     </div>
   );

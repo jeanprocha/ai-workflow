@@ -22,6 +22,36 @@ export function formatShortDate(value: Date | string | number, locale: Locale): 
   );
 }
 
+const RELATIVE_STEPS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ["second", 60],
+  ["minute", 60],
+  ["hour", 24],
+  ["day", 7],
+  ["week", 4.34524],
+  ["month", 12],
+  ["year", Infinity],
+];
+
+/**
+ * Tempo relativo ("há 2 min") para tabelas e listas. Uma coluna de
+ * timestamps absolutos repetidos e uma planilha; o que o usuario quer saber
+ * numa lista de execucoes e ha quanto tempo aquilo rodou. O valor absoluto
+ * continua acessivel no `title` de quem chama.
+ */
+export function formatRelativeTime(value: Date | string | number, locale: Locale): string {
+  const diffSeconds = (toDate(value).getTime() - Date.now()) / 1000;
+  const formatter = new Intl.RelativeTimeFormat(INTL_LOCALE[locale], { numeric: "auto" });
+
+  let amount = diffSeconds;
+  for (const [unit, step] of RELATIVE_STEPS) {
+    if (Math.abs(amount) < step) {
+      return formatter.format(Math.round(amount), unit);
+    }
+    amount /= step;
+  }
+  return formatter.format(Math.round(amount), "year");
+}
+
 export function formatNumber(
   value: number,
   locale: Locale,

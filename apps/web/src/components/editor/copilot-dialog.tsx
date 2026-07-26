@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Sparkles, Send } from "lucide-react";
+import { Wand2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -76,16 +76,21 @@ export function CopilotDialog({ workflowId }: { workflowId: string }) {
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
-        {t.editor.copilot.title}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        aria-label={t.editor.copilot.title}
+      >
+        <Wand2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+        <span className="hidden sm:inline">{t.editor.copilot.title}</span>
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-w-lg flex-col">
           <DialogHeader>
             <DialogTitle>
               <span className="inline-flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-primary" strokeWidth={1.5} />
+                <Wand2 className="h-4 w-4 text-primary" strokeWidth={1.5} />
                 {t.editor.copilot.title}
               </span>
             </DialogTitle>
@@ -103,7 +108,7 @@ export function CopilotDialog({ workflowId }: { workflowId: string }) {
                       key={prompt}
                       type="button"
                       onClick={() => sendMessage(prompt)}
-                      className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:border-border-strong"
+                      className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground outline-none transition-colors hover:border-border-strong focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     >
                       {prompt}
                     </button>

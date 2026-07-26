@@ -1,11 +1,11 @@
 export const pt = {
   title: "Templates",
   description: "Fluxos prontos para usar como ponto de partida.",
-  emptyTitle: "Nenhum template disponivel",
-  emptyDescription: "Os templates oficiais aparecerao aqui assim que forem publicados.",
+  emptyTitle: "Nenhum template disponível",
+  emptyDescription: "Os templates oficiais aparecerão aqui assim que forem publicados.",
   useButton: "Usar template",
   useSuccessToast: (workflowName: string) => `Fluxo "${workflowName}" criado a partir do template.`,
-  useErrorFallback: "Nao foi possivel usar este template.",
+  useErrorFallback: "Não foi possível usar este template.",
   /**
    * name/description/category dos 7 templates oficiais vem do banco
    * (apps/api/prisma/seed.ts, tabela Template) — sempre em pt-BR, sem coluna
@@ -22,8 +22,8 @@ export const pt = {
     },
     "responder-email": {
       name: "Responder Email",
-      description: "Le, entende e responde emails recebidos.",
-      category: "Comunicacao",
+      description: "Lê, entende e responde emails recebidos.",
+      category: "Comunicação",
     },
     "extrair-pdf": {
       name: "Extrair PDF",
@@ -36,18 +36,18 @@ export const pt = {
       category: "Vendas",
     },
     "resumo-de-reunioes": {
-      name: "Resumo de reunioes",
-      description: "Resume transcricoes e envia para o time.",
+      name: "Resumo de reuniões",
+      description: "Resume transcrições e envia para o time.",
       category: "Produtividade",
     },
     "analise-financeira": {
-      name: "Analise financeira",
-      description: "Analisa planilhas e gera relatorios com IA.",
+      name: "Análise financeira",
+      description: "Analisa planilhas e gera relatórios com IA.",
       category: "Financeiro",
     },
     "ocr-de-documentos": {
       name: "OCR de documentos",
-      description: "Converte imagens e digitalizacoes em texto pesquisavel.",
+      description: "Converte imagens e digitalizações em texto pesquisável.",
       category: "Documentos",
     },
   },

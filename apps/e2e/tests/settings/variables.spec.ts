@@ -34,20 +34,20 @@ test.describe("Variaveis (via UI)", () => {
     await page.goto("/settings");
 
     await expect(
-      page.getByRole("heading", { name: "Nenhuma variavel ainda" }),
+      page.getByRole("heading", { name: "Nenhuma variável ainda" }),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Adicionar variavel" }).click();
+    await page.getByRole("button", { name: "Adicionar variável" }).click();
     const dialog = page.getByRole("dialog");
     await expect(
-      dialog.getByRole("heading", { name: "Adicionar variavel" }),
+      dialog.getByRole("heading", { name: "Adicionar variável" }),
     ).toBeVisible();
 
     await dialog.getByLabel("Chave", { exact: true }).fill("API_BASE_URL");
     await dialog.getByLabel("Valor", { exact: true }).fill("https://api.exemplo.com");
     await dialog.getByRole("button", { name: "Adicionar", exact: true }).click();
 
-    await expect(page.getByText("Variavel criada.")).toBeVisible();
+    await expect(page.getByText("Variável criada.")).toBeVisible();
     await expect(page.getByText("API_BASE_URL")).toBeVisible();
     // Nao-secret: valor visivel em texto puro, scope default "global" cru.
     await expect(
@@ -65,7 +65,7 @@ test.describe("Variaveis (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/settings");
 
-    await page.getByRole("button", { name: "Adicionar variavel" }).click();
+    await page.getByRole("button", { name: "Adicionar variável" }).click();
     const dialog = page.getByRole("dialog");
 
     const valueInput = dialog.getByLabel("Valor", { exact: true });
@@ -81,7 +81,7 @@ test.describe("Variaveis (via UI)", () => {
     await valueInput.fill(secretValue);
     await dialog.getByRole("button", { name: "Adicionar", exact: true }).click();
 
-    await expect(page.getByText("Variavel criada.")).toBeVisible();
+    await expect(page.getByText("Variável criada.")).toBeVisible();
     await expect(page.getByText("TOKEN_SECRETO")).toBeVisible();
     // Secret na lista: exatamente 8 bullets no lugar do valor.
     await expect(page.getByText("•••••••• · global")).toBeVisible();
@@ -103,7 +103,7 @@ test.describe("Variaveis (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/settings");
 
-    await page.getByRole("button", { name: "Adicionar variavel" }).click();
+    await page.getByRole("button", { name: "Adicionar variável" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByLabel("Chave", { exact: true }).fill("CHAVE_REPETIDA");
     await dialog.getByLabel("Valor", { exact: true }).fill("segundo-valor");
@@ -129,26 +129,26 @@ test.describe("Variaveis (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/settings");
 
-    // aria-label do botao de lixeira = "Remover variavel <chave>" (fix A2 desta fase).
-    await page.getByLabel("Remover variavel VAR_DESCARTAVEL").click();
+    // aria-label do botao de lixeira = "Remover variável <chave>" (fix A2 desta fase).
+    await page.getByLabel("Remover variável VAR_DESCARTAVEL").click();
     const alert = page.getByRole("alertdialog");
     await expect(
-      alert.getByRole("heading", { name: "Remover esta variavel?" }),
+      alert.getByRole("heading", { name: "Remover esta variável?" }),
     ).toBeVisible();
 
     await alert.getByRole("button", { name: "Cancelar" }).click();
     await expect(alert).not.toBeVisible();
     await expect(page.getByText("VAR_DESCARTAVEL")).toBeVisible();
 
-    await page.getByLabel("Remover variavel VAR_DESCARTAVEL").click();
+    await page.getByLabel("Remover variável VAR_DESCARTAVEL").click();
     await page
       .getByRole("alertdialog")
       .getByRole("button", { name: "Remover" })
       .click();
 
-    await expect(page.getByText("Variavel removida.")).toBeVisible();
+    await expect(page.getByText("Variável removida.")).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Nenhuma variavel ainda" }),
+      page.getByRole("heading", { name: "Nenhuma variável ainda" }),
     ).toBeVisible();
   });
 
@@ -162,13 +162,13 @@ test.describe("Variaveis (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/settings");
 
-    await page.getByRole("button", { name: "Adicionar variavel" }).click();
+    await page.getByRole("button", { name: "Adicionar variável" }).click();
     const dialog = page.getByRole("dialog");
 
     // Guard client-side silencioso: sem toast, sem erro — o dialog so fica aberto.
     await dialog.getByRole("button", { name: "Adicionar", exact: true }).click();
     await expect(dialog).toBeVisible();
-    await expect(page.getByText("Variavel criada.")).not.toBeVisible();
+    await expect(page.getByText("Variável criada.")).not.toBeVisible();
 
     await dialog.getByLabel("Chave", { exact: true }).fill("NAO_DEVE_EXISTIR");
     await dialog.getByLabel("Valor", { exact: true }).fill("descartado");
@@ -176,7 +176,7 @@ test.describe("Variaveis (via UI)", () => {
 
     await expect(dialog).not.toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Nenhuma variavel ainda" }),
+      page.getByRole("heading", { name: "Nenhuma variável ainda" }),
     ).toBeVisible();
   });
 });

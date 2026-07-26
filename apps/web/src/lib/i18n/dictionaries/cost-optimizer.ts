@@ -1,25 +1,25 @@
 export const pt = {
-  title: "Cost Optimizer",
+  title: "Otimizador de Custo",
   description:
-    "Analisa o historico real de execucoes (ultimos 30 dias) e sugere trocar por um modelo mais barato quando isso nao compromete a tarefa.",
+    "Analisa o histórico real de execuções (últimos 30 dias) e sugere trocar por um modelo mais barato quando isso não compromete a tarefa.",
   analyze: "Analisar",
   analyzing: "Analisando...",
   emptyNotAnalyzed: {
-    title: "Ainda nao analisado",
+    title: "Ainda não analisado",
     description:
-      "Clique em Analisar para ver oportunidades reais de economia com base no que os seus fluxos ja rodaram.",
+      "Clique em Analisar para ver oportunidades reais de economia com base no que os seus fluxos já rodaram.",
   },
   emptyNoOpportunities: {
     title: "Nenhuma oportunidade encontrada",
     description:
-      "Ou os fluxos ja usam modelos economicos, ou ainda nao ha volume suficiente de execucoes (minimo 3 por node) nos ultimos 30 dias.",
+      "Ou os fluxos já usam modelos econômicos, ou ainda não há volume suficiente de execuções (mínimo 3 por node) nos últimos 30 dias.",
   },
-  appliedToast: "Modelo trocado — uma nova versao do fluxo foi salva.",
-  applyErrorFallback: "Nao foi possivel aplicar esta sugestao.",
+  appliedToast: "Modelo trocado — uma nova versão do fluxo foi salva.",
+  applyErrorFallback: "Não foi possível aplicar esta sugestão.",
   swapFrom: "Trocar",
   swapTo: "por",
   basedOn: (sampleSize: number, avgCostUsd: string) =>
-    `Baseado em ${sampleSize} execucoes · custo medio atual ${avgCostUsd}`,
+    `Baseado em ${sampleSize} execuções · custo médio atual ${avgCostUsd}`,
 };
 
 export const en = {

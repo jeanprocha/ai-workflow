@@ -8,6 +8,7 @@ import { PageTransition } from "./page-transition";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [commandOpen, setCommandOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -22,10 +23,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
-      <Sidebar />
+      <Sidebar mobileOpen={navOpen} onMobileOpenChange={setNavOpen} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onSearchClick={() => setCommandOpen(true)} />
-        <main className="flex-1 overflow-auto p-6">
+        <Topbar onSearchClick={() => setCommandOpen(true)} onNavClick={() => setNavOpen(true)} />
+        <main className="flex-1 overflow-auto p-4 md:p-6">
           <PageTransition>{children}</PageTransition>
         </main>
       </div>

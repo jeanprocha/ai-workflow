@@ -50,9 +50,9 @@ test.describe("Executions (lista)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/executions");
 
-    await expect(page.getByRole("heading", { name: "Nenhuma execucao ainda" })).toBeVisible();
-    await expect(page.getByText("Execute um fluxo para ver o historico aqui.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Ir para Flows" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Nenhuma execução ainda" })).toBeVisible();
+    await expect(page.getByText("Execute um fluxo para ver o histórico aqui.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Ir para Fluxos" })).toBeVisible();
   });
 
   test("execucao concluida aparece na tabela com badge, trigger e duracao", async ({
@@ -139,7 +139,7 @@ test.describe("Executions (lista)", () => {
     await expect(page.locator("tbody tr").first()).toContainText("Fluxo Alpha Busca");
 
     await page.getByPlaceholder("Buscar por nome do fluxo...").fill("nao existe termo nenhum");
-    await expect(page.getByRole("heading", { name: "Nenhuma execucao ainda" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Nenhuma execução ainda" })).toBeVisible();
   });
 
   test("paginacao com 21 execucoes: 2 paginas, Anterior/Proxima corretos", async ({
@@ -159,21 +159,21 @@ test.describe("Executions (lista)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/executions");
 
-    await expect(page.getByText("21 execucoes · pagina 1 de 2")).toBeVisible();
+    await expect(page.getByText("21 execuções · página 1 de 2")).toBeVisible();
     await expect(page.locator("tbody tr")).toHaveCount(20);
     const previous = page.getByRole("button", { name: "Anterior" });
-    const next = page.getByRole("button", { name: "Proxima" });
+    const next = page.getByRole("button", { name: "Próxima" });
     await expect(previous).toBeDisabled();
     await expect(next).toBeEnabled();
 
     await next.click();
-    await expect(page.getByText("21 execucoes · pagina 2 de 2")).toBeVisible();
+    await expect(page.getByText("21 execuções · página 2 de 2")).toBeVisible();
     await expect(page.locator("tbody tr")).toHaveCount(1);
     await expect(previous).toBeEnabled();
     await expect(next).toBeDisabled();
 
     await previous.click();
-    await expect(page.getByText("21 execucoes · pagina 1 de 2")).toBeVisible();
+    await expect(page.getByText("21 execuções · página 1 de 2")).toBeVisible();
   });
 
   test("Reexecutar so aparece em linhas falhadas e enfileira um replay", async ({
@@ -199,7 +199,7 @@ test.describe("Executions (lista)", () => {
     await expect(failRow.getByRole("button", { name: "Reexecutar" })).toBeVisible();
 
     await failRow.getByRole("button", { name: "Reexecutar" }).click();
-    await expect(page.getByText("Nova execucao enfileirada.")).toBeVisible();
+    await expect(page.getByText("Nova execução enfileirada.")).toBeVisible();
 
     const replayRow = page
       .locator("tbody tr")

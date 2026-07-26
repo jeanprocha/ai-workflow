@@ -9,7 +9,7 @@ test.describe("Login (via UI)", () => {
     await page.goto("/login");
     await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();
 
-    await page.getByLabel("Email").fill(user.email);
+    await page.getByLabel("E-mail").fill(user.email);
     await page.getByLabel("Senha").fill(user.password);
     await page.getByRole("button", { name: "Entrar" }).click();
 
@@ -21,7 +21,7 @@ test.describe("Login (via UI)", () => {
     await registerViaApi(request, user);
 
     await page.goto("/login");
-    await page.getByLabel("Email").fill(user.email);
+    await page.getByLabel("E-mail").fill(user.email);
     await page.getByLabel("Senha").fill("senha-totalmente-errada");
     await page.getByRole("button", { name: "Entrar" }).click();
 
@@ -33,7 +33,7 @@ test.describe("Login (via UI)", () => {
     page,
   }) => {
     await page.goto("/login");
-    await page.getByLabel("Email").fill("ninguem-registrado@teste.local");
+    await page.getByLabel("E-mail").fill("ninguem-registrado@teste.local");
     await page.getByLabel("Senha").fill("qualquer-coisa");
     await page.getByRole("button", { name: "Entrar" }).click();
 
@@ -47,7 +47,7 @@ test.describe("Login (via UI)", () => {
     await page.goto("/flows");
     await expect(page).toHaveURL(/\/login\?next=%2Fflows/);
 
-    await page.getByLabel("Email").fill(user.email);
+    await page.getByLabel("E-mail").fill(user.email);
     await page.getByLabel("Senha").fill(user.password);
     await page.getByRole("button", { name: "Entrar" }).click();
 
@@ -62,7 +62,7 @@ test.describe("Login (via UI)", () => {
     await registerViaApi(request, user);
 
     await page.goto("/login");
-    await page.getByLabel("Email").fill(user.email);
+    await page.getByLabel("E-mail").fill(user.email);
     await page.getByLabel("Senha").fill(user.password);
     await page.getByRole("button", { name: "Entrar" }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
@@ -85,7 +85,7 @@ test.describe("Login (via UI)", () => {
     await registerViaApi(request, user);
 
     await page.goto("/login");
-    await page.getByLabel("Email").fill(user.email);
+    await page.getByLabel("E-mail").fill(user.email);
     await page.getByLabel("Senha").fill(user.password);
 
     await page.getByRole("button", { name: "Entrar" }).click();

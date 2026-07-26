@@ -37,17 +37,17 @@ test.describe("Analytics", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: "Analytics" })).toBeVisible();
 
-    await expect(page.getByRole("group", { name: "Execucoes", exact: true })).toContainText("0");
+    await expect(page.getByRole("group", { name: "Execuções", exact: true })).toContainText("0");
     await expect(page.getByRole("group", { name: "Taxa de falha" })).toContainText("0,0%");
     await expect(page.getByRole("group", { name: "Tokens totais" })).toContainText("0");
     await expect(page.getByRole("group", { name: "Custo IA total" })).toContainText("US$ 0,00");
 
-    await expect(page.getByText("Sem dados no periodo.")).toHaveCount(2);
+    await expect(page.getByText("Sem dados no período.")).toHaveCount(2);
     await expect(page.getByText("Sem dados.", { exact: true })).toBeVisible();
 
     // Sem pontos, o LineChart nem renderiza <svg role="img">.
-    await expect(page.getByRole("img", { name: "Grafico de execucoes por dia" })).toHaveCount(0);
-    await expect(page.getByRole("img", { name: "Grafico de falhas por dia" })).toHaveCount(0);
+    await expect(page.getByRole("img", { name: "Gráfico de execuções por dia" })).toHaveCount(0);
+    await expect(page.getByRole("img", { name: "Gráfico de falhas por dia" })).toHaveCount(0);
   });
 
   test("com execucoes semeadas: cards e graficos refletem os dados (valida fix A2)", async ({
@@ -55,6 +55,10 @@ test.describe("Analytics", () => {
     context,
     request,
   }) => {
+    // Quatro execucoes semeadas em serie, e waitForExecutionStatus sozinho ja
+    // orca 30s por execucao (fila com concurrency=5) — o default de 30s do
+    // Playwright mata o teste antes do proprio helper poder esperar.
+    test.setTimeout(150_000);
     const tokens = await registerViaApi(request, buildTestUser());
     const workspaceId = await fetchWorkspaceId(request, tokens);
 
@@ -79,7 +83,7 @@ test.describe("Analytics", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/analytics");
 
-    await expect(page.getByRole("group", { name: "Execucoes", exact: true })).toContainText("4");
+    await expect(page.getByRole("group", { name: "Execuções", exact: true })).toContainText("4");
     await expect(page.getByRole("group", { name: "Taxa de falha" })).toContainText("50,0%");
     // Sem steps de IA — tokens/custo continuam zerados mesmo com execucoes reais.
     await expect(page.getByRole("group", { name: "Tokens totais" })).toContainText("0");
@@ -87,12 +91,12 @@ test.describe("Analytics", () => {
     await expect(page.getByText("Sem dados.", { exact: true })).toBeVisible();
 
     // Todas as execucoes de hoje caem no mesmo dia (granularidade diaria) — 1 ponto.
-    const execChart = page.getByRole("img", { name: "Grafico de execucoes por dia" });
+    const execChart = page.getByRole("img", { name: "Gráfico de execuções por dia" });
     await expect(execChart).toBeVisible();
     await expect(execChart.locator("circle")).toHaveCount(1);
     await expect(execChart.locator("polyline")).toHaveCount(1);
 
-    const failChart = page.getByRole("img", { name: "Grafico de falhas por dia" });
+    const failChart = page.getByRole("img", { name: "Gráfico de falhas por dia" });
     await expect(failChart).toBeVisible();
     await expect(failChart.locator("circle")).toHaveCount(1);
   });

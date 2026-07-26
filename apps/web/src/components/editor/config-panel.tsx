@@ -738,7 +738,9 @@ export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: C
   const config = node.data.config;
 
   return (
-    <aside className="flex h-full w-96 shrink-0 flex-col border-l border-border bg-card">
+    // Mobile: sobreposicao em tela cheia (um painel de 384px nao cabe numa
+    // viewport de 390px); desktop: drawer lateral de largura fixa.
+    <aside className="fixed inset-0 z-40 flex h-full w-full shrink-0 flex-col border-l border-border bg-card md:static md:z-auto md:w-96">
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
         <div className="flex items-center gap-2">
           {createElement(getNodeIcon(entry?.icon ?? ""), {

@@ -4,7 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { MoreHorizontal, Plus, Sparkles } from "lucide-react";
+import {
+  Archive,
+  Check,
+  MoreHorizontal,
+  PencilLine,
+  Plus,
+  Wand2,
+  type LucideIcon,
+} from "lucide-react";
 import type { Workflow, WorkflowGraph } from "@workflow/shared";
 import { EmptyState } from "@workflow/ui";
 import { Button } from "@/components/ui/button";
@@ -46,13 +54,23 @@ import {
 } from "@/hooks/use-workflows";
 import { apiFetch } from "@/lib/api-client";
 import { errorMessage } from "@/lib/errors";
-import { useDictionary, useLocale } from "@/lib/i18n";
-import { formatDateTime } from "@/lib/format";
+import { useDictionary } from "@/lib/i18n";
+import { RelativeTime } from "@/components/relative-time";
 
 const STATUS_STYLE: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   active: "bg-success-subtle text-success",
   archived: "bg-muted text-text-muted",
+};
+
+/**
+ * Estado nunca e comunicado so por cor (style.md 2.4) — este pill era o
+ * unico do produto sem forma propria, so com a cor de fundo.
+ */
+const STATUS_ICON: Record<string, LucideIcon> = {
+  draft: PencilLine,
+  active: Check,
+  archived: Archive,
 };
 
 function CreateFlowDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
@@ -179,7 +197,7 @@ function GenerateWithAiDialog({
         <DialogHeader>
           <DialogTitle>
             <span className="inline-flex items-center gap-1.5">
-              <Sparkles className="h-4 w-4 text-primary" strokeWidth={1.5} />
+              <Wand2 className="h-4 w-4 text-primary" strokeWidth={1.5} />
               {t.flows.generateDialog.title}
             </span>
           </DialogTitle>
@@ -346,7 +364,6 @@ function DeleteFlowDialog({
 
 export default function FlowsPage() {
   const t = useDictionary();
-  const locale = useLocale();
   const { data: workflows, isLoading } = useWorkflows();
   const updateWorkflow = useUpdateWorkflow();
   const [createOpen, setCreateOpen] = useState(false);
@@ -374,7 +391,7 @@ export default function FlowsPage() {
         {!!workflows?.length && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setGenerateOpen(true)}>
-              <Sparkles className="h-4 w-4" strokeWidth={1.5} />
+              <Wand2 className="h-4 w-4" strokeWidth={1.5} />
               {t.flows.generateWithAi}
             </Button>
             <Button onClick={() => setCreateOpen(true)}>
@@ -399,7 +416,7 @@ export default function FlowsPage() {
           description={t.flows.emptyState.description}
           action={
             <Button onClick={() => setGenerateOpen(true)}>
-              <Sparkles className="h-4 w-4" strokeWidth={1.5} />
+              <Wand2 className="h-4 w-4" strokeWidth={1.5} />
               {t.flows.generateWithAi}
             </Button>
           }
@@ -453,14 +470,20 @@ export default function FlowsPage() {
               </div>
               <span
                 className={
-                  "w-fit rounded-full px-2 py-0.5 text-xs font-medium " +
+                  "inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium " +
                   STATUS_STYLE[workflow.status]
                 }
               >
+                {(() => {
+                  const StatusIcon = STATUS_ICON[workflow.status];
+                  return StatusIcon ? (
+                    <StatusIcon className="h-3 w-3" strokeWidth={2.5} aria-hidden="true" />
+                  ) : null;
+                })()}
                 {t.flows.statusLabel[workflow.status]}
               </span>
               <p className="mt-auto text-xs text-muted-foreground">
-                {t.flows.updatedAt(formatDateTime(workflow.updatedAt, locale, { dateStyle: "short" }))}
+                {t.flows.updatedAtPrefix} <RelativeTime value={workflow.updatedAt} />
               </p>
             </Link>
           ))}

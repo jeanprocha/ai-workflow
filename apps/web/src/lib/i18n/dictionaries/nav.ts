@@ -3,13 +3,19 @@ export const pt = {
   dashboard: "Dashboard",
   flows: "Fluxos",
   agents: "Agentes",
-  executions: "Execucoes",
+  executions: "Execuções",
   analytics: "Analytics",
   costOptimizer: "Otimizador de Custo",
   knowledge: "Conhecimento",
   mcp: "MCP",
   templates: "Templates",
-  settings: "Configuracoes",
+  settings: "Configurações",
+  /** Titulos das secoes da sidebar — 10 itens planos excediam o limite de leitura. */
+  groups: {
+    build: "Construir",
+    operate: "Operar",
+    resources: "Recursos",
+  },
 };
 
 export const en = {
@@ -24,4 +30,9 @@ export const en = {
   mcp: "MCP",
   templates: "Templates",
   settings: "Settings",
+  groups: {
+    build: "Build",
+    operate: "Operate",
+    resources: "Resources",
+  },
 } satisfies typeof pt;

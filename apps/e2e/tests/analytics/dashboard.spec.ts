@@ -29,8 +29,10 @@ import {
  *
  * Armadilhas de locator mapeadas na discovery:
  * - MetricCard agora tem role="group" + aria-label={label} (fix A2 desta
- *   fase) — sem isso "Execucoes"/"Fluxos" colidiam com o link do sidebar.
- * - "Tempo medio" usa ponto decimal fixo (toFixed), NUNCA vírgula mesmo em
+ *   fase) — sem isso "Execuções"/"Fluxos" colidiam com o link do sidebar.
+ * - MetricCard com href vira <a> (role "link") em vez de <div role="group">:
+ *   no dashboard so "Falhas" ganha href, e so quando o valor e > 0.
+ * - "Tempo médio" usa ponto decimal fixo (toFixed), NUNCA vírgula mesmo em
  *   pt-BR: "0.0s", "1.2s".
  * - "Custo IA" e "US$ 0,00" (moeda sempre USD, separador pelo locale).
  * - EmptyState nao anuncia mais "Carregando" (fix A1) — antes TODO empty
@@ -51,15 +53,15 @@ test.describe("Dashboard", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
 
     await expect(page.getByRole("group", { name: "Fluxos" })).toContainText("0");
-    await expect(page.getByRole("group", { name: "Execucoes", exact: true })).toContainText("0");
-    await expect(page.getByRole("group", { name: "IA Requests" })).toContainText("0");
-    await expect(page.getByRole("group", { name: "Tempo medio" })).toContainText("0.0s");
+    await expect(page.getByRole("group", { name: "Execuções", exact: true })).toContainText("0");
+    await expect(page.getByRole("group", { name: "Requisições de IA" })).toContainText("0");
+    await expect(page.getByRole("group", { name: "Tempo médio" })).toContainText("0.0s");
     await expect(page.getByRole("group", { name: "Falhas" })).toContainText("0");
     await expect(page.getByRole("group", { name: "Custo IA", exact: true })).toContainText("US$ 0,00");
 
-    const emptyHeading = page.getByRole("heading", { name: "Nenhuma execucao ainda" });
+    const emptyHeading = page.getByRole("heading", { name: "Nenhuma execução ainda" });
     await expect(emptyHeading).toBeVisible();
-    await expect(page.getByText("Execute um fluxo para ver o historico aqui.")).toBeVisible();
+    await expect(page.getByText("Execute um fluxo para ver o histórico aqui.")).toBeVisible();
 
     // Fix A1: o Pulse decorativo do EmptyState nao deve mais se anunciar
     // como "Carregando" pra leitor de tela.
@@ -72,6 +74,10 @@ test.describe("Dashboard", () => {
     context,
     request,
   }) => {
+    // Duas execucoes semeadas em serie, e waitForExecutionStatus sozinho ja
+    // orca 30s por execucao (fila com concurrency=5) — o default de 30s do
+    // Playwright mata o teste antes do proprio helper poder esperar.
+    test.setTimeout(90_000);
     const tokens = await registerViaApi(request, buildTestUser());
     const workspaceId = await fetchWorkspaceId(request, tokens);
 
@@ -92,10 +98,11 @@ test.describe("Dashboard", () => {
     await page.goto("/dashboard");
 
     await expect(page.getByRole("group", { name: "Fluxos" })).toContainText("2");
-    await expect(page.getByRole("group", { name: "Execucoes", exact: true })).toContainText("2");
-    await expect(page.getByRole("group", { name: "Falhas" })).toContainText("1");
+    await expect(page.getByRole("group", { name: "Execuções", exact: true })).toContainText("2");
+    // Falhas > 0 ganha href -> o card vira <a role="link"> (aria-label continua "Falhas").
+    await expect(page.getByRole("link", { name: "Falhas" })).toContainText("1");
     // Duracao real varia — so garante que nao ficou no zero-state.
-    await expect(page.getByRole("group", { name: "Tempo medio" })).not.toContainText("0.0s");
+    await expect(page.getByRole("group", { name: "Tempo médio" })).not.toContainText("0.0s");
 
     const table = page.getByRole("table");
     await expect(table).toBeVisible();
@@ -107,6 +114,15 @@ test.describe("Dashboard", () => {
       "href",
       /\/executions\//,
     );
+
+    // O card de Falhas promete levar ao que quebrou — o destino tem que
+    // chegar JA FILTRADO. Sem isso o link abre a lista inteira e a promessa
+    // do card e falsa (as 2 execucoes semeadas apareceriam, nao so a falha).
+    await page.getByRole("link", { name: "Falhas" }).click();
+    await expect(page).toHaveURL(/\/executions\?status=failed$/);
+    const filtered = page.getByRole("table").locator("tbody tr");
+    await expect(filtered).toHaveCount(1);
+    await expect(filtered.first()).toContainText("Dashboard Fluxo Falha");
   });
 
   test('"Ver todas" navega pra /executions', async ({ page, context, request }) => {

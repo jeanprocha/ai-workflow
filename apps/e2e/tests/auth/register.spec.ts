@@ -9,7 +9,7 @@ test.describe("Registro (via UI)", () => {
     await expect(page.getByRole("heading", { name: "Criar conta" })).toBeVisible();
 
     await page.getByLabel("Nome").fill(user.name);
-    await page.getByLabel("Email").fill(user.email);
+    await page.getByLabel("E-mail").fill(user.email);
     await page.getByLabel("Senha").fill(user.password);
     await page.getByRole("button", { name: "Criar conta" }).click();
 
@@ -46,7 +46,7 @@ test.describe("Registro (via UI)", () => {
 
     await page.goto("/register");
     await page.getByLabel("Nome").fill(user.name);
-    await page.getByLabel("Email").fill(user.email);
+    await page.getByLabel("E-mail").fill(user.email);
     await page.getByLabel("Senha").fill(user.password);
     await page.getByRole("button", { name: "Criar conta" }).click();
 
@@ -56,7 +56,7 @@ test.describe("Registro (via UI)", () => {
 
   test("senha curta e barrada pela validacao nativa do navegador", async ({ page }) => {
     await page.goto("/register");
-    await expect(page.getByText("Minimo de 8 caracteres.")).toBeVisible();
+    await expect(page.getByText("Mínimo de 8 caracteres.")).toBeVisible();
 
     const password = page.getByLabel("Senha");
     await password.fill("123");
@@ -67,14 +67,14 @@ test.describe("Registro (via UI)", () => {
 
     // required + minLength do HTML5 impedem o submit — permanece em /register.
     await page.getByLabel("Nome").fill("Usuario Teste");
-    await page.getByLabel("Email").fill("nome.curto@teste.local");
+    await page.getByLabel("E-mail").fill("nome.curto@teste.local");
     await page.getByRole("button", { name: "Criar conta" }).click();
     await expect(page).toHaveURL(/\/register$/);
   });
 
   test("email invalido e barrado pela validacao nativa do navegador", async ({ page }) => {
     await page.goto("/register");
-    const email = page.getByLabel("Email");
+    const email = page.getByLabel("E-mail");
     await email.fill("nao-e-um-email");
     const isTypeMismatch = await email.evaluate(
       (el: HTMLInputElement) => el.validity.typeMismatch,
@@ -93,7 +93,7 @@ test.describe("Registro (via UI)", () => {
 
     await page.goto("/register");
     await page.getByLabel("Nome").fill(user.name);
-    await page.getByLabel("Email").fill(user.email);
+    await page.getByLabel("E-mail").fill(user.email);
     await page.getByLabel("Senha").fill(user.password);
 
     const button = page.getByRole("button", { name: "Criar conta" });

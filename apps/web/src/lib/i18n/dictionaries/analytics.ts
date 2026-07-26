@@ -1,6 +1,6 @@
 export const pt = {
   title: "Analytics",
-  description: "Metricas agregadas de execucao e uso de IA nos ultimos 14 dias.",
+  description: "Métricas agregadas de execução e uso de IA nos últimos 14 dias.",
   providerLabels: {
     openai: "OpenAI",
     anthropic: "Claude",
@@ -9,20 +9,20 @@ export const pt = {
     desconhecido: "Desconhecido",
   },
   metrics: {
-    executions: "Execucoes",
+    executions: "Execuções",
     failureRate: "Taxa de falha",
     tokensTotal: "Tokens totais",
     costTotal: "Custo IA total",
   },
   charts: {
-    executionsByDay: "Execucoes por dia",
+    executionsByDay: "Execuções por dia",
     failuresByDay: "Falhas por dia",
     costByProvider: "Custo de IA por provider",
-    noDataInPeriod: "Sem dados no periodo.",
+    noDataInPeriod: "Sem dados no período.",
     noData: "Sem dados.",
     /** aria-label dos graficos SVG — tambem o locator estavel dos testes (role="img"). */
-    executionsByDayAria: "Grafico de execucoes por dia",
-    failuresByDayAria: "Grafico de falhas por dia",
+    executionsByDayAria: "Gráfico de execuções por dia",
+    failuresByDayAria: "Gráfico de falhas por dia",
   },
 };
 

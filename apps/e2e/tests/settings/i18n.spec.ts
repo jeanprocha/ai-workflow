@@ -13,8 +13,8 @@ test.describe("Idioma (i18n)", () => {
     await authenticateContext(context, storageState);
 
     await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Configuracoes", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Conexoes", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Configurações", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Conexões", exact: true })).toBeVisible();
 
     const langSelect = page.getByLabel("Idioma");
     await expect(langSelect).toBeVisible();
@@ -32,7 +32,7 @@ test.describe("Idioma (i18n)", () => {
 
     // Volta pra pt (default da plataforma) e confirma que reverte por completo.
     await page.getByLabel("Language").selectOption("pt");
-    await expect(page.getByRole("heading", { name: "Configuracoes", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Configurações", exact: true })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "pt-BR");
   });
 

@@ -27,7 +27,10 @@ export function NodePalette() {
   const groups = groupByCategory(NODE_CATALOG);
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-border bg-card">
+    // hidden no mobile: a paleta so serve para arrastar nodes pro canvas, e
+    // drag-and-drop HTML5 nao existe em toque — ocupava 256px de uma tela de
+    // 390px sem oferecer nada em troca.
+    <aside className="hidden h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-border bg-card md:flex">
       <div className="border-b border-border px-3 py-2.5">
         <h2 className="text-sm font-medium text-foreground">{t.title}</h2>
         <p className="text-xs text-muted-foreground">{t.hint}</p>

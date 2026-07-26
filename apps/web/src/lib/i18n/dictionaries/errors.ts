@@ -1,20 +1,20 @@
 export const pt = {
   boundary: {
     title: "Algo deu errado",
-    description: "Um erro inesperado interrompeu esta tela. Voce pode tentar novamente.",
+    description: "Um erro inesperado interrompeu esta tela. Você pode tentar novamente.",
     retry: "Tentar novamente",
-    backHome: "Voltar ao inicio",
+    backHome: "Voltar ao início",
   },
   editorBoundary: {
     title: "O editor encontrou um erro",
     description:
-      "Algo interrompeu o editor de fluxo. Suas alteracoes salvas nao foram perdidas.",
+      "Algo interrompeu o editor de fluxo. Suas alterações salvas não foram perdidas.",
     retry: "Tentar novamente",
     backToFlows: "Voltar para Fluxos",
   },
   global: {
     title: "Algo deu errado",
-    description: "A aplicacao encontrou um erro inesperado. Tente recarregar a pagina.",
+    description: "A aplicação encontrou um erro inesperado. Tente recarregar a página.",
     retry: "Tentar novamente",
   },
 };

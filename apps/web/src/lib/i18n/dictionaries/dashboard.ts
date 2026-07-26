@@ -1,26 +1,26 @@
 export const pt = {
   title: "Dashboard",
-  description: "Visao geral da plataforma.",
+  description: "Visão geral da plataforma.",
   metrics: {
     workflows: "Fluxos",
-    executions: "Execucoes",
-    aiRequests: "IA Requests",
-    avgDuration: "Tempo medio",
+    executions: "Execuções",
+    aiRequests: "Requisições de IA",
+    avgDuration: "Tempo médio",
     failures: "Falhas",
     aiCost: "Custo IA",
   },
   recentExecutions: {
-    title: "Execucoes recentes",
+    title: "Execuções recentes",
     viewAll: "Ver todas",
     columns: {
       workflow: "Fluxo",
       status: "Status",
-      duration: "Duracao",
+      duration: "Duração",
       startedAt: "Iniciado",
     },
     empty: {
-      title: "Nenhuma execucao ainda",
-      description: "Execute um fluxo para ver o historico aqui.",
+      title: "Nenhuma execução ainda",
+      description: "Execute um fluxo para ver o histórico aqui.",
     },
   },
 };

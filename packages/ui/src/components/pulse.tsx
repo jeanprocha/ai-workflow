@@ -45,7 +45,7 @@ export function Pulse({ variant = "dot", className, size, ariaLabel }: PulseProp
       className={joinClassNames("relative inline-flex", className)}
       style={{ width: dotSize, height: dotSize }}
       role="status"
-      aria-label={ariaLabel ?? "Em execucao"}
+      aria-label={ariaLabel ?? "Em execução"}
     >
       <span
         className="absolute inset-0 rounded-full bg-primary motion-reduce:animate-none"

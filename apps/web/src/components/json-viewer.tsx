@@ -20,7 +20,9 @@ export function JsonViewer({ value, className }: { value: unknown; className?: s
       <button
         type="button"
         onClick={onCopy}
-        className="absolute right-2 top-2 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent-subtle hover:text-primary group-hover:opacity-100"
+        // focus-visible:opacity-100 junto do group-hover: sem isso o botao
+        // fica invisivel para quem chega nele pelo teclado.
+        className="absolute right-2 top-2 rounded p-1 text-muted-foreground opacity-0 outline-none transition-opacity hover:bg-accent-subtle hover:text-primary group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/50"
         aria-label={t.executions.detail.copyJson}
       >
         {copied ? <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> : <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />}

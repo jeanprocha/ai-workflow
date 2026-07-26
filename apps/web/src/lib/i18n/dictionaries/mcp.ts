@@ -28,14 +28,14 @@ export const pt = {
   toasts: {
     connected: "Servidor MCP conectado.",
     /** Toast quando o connect volta 201 mas com status "error" (ex.: comando invalido) — nao e sucesso de verdade. */
-    connectedWithError: (lastError: string) => `Nao foi possivel conectar: ${lastError}`,
-    connectError: "Nao foi possivel conectar ao servidor MCP.",
+    connectedWithError: (lastError: string) => `Não foi possível conectar: ${lastError}`,
+    connectError: "Não foi possível conectar ao servidor MCP.",
     reconnected: "Reconectado.",
-    reconnectError: "Nao foi possivel reconectar.",
+    reconnectError: "Não foi possível reconectar.",
     disconnected: "Desconectado.",
-    disconnectError: "Nao foi possivel desconectar.",
+    disconnectError: "Não foi possível desconectar.",
     removed: "Servidor removido.",
-    removeError: "Nao foi possivel remover o servidor.",
+    removeError: "Não foi possível remover o servidor.",
   },
   dialog: {
     title: "Conectar servidor MCP",
@@ -48,7 +48,7 @@ export const pt = {
     commandLabel: "Comando",
     commandPlaceholder: "npx",
     argsLabel: "Argumentos (um por linha)",
-    envLabel: "Variaveis de ambiente (CHAVE=valor por linha)",
+    envLabel: "Variáveis de ambiente (CHAVE=valor por linha)",
     urlLabel: "URL",
     urlPlaceholder: "https://meu-servidor-mcp.com/sse",
     connecting: "Conectando...",
@@ -57,7 +57,7 @@ export const pt = {
   deleteConfirm: {
     title: (name?: string) => `Remover o servidor “${name}”?`,
     description:
-      "Agentes e fluxos que usam tools deste servidor deixarao de funcionar. Esta acao nao pode ser desfeita.",
+      "Agentes e fluxos que usam tools deste servidor deixarão de funcionar. Esta ação não pode ser desfeita.",
   },
 };
 

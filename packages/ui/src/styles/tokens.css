@@ -6,7 +6,7 @@
  */
 
 :root,
-.dark {
+html.dark {
   --background: #0d0e12;
   --foreground: #e6e8eb;
 
@@ -54,7 +54,12 @@
   --node-communication: #f2778d;
 }
 
-.light {
+/*
+ * Escopado a html.light de proposito: uma classe `light` solta casaria com
+ * qualquer elemento de biblioteca de terceiros que use esse nome (o React
+ * Flow usa) e reescoparia todos os tokens dentro daquela subarvore.
+ */
+html.light {
   --background: #f7f8fa;
   --foreground: #17181c;
 

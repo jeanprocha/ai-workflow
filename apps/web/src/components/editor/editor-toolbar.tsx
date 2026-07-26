@@ -66,8 +66,8 @@ export function EditorToolbar({
   }
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-3">
-      <div className="flex items-center gap-3">
+    <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-3">
+      <div className="flex min-w-0 items-center gap-2 md:gap-3">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -76,11 +76,13 @@ export function EditorToolbar({
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
         </Button>
-        <span className="text-sm font-medium text-foreground">{name}</span>
-        <span className="text-xs text-muted-foreground">{saveLabel[saveState]}</span>
+        <span className="truncate text-sm font-medium text-foreground">{name}</span>
+        <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+          {saveLabel[saveState]}
+        </span>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <CopilotDialog workflowId={workflowId} />
         {currentVersionId && (
           <VersionHistoryDialog workflowId={workflowId} currentVersionId={currentVersionId} />

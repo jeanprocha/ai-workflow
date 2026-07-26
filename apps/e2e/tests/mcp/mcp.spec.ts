@@ -154,7 +154,7 @@ test.describe("MCP (via UI)", () => {
     // connect() responde 201 mesmo em falha — antes do fix A4 o toast dizia
     // "Servidor MCP conectado." aqui, o que era enganoso.
     await expect(page.getByText("Servidor MCP conectado.")).toHaveCount(0);
-    await expect(page.getByText(/Nao foi possivel conectar: spawn .*ENOENT/)).toBeVisible();
+    await expect(page.getByText(/Não foi possível conectar: spawn .*ENOENT/)).toBeVisible();
 
     const card = serverCard(page, "Quebrado UI");
     await expect(card.getByText("Erro", { exact: true })).toBeVisible();
@@ -228,7 +228,7 @@ test.describe("MCP (via UI)", () => {
     ).toBeVisible();
     await expect(
       alert.getByText(
-        "Agentes e fluxos que usam tools deste servidor deixarao de funcionar. Esta acao nao pode ser desfeita.",
+        "Agentes e fluxos que usam tools deste servidor deixarão de funcionar. Esta ação não pode ser desfeita.",
       ),
     ).toBeVisible();
 
@@ -256,7 +256,7 @@ test.describe("MCP (via UI)", () => {
 
     await page.getByRole("button", { name: "Criar agente" }).click();
     const dialog = page.getByRole("dialog");
-    await expect(dialog.getByText("Tools MCP")).toBeVisible();
+    await expect(dialog.getByText("Ferramentas MCP")).toBeVisible();
     await expect(dialog.getByText("Fixture Agents")).toBeVisible();
 
     const echoCheckbox = dialog.getByRole("checkbox", { name: "echo", exact: true });

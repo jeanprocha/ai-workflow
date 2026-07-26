@@ -48,7 +48,7 @@ test.describe("AI Debugger — erro determinístico via UI", () => {
     // (aria-describedby), nao um <p> solto.
     await expect(
       dialog.getByText(
-        "Analisa o erro, os logs e a config do node que falhou, e sugere causa provavel + correcoes aplicaveis com um clique.",
+        "Analisa o erro, os logs e a config do node que falhou, e sugere causa provável + correções aplicáveis com um clique.",
       ),
     ).toBeVisible();
 
@@ -101,7 +101,7 @@ test.describe("Gerar com IA (Autocomplete) — erro determinístico via UI", () 
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByRole("heading", { name: "Gerar fluxo com IA" })).toBeVisible();
     await expect(
-      dialog.getByText("Descreva o que o fluxo deve fazer e a IA gera o grafo pra voce revisar."),
+      dialog.getByText("Descreva o que o fluxo deve fazer e a IA gera o grafo pra você revisar."),
     ).toBeVisible();
 
     await dialog
@@ -176,12 +176,12 @@ test.describe("Caminhos felizes com IA real", () => {
     const dialog = page.getByRole("dialog");
     // Modelo/Conexao sao <select> (ProviderModelFields), nao input de texto.
     await dialog.getByLabel("Modelo").selectOption("claude-haiku-4-5-20251001");
-    await dialog.getByLabel("Conexao (credential)").selectOption("anthropic-e2e");
+    await dialog.getByLabel("Conexão (credential)").selectOption("anthropic-e2e");
     await dialog.getByRole("button", { name: "Diagnosticar" }).click();
 
-    await expect(dialog.getByText("Possivel causa")).toBeVisible({ timeout: 60_000 });
+    await expect(dialog.getByText("Possível causa")).toBeVisible({ timeout: 60_000 });
     await dialog.getByRole("button", { name: "Aplicar", exact: true }).first().click();
-    await expect(page.getByText("Correcao aplicada — uma nova versao do fluxo foi salva.")).toBeVisible({
+    await expect(page.getByText("Correção aplicada — uma nova versão do fluxo foi salva.")).toBeVisible({
       timeout: 30_000,
     });
   });

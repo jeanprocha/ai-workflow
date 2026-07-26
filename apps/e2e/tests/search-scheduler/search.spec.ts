@@ -28,9 +28,9 @@ import { createAgentViaApi } from "../../helpers/agents";
  *   renderiza filhos incondicionalmente; so o Popup monta/desmonta). Sempre
  *   usar getByPlaceholder/getByRole("dialog") pra provar que abriu, nunca
  *   getByText("Busca global").
- * - Sem query: grupos "Acoes rapidas" e "Navegar" — os itens de nav tem o
+ * - Sem query: grupos "Ações rápidas" e "Navegar" — os itens de nav tem o
  *   MESMO texto dos headings de grupo que aparecem com query (ex.:
- *   "Fluxos"/"Agentes"/"Execucoes") — nao ambiguo aqui porque nunca
+ *   "Fluxos"/"Agentes"/"Execuções") — nao ambiguo aqui porque nunca
  *   coexistem (um ou outro, dependendo se ha query).
  * - Sem indicador de loading nenhum — nunca assertar ausencia de resultado
  *   logo apos digitar; sempre esperar com o timeout padrao do expect.
@@ -46,7 +46,18 @@ import { createAgentViaApi } from "../../helpers/agents";
  *   Por isso o helper `resultGroup` busca o texto do heading (getByText
  *   ignora aria-hidden) e navega ate o irmao seguinte, que e o
  *   role="group" de verdade com os options dentro.
+ * - Selecionar um item chama router.push() — no App Router a URL so troca
+ *   DEPOIS do payload RSC da rota destino chegar. Medido em dev com o
+ *   servidor ocioso: o dialog fecha em ~0.6s e a URL muda em ~2.5-3.0s pras
+ *   rotas /flows/* (editor ReactFlow, compile sob demanda do Turbopack) —
+ *   sobra menos de 2s dentro do timeout padrao de 5s do expect, e com a
+ *   suite em paralelo isso estoura. Por isso as assercoes de URL que caem em
+ *   /flows/* usam NAV_TIMEOUT explicito. Nao e relaxamento: a URL continua
+ *   tendo que bater exatamente; so a janela de espera e maior.
  */
+
+/** Espera pras navegacoes da palette que caem no editor (/flows/*) — ver nota acima. */
+const NAV_TIMEOUT = 20_000;
 
 /** Container role="group" de um grupo de resultados, localizado pelo texto do heading (aria-hidden). */
 function resultGroup(page: Page, heading: string) {
@@ -99,14 +110,14 @@ test.describe("Busca global (Ctrl+K)", () => {
 
     await page.keyboard.press("Control+k");
     await expect(page.getByRole("option", { name: "Criar fluxo" })).toBeVisible();
-    await expect(page.getByRole("option", { name: "Configuracoes" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "Configurações" })).toBeVisible();
 
-    await page.getByRole("option", { name: "Configuracoes" }).click();
+    await page.getByRole("option", { name: "Configurações" }).click();
     await expect(page).toHaveURL(/\/settings$/);
 
     await page.keyboard.press("Control+k");
     await page.getByRole("option", { name: "Criar fluxo" }).click();
-    await expect(page).toHaveURL(/\/flows\/new$/);
+    await expect(page).toHaveURL(/\/flows\/new$/, { timeout: NAV_TIMEOUT });
   });
 
   test("busca por fluxo: grupo Fluxos, listbox com nome traduzido (valida fix A3), navega pro editor", async ({
@@ -129,7 +140,7 @@ test.describe("Busca global (Ctrl+K)", () => {
     await page.getByPlaceholder(/Pesquisar fluxos/).fill(suffix);
     await expect(resultGroup(page, "Fluxos")).toBeVisible();
     await page.getByRole("option", { name: `Fluxo ${suffix}` }).click();
-    await expect(page).toHaveURL(new RegExp(`/flows/${workflow.id}$`));
+    await expect(page).toHaveURL(new RegExp(`/flows/${workflow.id}$`), { timeout: NAV_TIMEOUT });
   });
 
   test("busca por node: grupo Nodes com label do node e nome do fluxo", async ({
@@ -166,7 +177,7 @@ test.describe("Busca global (Ctrl+K)", () => {
     const item = nodesGroup.getByRole("option", { name: new RegExp(`Log-${suffix}`) });
     await expect(item).toContainText("Fluxo Com Node");
     await item.click();
-    await expect(page).toHaveURL(new RegExp(`/flows/${workflow.id}$`));
+    await expect(page).toHaveURL(new RegExp(`/flows/${workflow.id}$`), { timeout: NAV_TIMEOUT });
   });
 
   test("busca por execucao, agente e template do seed; termo inexistente mostra vazio", async ({
@@ -190,9 +201,9 @@ test.describe("Busca global (Ctrl+K)", () => {
     await page.keyboard.press("Control+k");
 
     await page.getByPlaceholder(/Pesquisar fluxos/).fill(suffix);
-    await expect(resultGroup(page, "Execucoes")).toBeVisible();
+    await expect(resultGroup(page, "Execuções")).toBeVisible();
     await expect(
-      resultGroup(page, "Execucoes").getByRole("option", { name: new RegExp(`Fluxo ${suffix}`) }),
+      resultGroup(page, "Execuções").getByRole("option", { name: new RegExp(`Fluxo ${suffix}`) }),
     ).toBeVisible();
 
     await page.getByPlaceholder(/Pesquisar fluxos/).fill(agentSuffix);
@@ -229,6 +240,6 @@ test.describe("Busca global (Ctrl+K)", () => {
     await expect(createFlowOption).toHaveAttribute("aria-selected", "true");
 
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/flows\/new$/);
+    await expect(page).toHaveURL(/\/flows\/new$/, { timeout: NAV_TIMEOUT });
   });
 });

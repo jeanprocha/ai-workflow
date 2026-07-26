@@ -12,7 +12,7 @@ import { createWorkflowViaApi, saveGraphViaApi, TWO_NODE_GRAPH } from "../../hel
 /**
  * Fase 04 — Historico de versoes. Toda save (autosave do editor OU
  * saveGraphViaApi aqui) cria uma versao NOVA, mesmo com conteudo identico —
- * por isso "sem diferencas" e testado salvando o MESMO grafo duas vezes, nao
+ * por isso "sem diferenças" e testado salvando o MESMO grafo duas vezes, nao
  * pulando o save.
  *
  * diffGraphs(base=atual, compare=linha) — nodes que existem na atual mas nao
@@ -36,9 +36,9 @@ function versionRows(dialog: Locator): Locator {
 }
 
 async function openHistory(page: Page): Promise<Locator> {
-  await page.getByRole("button", { name: "Historico" }).click();
+  await page.getByRole("button", { name: "Histórico" }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: "Historico de versoes" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Histórico de versões" })).toBeVisible();
   return dialog;
 }
 
@@ -105,7 +105,7 @@ test.describe("Historico de versoes", () => {
     const v2Row = rows.nth(1);
     await expect(v2Row).toContainText("v2");
     await v2Row.getByRole("button", { name: "Ver diff" }).click();
-    await expect(v2Row.getByText("Sem diferencas de nodes entre as versoes.")).toBeVisible();
+    await expect(v2Row.getByText("Sem diferenças de nodes entre as versões.")).toBeVisible();
   });
 
   test("restaurar: confirmacao, cancela, depois restaura de verdade (recarrega com o grafo antigo)", async ({
@@ -132,7 +132,7 @@ test.describe("Historico de versoes", () => {
     await expect(alert.getByRole("heading", { name: "Restaurar a v1?" })).toBeVisible();
     await expect(
       alert.getByText(
-        "Isso cria uma nova versao com o grafo desta versao antiga e a torna a atual. O historico e preservado — nada e perdido.",
+        "Isso cria uma nova versão com o grafo desta versão antiga e a torna a atual. O histórico é preservado — nada é perdido.",
       ),
     ).toBeVisible();
 

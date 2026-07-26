@@ -1,6 +1,6 @@
 export const pt = {
-  title: "Flows",
-  description: "Automacoes visuais construidas com nodes independentes.",
+  title: "Fluxos",
+  description: "Automações visuais construídas com nodes independentes.",
   generateWithAi: "Gerar com IA",
   createFlow: "Criar fluxo",
   nameLabel: "Nome",
@@ -12,43 +12,43 @@ export const pt = {
   emptyState: {
     title: "Nenhum fluxo ainda",
     description:
-      "Descreva o que voce precisa e a IA monta o fluxo, ou comece do zero / por um template.",
+      "Descreva o que você precisa e a IA monta o fluxo, ou comece do zero / por um template.",
   },
-  updatedAt: (date: string) => `Atualizado ${date}`,
+  updatedAtPrefix: "Atualizado",
   menu: {
     rename: "Renomear",
     archive: "Arquivar",
     activate: "Ativar",
     /** Prefixo do aria-label do trigger do menu — concatenado com o nome do fluxo. */
-    triggerAria: "Acoes do fluxo",
+    triggerAria: "Ações do fluxo",
   },
   toasts: {
     created: "Fluxo criado.",
-    createError: "Nao foi possivel criar o fluxo.",
-    generateError: "Nao foi possivel gerar o fluxo.",
+    createError: "Não foi possível criar o fluxo.",
+    generateError: "Não foi possível gerar o fluxo.",
     generatedSaved: "Fluxo gerado e salvo.",
-    generateSaveError: "Nao foi possivel salvar o fluxo gerado.",
+    generateSaveError: "Não foi possível salvar o fluxo gerado.",
     renamed: "Fluxo renomeado.",
-    renameError: "Nao foi possivel renomear o fluxo.",
-    deleted: "Fluxo excluido.",
-    deleteError: "Nao foi possivel excluir o fluxo.",
+    renameError: "Não foi possível renomear o fluxo.",
+    deleted: "Fluxo excluído.",
+    deleteError: "Não foi possível excluir o fluxo.",
     activated: "Fluxo ativado.",
     archived: "Fluxo arquivado.",
-    statusError: "Nao foi possivel atualizar o status.",
+    statusError: "Não foi possível atualizar o status.",
   },
   createDialog: {
     namePlaceholder: "Ex: Suporte IA",
   },
   generateDialog: {
     title: "Gerar fluxo com IA",
-    description: "Descreva o que o fluxo deve fazer e a IA gera o grafo pra voce revisar.",
+    description: "Descreva o que o fluxo deve fazer e a IA gera o grafo pra você revisar.",
     promptLabel: "Descreva o que o fluxo deve fazer",
     promptPlaceholder:
       "Ex: Quando chegar um email com boleto, extraia os dados, grave no banco, responda confirmando e envie no Slack.",
     generate: "Gerar",
     generating: "Gerando...",
     previewSummary: (nodeCount: number, edgeCount: number) =>
-      `${nodeCount} node(s), ${edgeCount} conexao(oes). Revise antes de salvar — voce podera editar tudo no canvas depois.`,
+      `${nodeCount} node(s), ${edgeCount} conexão(ões). Revise antes de salvar — você poderá editar tudo no canvas depois.`,
     regenerate: "Gerar de novo",
     accept: "Aceitar e criar fluxo",
     defaultName: "Fluxo gerado por IA",
@@ -59,7 +59,7 @@ export const pt = {
   deleteDialog: {
     title: (name: string | undefined) => `Excluir o fluxo “${name}”?`,
     description:
-      "Todas as versoes e o historico de execucoes deste fluxo serao perdidos. Esta acao nao pode ser desfeita.",
+      "Todas as versões e o histórico de execuções deste fluxo serão perdidos. Esta ação não pode ser desfeita.",
   },
 };
 
@@ -79,7 +79,7 @@ export const en = {
     description:
       "Describe what you need and AI builds the flow, or start from scratch / from a template.",
   },
-  updatedAt: (date: string) => `Updated ${date}`,
+  updatedAtPrefix: "Updated",
   menu: {
     rename: "Rename",
     archive: "Archive",

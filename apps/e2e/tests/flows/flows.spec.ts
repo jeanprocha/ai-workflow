@@ -19,7 +19,7 @@ import {
  * Armadilhas de locator mapeadas na discovery:
  * - Cada card e um <Link> — o menu (MoreHorizontal) fica DENTRO do link, num
  *   wrapper que so faz preventDefault. Clique impreciso navega pro editor.
- *   O trigger tem aria-label "Acoes do fluxo <nome>" (fix desta fase).
+ *   O trigger tem aria-label "Ações do fluxo <nome>" (fix desta fase).
  * - "Criar fluxo" e ao mesmo tempo o botao da pagina E o submit do dialog —
  *   escopar no dialog depois de abrir.
  * - O dropdown e o dialog montam em portal — buscar via page, nunca na card.
@@ -80,7 +80,7 @@ test.describe("Flows (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/flows");
 
-    await page.getByLabel("Acoes do fluxo Nome Antigo").click();
+    await page.getByLabel("Ações do fluxo Nome Antigo").click();
     await page.getByRole("menuitem", { name: "Renomear" }).click();
 
     const dialog = page.getByRole("dialog");
@@ -113,12 +113,12 @@ test.describe("Flows (via UI)", () => {
     await expect(card.getByText("Rascunho")).toBeVisible();
 
     // Draft mostra "Ativar" (o toggle so alterna active <-> archived).
-    await page.getByLabel("Acoes do fluxo Fluxo Status").click();
+    await page.getByLabel("Ações do fluxo Fluxo Status").click();
     await page.getByRole("menuitem", { name: "Ativar" }).click();
     await expect(page.getByText("Fluxo ativado.")).toBeVisible();
     await expect(card.getByText("Ativo")).toBeVisible();
 
-    await page.getByLabel("Acoes do fluxo Fluxo Status").click();
+    await page.getByLabel("Ações do fluxo Fluxo Status").click();
     await page.getByRole("menuitem", { name: "Arquivar" }).click();
     await expect(page.getByText("Fluxo arquivado.")).toBeVisible();
     await expect(card.getByText("Arquivado")).toBeVisible();
@@ -135,7 +135,7 @@ test.describe("Flows (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/flows");
 
-    await page.getByLabel("Acoes do fluxo Fluxo Descartavel").click();
+    await page.getByLabel("Ações do fluxo Fluxo Descartavel").click();
     await page.getByRole("menuitem", { name: "Excluir" }).click();
 
     const alert = page.getByRole("alertdialog");
@@ -148,14 +148,14 @@ test.describe("Flows (via UI)", () => {
     await expect(alert).not.toBeVisible();
     await expect(page.getByRole("link", { name: /Fluxo Descartavel/ })).toBeVisible();
 
-    await page.getByLabel("Acoes do fluxo Fluxo Descartavel").click();
+    await page.getByLabel("Ações do fluxo Fluxo Descartavel").click();
     await page.getByRole("menuitem", { name: "Excluir" }).click();
     await page
       .getByRole("alertdialog")
       .getByRole("button", { name: "Excluir" })
       .click();
 
-    await expect(page.getByText("Fluxo excluido.")).toBeVisible();
+    await expect(page.getByText("Fluxo excluído.")).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Nenhum fluxo ainda" }),
     ).toBeVisible();
@@ -183,16 +183,16 @@ test.describe("Flows (via UI)", () => {
     // Workspace novo sem credencial: hint aponta pra Configuracoes.
     await expect(
       dialog.getByText(
-        "Cadastre uma credencial de anthropic em Configuracoes → Credenciais.",
+        "Cadastre uma credencial de anthropic em Configurações → Credenciais.",
       ),
     ).toBeVisible();
 
     // Ollama roda local — o campo de credencial some e o aviso muda.
     await dialog.getByLabel("Provider").selectOption("ollama");
     await expect(
-      dialog.getByText("Ollama roda local — nao precisa de credencial."),
+      dialog.getByText("Ollama roda local — não precisa de credencial."),
     ).toBeVisible();
-    await expect(dialog.getByLabel("Conexao (credential)")).not.toBeVisible();
+    await expect(dialog.getByLabel("Conexão (credential)")).not.toBeVisible();
   });
 });
 

@@ -36,8 +36,9 @@ import {
  *   conhecimento" (h2), nao "Criar base".
  * - "Ver documentos" e Button render={<Link>}, mas o role acessivel continua
  *   sendo "button" (mesmo padrao do "Ir para Flows" da Fase 05).
- * - O h1 da lista e o back link do detalhe sao "Knowledge" (em ingles, mesmo
- *   em pt); o sidebar mostra "Conhecimento".
+ * - O h1 da lista, o back link do detalhe e o item do sidebar sao todos
+ *   "Conhecimento" em pt — por isso o back link precisa ser escopado em
+ *   getByRole("main"), senao colide com o link do sidebar.
  * - O titulo do alertdialog de exclusao usa aspas tipograficas:
  *   Excluir a base “X”?
  * - Toast de upload usa aspas retas + em dash (U+2014):
@@ -83,12 +84,12 @@ test.describe("Knowledge (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/knowledge");
 
-    await expect(page.getByRole("heading", { level: 1, name: "Knowledge" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Conhecimento" })).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Nenhuma base de conhecimento ainda" }),
     ).toBeVisible();
     await expect(
-      page.getByText("Crie uma base e envie PDF, DOCX, Markdown, TXT ou CSV para comecar."),
+      page.getByText("Crie uma base e envie PDF, DOCX, Markdown, TXT ou CSV para começar."),
     ).toBeVisible();
     // Com a lista vazia so ha UM "Criar base" na tela (o do empty state).
     await expect(page.getByRole("button", { name: "Criar base" })).toHaveCount(1);
@@ -108,12 +109,12 @@ test.describe("Knowledge (via UI)", () => {
     await expect(dialog.getByRole("heading", { name: "Criar base de conhecimento" })).toBeVisible();
     await expect(
       dialog.getByText(
-        "Os embeddings usam OpenAI (text-embedding-3-small). Claude/Anthropic nao tem API de embeddings.",
+        "Os embeddings usam OpenAI (text-embedding-3-small). Claude/Anthropic não tem API de embeddings.",
       ),
     ).toBeVisible();
 
     await dialog.getByLabel("Nome").fill("Base de Testes");
-    await dialog.getByLabel("Descricao").fill("Descricao de teste");
+    await dialog.getByLabel("Descrição").fill("Descricao de teste");
     // Credencial fica em branco de proposito.
     await dialog.getByRole("button", { name: "Criar base" }).click();
 
@@ -169,7 +170,7 @@ test.describe("Knowledge (via UI)", () => {
     ).toBeVisible();
     await expect(
       alert.getByText(
-        "Todos os documentos e chunks desta base serao excluidos. Agentes que usam esta base deixarao de ter acesso a ela. Esta acao nao pode ser desfeita.",
+        "Todos os documentos e chunks desta base serão excluídos. Agentes que usam esta base deixarão de ter acesso a ela. Esta ação não pode ser desfeita.",
       ),
     ).toBeVisible();
 
@@ -180,7 +181,7 @@ test.describe("Knowledge (via UI)", () => {
     await page.getByLabel("Excluir base Base Descartavel").click();
     await page.getByRole("alertdialog").getByRole("button", { name: "Excluir" }).click();
 
-    await expect(page.getByText("Base de conhecimento excluida.")).toBeVisible();
+    await expect(page.getByText("Base de conhecimento excluída.")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Nenhuma base de conhecimento ainda" })).toBeVisible();
   });
 
@@ -206,9 +207,10 @@ test.describe("Knowledge (via UI)", () => {
     ).toBeVisible();
     await expect(page.getByText("PDF, DOCX, Markdown, TXT ou CSV")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Nenhum documento ainda" })).toBeVisible();
-    await expect(page.getByText("Envie um arquivo acima para comecar.")).toBeVisible();
+    await expect(page.getByText("Envie um arquivo acima para começar.")).toBeVisible();
 
-    await page.getByRole("link", { name: "Knowledge" }).click();
+    // O back link e o item do sidebar tem o MESMO nome ("Conhecimento") — escopar no <main>.
+    await page.getByRole("main").getByRole("link", { name: "Conhecimento" }).click();
     await expect(page).toHaveURL(/\/knowledge$/);
   });
 
@@ -296,7 +298,7 @@ test.describe("Knowledge (via UI)", () => {
     // aria-label do botao de lixeira = "Excluir documento <nome>" (fix A1).
     await page.getByLabel("Excluir documento descartavel.txt").click();
 
-    await expect(page.getByText("Documento excluido.")).toBeVisible();
+    await expect(page.getByText("Documento excluído.")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Nenhum documento ainda" })).toBeVisible();
   });
 

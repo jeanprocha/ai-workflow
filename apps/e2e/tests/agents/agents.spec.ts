@@ -24,8 +24,8 @@ import { createAgentViaApi } from "../../helpers/agents";
  *   usar getByRole("heading") pro titulo.
  * - O botao "Criar agente" do header SO existe com a lista nao-vazia; com
  *   lista vazia o unico ponto de entrada e a acao do empty state.
- * - O h1 da pagina e "Agents" (em ingles mesmo em pt); o link do sidebar e
- *   "Agentes".
+ * - O h1 da pagina e o link do sidebar sao ambos "Agentes" — sempre escopar
+ *   com getByRole("heading", { level: 1 }) pra nao colidir com a navegacao.
  * - O titulo do alertdialog de exclusao usa aspas tipograficas:
  *   Excluir o agente “X”?
  * - Os chips de tools no card mostram a CHAVE crua (calculator, http, sql,
@@ -57,10 +57,10 @@ test.describe("Agents (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/agents");
 
-    await expect(page.getByRole("heading", { level: 1, name: "Agents" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Agentes" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Nenhum agente ainda" })).toBeVisible();
     await expect(
-      page.getByText("Crie um agente com ferramentas e memoria para reutilizar em qualquer fluxo."),
+      page.getByText("Crie um agente com ferramentas e memória para reutilizar em qualquer fluxo."),
     ).toBeVisible();
     // Com a lista vazia existe UM unico "Criar agente" na tela (o do empty
     // state) — o do header so aparece quando ja ha agentes.
@@ -81,14 +81,14 @@ test.describe("Agents (via UI)", () => {
     await expect(dialog.getByRole("heading", { name: "Criar agente" })).toBeVisible();
 
     await dialog.getByLabel("Nome").fill("Analista Financeiro");
-    await dialog.getByLabel("Descricao").fill("Analisa numeros");
+    await dialog.getByLabel("Descrição").fill("Analisa numeros");
     await dialog.getByLabel("System prompt").fill("Voce e um analista financeiro.");
     // Provider e Modelo ja vem preenchidos (anthropic / claude-sonnet-5).
     await expect(dialog.getByLabel("Provider")).toHaveValue("anthropic");
     await expect(dialog.getByLabel("Modelo")).toHaveValue("claude-sonnet-5");
 
-    await dialog.getByRole("checkbox", { name: "Calculator" }).check();
-    await dialog.getByRole("checkbox", { name: "Memoria persistente" }).check();
+    await dialog.getByRole("checkbox", { name: "Calculadora" }).check();
+    await dialog.getByRole("checkbox", { name: "Memória persistente" }).check();
     await dialog.getByRole("button", { name: "Criar agente" }).click();
 
     await expect(page.getByText("Agente criado.")).toBeVisible();
@@ -137,7 +137,7 @@ test.describe("Agents (via UI)", () => {
     await expect(page.getByRole("heading", { name: "Nenhum agente ainda" })).toBeVisible();
   });
 
-  test("checkbox Knowledge Base revela e esconde o select de base", async ({
+  test("checkbox Base de conhecimento revela e esconde o select de base", async ({
     page,
     context,
     request,
@@ -149,17 +149,22 @@ test.describe("Agents (via UI)", () => {
     await page.getByRole("button", { name: "Criar agente" }).click();
     const dialog = page.getByRole("dialog");
 
-    await expect(dialog.getByLabel("Base de conhecimento")).toHaveCount(0);
-    await dialog.getByRole("checkbox", { name: "Knowledge Base" }).check();
+    // O checkbox da tool e o select da base tem o MESMO nome acessivel
+    // ("Base de conhecimento"), entao getByLabel casaria com os dois —
+    // separar por role e o que mantem cada locator apontando pra um so.
+    const checkbox = dialog.getByRole("checkbox", { name: "Base de conhecimento" });
+    const select = dialog.getByRole("combobox", { name: "Base a consultar" });
 
-    const select = dialog.getByLabel("Base de conhecimento");
+    await expect(select).toHaveCount(0);
+    await checkbox.check();
+
     await expect(select).toBeVisible();
     // Workspace novo nao tem base nenhuma — so o placeholder.
     await expect(select.locator("option")).toHaveCount(1);
     await expect(select.locator("option")).toHaveText("Selecione uma base");
 
-    await dialog.getByRole("checkbox", { name: "Knowledge Base" }).uncheck();
-    await expect(dialog.getByLabel("Base de conhecimento")).toHaveCount(0);
+    await checkbox.uncheck();
+    await expect(select).toHaveCount(0);
   });
 
   test("excluir: confirmacao cancela e depois remove de verdade", async ({
@@ -182,7 +187,7 @@ test.describe("Agents (via UI)", () => {
     ).toBeVisible();
     await expect(
       alert.getByText(
-        "Fluxos que usam este agente no node Agent deixarao de funcionar. Esta acao nao pode ser desfeita.",
+        "Fluxos que usam este agente no node Agent deixarão de funcionar. Esta ação não pode ser desfeita.",
       ),
     ).toBeVisible();
 
@@ -193,7 +198,7 @@ test.describe("Agents (via UI)", () => {
     await page.getByLabel("Excluir agente Agente Descartavel").click();
     await page.getByRole("alertdialog").getByRole("button", { name: "Excluir" }).click();
 
-    await expect(page.getByText("Agente excluido.")).toBeVisible();
+    await expect(page.getByText("Agente excluído.")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Nenhum agente ainda" })).toBeVisible();
   });
 

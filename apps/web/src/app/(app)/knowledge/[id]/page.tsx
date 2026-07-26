@@ -111,6 +111,7 @@ export default function KnowledgeBaseDetailPage({
       <div>
         <Link
           href="/knowledge"
+          aria-label={t.knowledge.detail.backLinkAria}
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />

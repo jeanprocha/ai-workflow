@@ -28,7 +28,7 @@ export const pt = {
     queued: "Na fila",
     retry: "Retentando",
   },
-  liveExecutionAriaLabel: "Em execucao",
+  liveExecutionAriaLabel: "Em execução",
 };
 
 export const en = {

@@ -10,9 +10,11 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
       data-slot="table-container"
       className="relative w-full overflow-x-auto"
     >
+      {/* min-w: sem isso as colunas so se espremem numa viewport estreita em
+          vez de o container rolar, e a tabela fica ilegivel no celular. */}
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full min-w-[42rem] caption-bottom text-sm", className)}
         {...props}
       />
     </div>

@@ -64,7 +64,7 @@ test.describe("Executions (detalhe)", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Fluxo Detalhe Sucesso" })).toBeVisible();
     await expect(statusBadge(page, "Fluxo Detalhe Sucesso")).toContainText("Sucesso");
     await expect(metricValue(page, "Trigger")).toHaveText("manual");
-    await expect(metricValue(page, "Duracao")).not.toHaveText("—");
+    await expect(metricValue(page, "Duração")).not.toHaveText("—");
 
     const timeline = timelineContainer(page);
     await expect(timeline.locator("> div")).toHaveCount(2);
@@ -75,7 +75,9 @@ test.describe("Executions (detalhe)", () => {
     await expect(timeline.locator("pre")).toHaveCount(4);
 
     await expect(logsContainer(page)).not.toContainText("Nenhum log registrado.");
-    await expect(page.getByRole("link", { name: "Executions" })).toBeVisible();
+    // O item da sidebar tambem se chama "Execuções" desde que os titulos de
+    // pagina foram traduzidos — escopar em <main> isola o link de voltar.
+    await expect(page.getByRole("main").getByRole("link", { name: "Execuções" })).toBeVisible();
   });
 
   test("execucao falhada mostra banner de erro e Reexecutar navega pro replay completo", async ({
@@ -103,11 +105,11 @@ test.describe("Executions (detalhe)", () => {
     await expect(retryButton).toBeVisible();
 
     await retryButton.click();
-    await expect(page.getByText("Nova execucao enfileirada.")).toBeVisible();
+    await expect(page.getByText("Nova execução enfileirada.")).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`/executions/(?!${done.id}$)[\\w-]+$`));
 
-    await expect(page.getByText("Replay completo de outra execucao.")).toBeVisible();
-    const provenanceLink = page.getByRole("link", { name: "outra execucao" });
+    await expect(page.getByText("Replay completo de outra execução.")).toBeVisible();
+    const provenanceLink = page.getByRole("link", { name: "outra execução" });
     await expect(provenanceLink).toHaveAttribute("href", `/executions/${done.id}`);
   });
 
@@ -137,7 +139,7 @@ test.describe("Executions (detalhe)", () => {
     await expect(page.getByText("Replay parcial enfileirado.")).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`/executions/(?!${done.id}$)[\\w-]+$`));
 
-    await expect(page.getByText('Replay parcial a partir de "n2" de outra execucao.')).toBeVisible();
+    await expect(page.getByText('Replay parcial a partir de "n2" de outra execução.')).toBeVisible();
     const timeline = timelineContainer(page);
     await expect(timeline.locator("> div")).toHaveCount(1, { timeout: 15_000 });
     await expect(timeline).toContainText("n2");
@@ -166,7 +168,7 @@ test.describe("Executions (detalhe)", () => {
     await dialog.getByLabel("Input do replay (JSON)").fill("{invalido");
     await dialog.getByRole("button", { name: "Rodar replay" }).click();
 
-    await expect(page.getByText("Input invalido: precisa ser JSON valido.")).toBeVisible();
+    await expect(page.getByText("Input inválido: precisa ser JSON válido.")).toBeVisible();
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("heading", { name: 'Replay a partir de "n2"' })).toBeVisible();
   });
@@ -216,7 +218,7 @@ test.describe("Executions (detalhe)", () => {
     await expect(dialog.getByRole("heading", { name: "AI Debugger" })).toBeVisible();
     await expect(dialog.getByLabel("Provider")).toBeVisible();
     await expect(dialog.getByLabel("Modelo")).toBeVisible();
-    await expect(dialog.getByLabel("Conexao (credential)")).toBeVisible();
+    await expect(dialog.getByLabel("Conexão (credential)")).toBeVisible();
 
     await dialog.getByRole("button", { name: "Cancelar" }).click();
     await expect(dialog).not.toBeVisible();

@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/table";
 import { useAnalyticsSummary, useRecentExecutions } from "@/hooks/use-analytics";
 import { useDictionary, useLocale } from "@/lib/i18n";
-import { formatDateTime, formatDuration, formatNumber, formatUsd } from "@/lib/format";
+import { formatDuration, formatNumber, formatUsd } from "@/lib/format";
+import { RelativeTime } from "@/components/relative-time";
 
 function toBadgeStatus(status: string): ExecutionStatus {
   return status === "canceled" ? "failed" : (status as ExecutionStatus);
@@ -41,7 +42,14 @@ export default function DashboardPage() {
           label: t.dashboard.metrics.avgDuration,
           value: `${(summary.avgDurationMs / 1000).toFixed(1)}s`,
         },
-        { label: t.dashboard.metrics.failures, value: String(summary.failuresCount) },
+        {
+          label: t.dashboard.metrics.failures,
+          value: String(summary.failuresCount),
+          // So vira link quando ha o que investigar: "Falhas: 0" nao leva a
+          // lugar nenhum util, e um card clicavel que abre uma lista vazia
+          // e uma promessa quebrada.
+          href: summary.failuresCount > 0 ? "/executions?status=failed" : undefined,
+        },
         { label: t.dashboard.metrics.aiCost, value: formatUsd(summary.costUsdTotal, locale) },
       ]
     : [];
@@ -62,7 +70,7 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {metrics.map((metric) => (
-            <MetricCard key={metric.label} {...metric} />
+            <MetricCard key={metric.label} {...metric} linkComponent={Link} />
           ))}
         </div>
       )}
@@ -117,7 +125,7 @@ export default function DashboardPage() {
                     {execution.durationMs === null ? "—" : formatDuration(execution.durationMs, locale)}
                   </TableCell>
                   <TableCell className="text-right text-sm text-muted-foreground">
-                    {formatDateTime(execution.startedAt, locale)}
+                    <RelativeTime value={execution.startedAt} />
                   </TableCell>
                 </TableRow>
               ))}

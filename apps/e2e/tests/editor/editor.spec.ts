@@ -27,7 +27,7 @@ import {
  *   (dropNodeOnCanvas). O handler de drop escuta na div pai de .react-flow;
  *   como eventos DOM borbulham antes do React sintetico, disparar em
  *   .react-flow mesmo funciona.
- * - Sem botao Salvar — autosave debounced em 800ms; "Alteracoes nao
+ * - Sem botao Salvar — autosave debounced em 800ms; "Alterações não
  *   salvas" -> "Salvando..." -> "Salvo" na toolbar e o unico indicador.
  * - Deletar node/edge e so com Backspace (default do React Flow — Delete
  *   NAO funciona).
@@ -53,7 +53,7 @@ async function dropNodeOnCanvas(page: Page, nodeType: string, x: number, y: numb
 
 /** Confirma o CICLO completo (nao so que "Salvo" esta visivel — isso e o estado inicial tambem). */
 async function waitForAutosaveCycle(page: Page) {
-  await expect(page.getByText("Alteracoes nao salvas")).toBeVisible();
+  await expect(page.getByText("Alterações não salvas")).toBeVisible();
   await expect(page.getByText("Salvo")).toBeVisible({ timeout: 10_000 });
 }
 
@@ -148,7 +148,7 @@ test.describe("Editor — painel de configuracao", () => {
     // Reabre e fecha pelo X (aria-label do fix desta fase).
     await page.locator('[data-testid="rf__node-n2"]').click();
     await expect(page.locator("aside")).toHaveCount(2);
-    await page.getByLabel("Fechar painel de configuracao").click();
+    await page.getByLabel("Fechar painel de configuração").click();
     await expect(page.locator("aside")).toHaveCount(1);
   });
 
@@ -281,7 +281,7 @@ test.describe("Editor — executar fluxo", () => {
     await dialog.getByRole("textbox").fill("{ invalido");
     await dialog.getByRole("button", { name: "Executar", exact: true }).click();
 
-    await expect(page.getByText("O payload precisa ser um JSON valido.")).toBeVisible();
+    await expect(page.getByText("O payload precisa ser um JSON válido.")).toBeVisible();
     await expect(dialog).toBeVisible();
   });
 
@@ -300,7 +300,7 @@ test.describe("Editor — executar fluxo", () => {
     await page.getByRole("button", { name: "Executar" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Executar", exact: true }).click();
 
-    await expect(page.getByText("Execucao iniciada.")).toBeVisible();
+    await expect(page.getByText("Execução iniciada.")).toBeVisible();
     await expect(page.getByRole("dialog")).not.toBeVisible();
     await expect(page).toHaveURL(new RegExp(`/flows/${workflow.id}$`));
   });
@@ -319,11 +319,11 @@ test.describe("Editor — executar fluxo", () => {
     await page.goto(`/flows/${workflow.id}`);
     await page.getByRole("button", { name: "Executar" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Executar", exact: true }).click();
-    await expect(page.getByText("Execucao iniciada.")).toBeVisible();
+    await expect(page.getByText("Execução iniciada.")).toBeVisible();
 
     // O node n2 (delay de 3s) fica "running" — unico status com role/aria-label.
     const delayNode = page.locator('[data-testid="rf__node-n2"]');
-    await expect(delayNode.getByRole("status", { name: "Em execucao" })).toBeVisible({
+    await expect(delayNode.getByRole("status", { name: "Em execução" })).toBeVisible({
       timeout: 5000,
     });
 

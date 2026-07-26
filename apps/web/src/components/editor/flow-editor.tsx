@@ -20,6 +20,7 @@ import {
 import { nanoid } from "nanoid";
 import type { NodeRetryPolicy, WorkflowGraph } from "@workflow/shared";
 import { NODE_TYPES, type WorkflowFlowNode } from "./workflow-node";
+import { EDGE_TYPES } from "./pulse-edge";
 import { NodePalette } from "./node-palette";
 import { ConfigPanel } from "./config-panel";
 import { EditorToolbar } from "./editor-toolbar";
@@ -27,6 +28,7 @@ import { useSaveGraph, useWorkflow } from "@/hooks/use-workflows";
 import { useExecutionStream } from "@/hooks/use-execution-stream";
 import { getCatalogEntry } from "@/lib/node-catalog";
 import { useDictionary } from "@/lib/i18n";
+import { useTheme } from "@/hooks/use-theme";
 
 const DEFAULT_VIEWPORT: Viewport = { x: 0, y: 0, zoom: 1 };
 
@@ -46,6 +48,7 @@ function graphToFlow(graph: WorkflowGraph): { nodes: WorkflowFlowNode[]; edges: 
     })),
     edges: graph.edges.map((edge) => ({
       id: edge.id,
+      type: "pulse",
       source: edge.source,
       target: edge.target,
       sourceHandle: edge.sourceHandle,
@@ -82,6 +85,7 @@ function flowToGraph(
 
 function FlowEditorInner({ workflowId }: { workflowId: string }) {
   const t = useDictionary();
+  const theme = useTheme();
   const { data: workflow } = useWorkflow(workflowId);
   const saveGraph = useSaveGraph(workflowId);
   const { screenToFlowPosition } = useReactFlow();
@@ -196,7 +200,7 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
   const onConnect: OnConnect = useCallback(
     (connection) => {
       setEdges((current) => {
-        const next = addEdge({ ...connection, id: nanoid(8) }, current);
+        const next = addEdge({ ...connection, id: nanoid(8), type: "pulse" }, current);
         scheduleSave(nodes, next);
         return next;
       });
@@ -224,10 +228,8 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
         },
       };
 
-      console.log("DEBUG onDrop", nodeType, position);
       setNodes((current) => {
         const next = [...current, newNode];
-        console.log("DEBUG onDrop setNodes", next.length);
         scheduleSave(next, edges);
         return next;
       });
@@ -260,6 +262,14 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
     data: { ...node.data, status: nodeStatuses[node.id] },
   }));
 
+  // A edge herda o estado do node de DESTINO: e por ela que os dados estao
+  // entrando naquele node agora. E o unico momento em que O Pulso corre.
+  const edgesWithStatus = edges.map((edge) => ({
+    ...edge,
+    type: "pulse",
+    data: { ...edge.data, status: nodeStatuses[edge.target] },
+  }));
+
   const selectedNode = nodesWithStatus.find((node) => node.id === selectedNodeId) ?? null;
 
   return (
@@ -276,8 +286,9 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
         <div className="flex-1" onDrop={onDrop} onDragOver={(event) => event.preventDefault()}>
           <ReactFlow
             nodes={nodesWithStatus}
-            edges={edges}
+            edges={edgesWithStatus}
             nodeTypes={NODE_TYPES}
+            edgeTypes={EDGE_TYPES}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -285,11 +296,21 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
             onPaneClick={() => setSelectedNodeId(null)}
             defaultViewport={viewport}
             proOptions={{ hideAttribution: true }}
+            // Sem isso o React Flow assume "light" e coloca a classe `light`
+            // no proprio wrapper — que casava com o seletor `.light` do
+            // tokens.css e reescopava TODOS os tokens dentro do canvas
+            // (nodes brancos num app escuro).
+            colorMode={theme}
             fitView
+            // Sem maxZoom, um grafo de 1-2 nodes era ampliado a ponto de o
+            // card ocupar meia tela — o zoom precisa caber o grafo, nao
+            // esticar o node ate o limite da viewport.
+            fitViewOptions={{ maxZoom: 1, padding: 0.2 }}
           >
             <Background />
             <Controls showInteractive={false} />
-            <MiniMap pannable zoomable className="!bg-card" />
+            {/* Minimap comia um quarto da tela no celular sem ajudar a navegar. */}
+            <MiniMap pannable zoomable className="!hidden !bg-card md:!block" />
           </ReactFlow>
         </div>
         {selectedNode && (

@@ -139,7 +139,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) 
           ))}
           <div className="pointer-events-none absolute inset-y-1.5 right-2.5 flex flex-col justify-between">
             {outputs.map((output) => (
-              <span key={output} className="font-mono text-[9px] text-muted-foreground">
+              <span key={output} className="font-mono text-xs leading-none text-muted-foreground">
                 {output}
               </span>
             ))}

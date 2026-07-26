@@ -20,7 +20,7 @@ import {
  * - Os dialogs (base-ui) montam em portal FORA da <section> — sempre buscar
  *   via page.getByRole("dialog"), nunca escopado na section.
  * - O titulo do dialog e identico ao texto do botao que o abre ("Adicionar
- *   conexao") — usar getByRole("heading") dentro do dialog evita violacao de
+ *   conexão") — usar getByRole("heading") dentro do dialog evita violacao de
  *   strict mode enquanto ele esta aberto.
  * - Submit com campo vazio e um no-op silencioso (guard client-side, sem
  *   toast nem erro inline) — a unica assercao possivel e o dialog continuar
@@ -50,13 +50,13 @@ test.describe("Conexoes (via UI)", () => {
     await page.goto("/settings");
 
     await expect(
-      page.getByRole("heading", { name: "Nenhuma conexao ainda" }),
+      page.getByRole("heading", { name: "Nenhuma conexão ainda" }),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Adicionar conexao" }).click();
+    await page.getByRole("button", { name: "Adicionar conexão" }).click();
     const dialog = page.getByRole("dialog");
     await expect(
-      dialog.getByRole("heading", { name: "Adicionar conexao" }),
+      dialog.getByRole("heading", { name: "Adicionar conexão" }),
     ).toBeVisible();
 
     const secretValue = "sk-super-secreto-98765432";
@@ -67,7 +67,7 @@ test.describe("Conexoes (via UI)", () => {
     });
     await dialog.getByRole("button", { name: "Adicionar", exact: true }).click();
 
-    await expect(page.getByText("Conexao adicionada.")).toBeVisible();
+    await expect(page.getByText("Conexão adicionada.")).toBeVisible();
     await expect(page.getByText("OpenAI Producao")).toBeVisible();
     // Mascara: provider · ••••<ultimos 4 do valor real>.
     await expect(page.getByText("openai · ••••5432")).toBeVisible();
@@ -85,7 +85,7 @@ test.describe("Conexoes (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/settings");
 
-    await page.getByRole("button", { name: "Adicionar conexao" }).click();
+    await page.getByRole("button", { name: "Adicionar conexão" }).click();
     await expect(
       page.getByRole("dialog").getByLabel("Chave / valor"),
     ).toHaveAttribute("type", "password");
@@ -101,13 +101,13 @@ test.describe("Conexoes (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/settings");
 
-    await page.getByRole("button", { name: "Adicionar conexao" }).click();
+    await page.getByRole("button", { name: "Adicionar conexão" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "Adicionar", exact: true }).click();
 
     // Guard client-side silencioso: sem toast, sem erro — o dialog so fica aberto.
     await expect(dialog).toBeVisible();
-    await expect(page.getByText("Conexao adicionada.")).not.toBeVisible();
+    await expect(page.getByText("Conexão adicionada.")).not.toBeVisible();
   });
 
   test("Cancelar fecha o dialog sem criar nada", async ({
@@ -120,7 +120,7 @@ test.describe("Conexoes (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/settings");
 
-    await page.getByRole("button", { name: "Adicionar conexao" }).click();
+    await page.getByRole("button", { name: "Adicionar conexão" }).click();
     const dialog = page.getByRole("dialog");
     await fillCredentialDialog(page, {
       provider: "stripe",
@@ -131,7 +131,7 @@ test.describe("Conexoes (via UI)", () => {
 
     await expect(dialog).not.toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Nenhuma conexao ainda" }),
+      page.getByRole("heading", { name: "Nenhuma conexão ainda" }),
     ).toBeVisible();
   });
 
@@ -151,26 +151,26 @@ test.describe("Conexoes (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/settings");
 
-    // aria-label do botao de lixeira = "Remover conexao <nome>" (fix A2 desta fase).
-    await page.getByLabel("Remover conexao Chave Descartavel").click();
+    // aria-label do botao de lixeira = "Remover conexão <nome>" (fix A2 desta fase).
+    await page.getByLabel("Remover conexão Chave Descartavel").click();
     const alert = page.getByRole("alertdialog");
     await expect(
-      alert.getByRole("heading", { name: "Remover esta conexao?" }),
+      alert.getByRole("heading", { name: "Remover esta conexão?" }),
     ).toBeVisible();
 
     await alert.getByRole("button", { name: "Cancelar" }).click();
     await expect(alert).not.toBeVisible();
     await expect(page.getByText("Chave Descartavel")).toBeVisible();
 
-    await page.getByLabel("Remover conexao Chave Descartavel").click();
+    await page.getByLabel("Remover conexão Chave Descartavel").click();
     await page
       .getByRole("alertdialog")
       .getByRole("button", { name: "Remover" })
       .click();
 
-    await expect(page.getByText("Conexao removida.")).toBeVisible();
+    await expect(page.getByText("Conexão removida.")).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Nenhuma conexao ainda" }),
+      page.getByRole("heading", { name: "Nenhuma conexão ainda" }),
     ).toBeVisible();
   });
 
@@ -190,7 +190,7 @@ test.describe("Conexoes (via UI)", () => {
     await authenticateContext(context, await buildStorageState(request, tokens));
     await page.goto("/settings");
 
-    await page.getByRole("button", { name: "Adicionar conexao" }).click();
+    await page.getByRole("button", { name: "Adicionar conexão" }).click();
     const dialog = page.getByRole("dialog");
     await fillCredentialDialog(page, {
       provider: "openai",
