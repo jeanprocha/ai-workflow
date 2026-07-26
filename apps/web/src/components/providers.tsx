@@ -14,7 +14,6 @@ import { initClientTelemetry } from "@/lib/telemetry";
 declare module "@tanstack/react-query" {
   interface Register {
     queryMeta: { suppressErrorToast?: boolean };
-    mutationMeta: { suppressErrorToast?: boolean };
   }
 }
 
@@ -43,18 +42,15 @@ export function Providers({ children }: { children: ReactNode }) {
             toast.error(errorMessage(error, "Erro inesperado."));
           },
         }),
-        mutationCache: new MutationCache({
-          onError: (error, _variables, _context, mutation) => {
-            // A maioria das mutations ja tem seu proprio onError com toast
-            // especifico (mensagem contextual). Sem essa checagem, TODA
-            // mutation com onError proprio mostraria dois toasts (o dela +
-            // este global) — o global so cobre as que NAO tratam o proprio
-            // erro, como rede de seguranca.
-            if (mutation.options.onError) return;
-            if (mutation.meta?.suppressErrorToast) return;
-            toast.error(errorMessage(error, "Erro inesperado."));
-          },
-        }),
+        // SEM onError global de mutation: o padrao da casa e try/catch em
+        // volta de mutateAsync() com toast contextual no call site — e isso
+        // e invisivel pra qualquer checagem aqui (mutation.options.onError
+        // fica undefined mesmo com o erro sendo tratado pelo caller). Um
+        // toast global de mutation duplicava TODO erro ja tratado — pego
+        // pela suite E2E da Fase 02 (strict mode achou 2 toasts identicos).
+        // Queries continuam cobertas acima: paginas nao tratam erro de
+        // query individualmente, la o toast global e a unica sinalizacao.
+        mutationCache: new MutationCache(),
       }),
   );
 

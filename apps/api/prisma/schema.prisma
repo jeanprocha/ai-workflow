@@ -119,6 +119,10 @@ model Credential {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  // Unico por nome dentro do workspace: todo consumidor (engine, agents,
+  // copilot, debugger, autocomplete) resolve credencial pelo NOME via
+  // findFirst — com duplicata, qual delas vence seria indefinido.
+  @@unique([workspaceId, name])
   @@index([workspaceId])
   @@map("credentials")
 }

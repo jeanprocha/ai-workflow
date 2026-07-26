@@ -104,7 +104,7 @@ anexos) no report HTML.
 | # | Fase | Escopo | Status |
 |---|------|--------|--------|
 | 01 | Auth | Registro, login, sessão, proteção de rotas, refresh de token | ✅ suíte pronta (`tests/auth/`) |
-| 02 | Settings | CRUD de credenciais e variáveis — pré-requisito das features de IA | pendente |
+| 02 | Settings | CRUD de credenciais e variáveis — pré-requisito das features de IA | ✅ suíte pronta (`tests/settings/`) |
 | 03 | Flows (lista) | CRUD de fluxo, criar do zero / por template / por IA, arquivar, renomear, excluir | pendente |
 | 04 | Editor | Canvas (React Flow), paleta de nodes, config panel, salvar grafo, executar, versões/rollback | pendente |
 | 05 | Executions | Lista com filtros, detalhe/timeline, replay total e parcial, stream SSE ao vivo | pendente |

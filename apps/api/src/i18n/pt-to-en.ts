@@ -54,6 +54,8 @@ export const STATIC_TRANSLATIONS: Record<string, string> = {
     'This suggestion cannot be applied automatically.',
   'Ja existe uma variavel com esta chave neste workspace.':
     'A variable with this key already exists in this workspace.',
+  'Ja existe uma conexao com este nome neste workspace.':
+    'A connection with this name already exists in this workspace.',
   'Este fluxo ainda nao tem uma versao salva.':
     'This flow does not have a saved version yet.',
   'Configure a credencial do provider de embeddings na base de conhecimento.':

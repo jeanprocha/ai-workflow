@@ -146,6 +146,11 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     throw new ApiError(response.status, errorBody, requestId);
   }
 
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  // Nao confiar so no status 204: os endpoints de DELETE (credentials,
+  // variables) retornam 200 com corpo VAZIO (controller void no Nest), e
+  // response.json() lanca em corpo vazio — o que fazia todo delete via UI
+  // "falhar" (toast de erro, lista sem atualizar) mesmo com o servidor
+  // deletando de verdade. Bug real pego pela suite E2E da Fase 02.
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }

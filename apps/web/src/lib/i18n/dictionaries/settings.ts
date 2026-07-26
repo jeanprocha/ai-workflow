@@ -27,6 +27,8 @@ export const pt = {
     removeErrorFallback: "Nao foi possivel remover a conexao.",
     removeConfirmTitle: "Remover esta conexao?",
     removeConfirmDescription: "Fluxos e agentes que dependem dela deixarao de funcionar.",
+    /** Prefixo do aria-label do botao de lixeira — concatenado com o nome da conexao. */
+    removeAria: "Remover conexao",
   },
   variables: {
     title: "Variaveis",
@@ -45,6 +47,8 @@ export const pt = {
     removeErrorFallback: "Nao foi possivel remover a variavel.",
     removeConfirmTitle: "Remover esta variavel?",
     removeConfirmDescription: "Fluxos que referenciam esta variavel vao falhar ate ela ser recriada.",
+    /** Prefixo do aria-label do botao de lixeira — concatenado com a chave da variavel. */
+    removeAria: "Remover variavel",
   },
 };
 
@@ -77,6 +81,7 @@ export const en = {
     removeErrorFallback: "Could not remove the connection.",
     removeConfirmTitle: "Remove this connection?",
     removeConfirmDescription: "Flows and agents that depend on it will stop working.",
+    removeAria: "Remove connection",
   },
   variables: {
     title: "Variables",
@@ -95,5 +100,6 @@ export const en = {
     removeErrorFallback: "Could not remove the variable.",
     removeConfirmTitle: "Remove this variable?",
     removeConfirmDescription: "Flows that reference this variable will fail until it's recreated.",
+    removeAria: "Remove variable",
   },
 } satisfies typeof pt;

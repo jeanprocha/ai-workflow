@@ -137,6 +137,7 @@ function ConnectionsSection() {
               <Button
                 variant="ghost"
                 size="icon-sm"
+                aria-label={`${t.settings.connections.removeAria} ${credential.name}`}
                 onClick={() => setDeleteId(credential.id)}
               >
                 <Trash2 className="h-4 w-4" strokeWidth={1.5} />
@@ -281,7 +282,12 @@ function VariablesSection() {
                   {variable.isSecret ? "••••••••" : variable.value} · {variable.scope}
                 </p>
               </div>
-              <Button variant="ghost" size="icon-sm" onClick={() => setDeleteId(variable.id)}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`${t.settings.variables.removeAria} ${variable.key}`}
+                onClick={() => setDeleteId(variable.id)}
+              >
                 <Trash2 className="h-4 w-4" strokeWidth={1.5} />
               </Button>
             </div>

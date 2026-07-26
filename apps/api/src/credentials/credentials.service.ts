@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { CreateCredentialDto } from './dto/create-credential.dto';
@@ -36,6 +40,20 @@ export class CredentialsService {
   }
 
   async create(workspaceId: string, dto: CreateCredentialDto) {
+    // Nome e a chave de resolucao em TODO consumidor (engine, agents,
+    // copilot, debugger, autocomplete resolvem credencial por nome via
+    // findFirst) — duplicata tornaria indefinido qual delas e usada.
+    // Mesmo padrao de variables.service.ts, com o unique
+    // (workspaceId, name) no schema como backstop.
+    const existing = await this.prisma.credential.findUnique({
+      where: { workspaceId_name: { workspaceId, name: dto.name } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        'Ja existe uma conexao com este nome neste workspace.',
+      );
+    }
+
     const credential = await this.prisma.credential.create({
       data: {
         workspaceId,
