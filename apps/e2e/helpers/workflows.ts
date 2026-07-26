@@ -108,6 +108,32 @@ export const FAILING_GRAPH = {
   viewport: { x: 0, y: 0, zoom: 1 },
 };
 
+/** trigger.cron -> logic.log — usado pra testar o config panel do node Cron e o scheduler (Fase 11). */
+export function cronGraph(cronExpression: string, enabled = true) {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.cron",
+        category: "trigger",
+        label: "Schedule",
+        position: { x: 0, y: 0 },
+        config: { cronExpression, timezone: "UTC", enabled },
+      },
+      {
+        id: "n2",
+        type: "logic.log",
+        category: "logic",
+        label: "Log",
+        position: { x: 320, y: 0 },
+        config: { message: "disparado pelo cron" },
+      },
+    ],
+    edges: [{ id: "e1", source: "n1", target: "n2" }],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
 export interface ExecutionSummary {
   id: string;
   workflowId: string;

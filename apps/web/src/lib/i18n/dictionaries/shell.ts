@@ -9,6 +9,8 @@ export const pt = {
     dialogTitle: "Busca global",
     dialogDescription: "Pesquise fluxos, nodes, execucoes, templates e agentes",
     inputPlaceholder: "Pesquisar fluxos, nodes, execucoes, templates, agentes...",
+    /** aria-label da lista de resultados (role="listbox") — o cmdk usa "Suggestions" hardcoded em ingles por padrao. */
+    resultsAria: "Resultados da busca",
     empty: "Nenhum resultado encontrado.",
     groupFlows: "Fluxos",
     groupNodes: "Nodes",
@@ -32,6 +34,7 @@ export const en = {
     dialogTitle: "Global search",
     dialogDescription: "Search flows, nodes, executions, templates and agents",
     inputPlaceholder: "Search flows, nodes, executions, templates, agents...",
+    resultsAria: "Search results",
     empty: "No results found.",
     groupFlows: "Flows",
     groupNodes: "Nodes",

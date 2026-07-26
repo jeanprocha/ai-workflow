@@ -51,6 +51,8 @@ export const pt = {
       timezone: "Timezone",
       enabledLabel: "Agendamento habilitado",
       calculateButton: "Calcular proximas execucoes",
+      /** aria-label da lista de proximas execucoes calculadas — antes era um <ul> solto, sem rotulo. */
+      nextRunsAria: "Proximas execucoes calculadas",
     },
     credential: {
       label: "Conexao",
@@ -244,6 +246,7 @@ export const en = {
       timezone: "Timezone",
       enabledLabel: "Schedule enabled",
       calculateButton: "Calculate next runs",
+      nextRunsAria: "Calculated next runs",
     },
     credential: {
       label: "Connection",

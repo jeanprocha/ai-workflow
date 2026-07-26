@@ -354,9 +354,13 @@ function CronFields({
         >
           {t.cron.calculateButton}
         </Button>
-        {previewError && <p className="mt-2 text-xs text-danger">{previewError}</p>}
+        {previewError && (
+          <p role="alert" className="mt-2 text-xs text-danger">
+            {previewError}
+          </p>
+        )}
         {previewCron.data && (
-          <ul className="mt-2 space-y-0.5">
+          <ul aria-label={t.cron.nextRunsAria} className="mt-2 space-y-0.5">
             {previewCron.data.nextRuns.map((run) => (
               <li key={run} className="font-mono text-xs text-muted-foreground">
                 {formatDateTime(run, locale)}

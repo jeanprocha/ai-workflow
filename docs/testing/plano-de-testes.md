@@ -113,7 +113,7 @@ anexos) no report HTML.
 | 08 | MCP | Conectar servidor, listar tools, chamar tool, desconectar | ✅ suíte pronta (`tests/mcp/`) |
 | 09 | Dashboard/Analytics | Métricas agregadas, gráficos, timeseries | ✅ suíte pronta (`tests/analytics/`) |
 | 10 | Fase 11 (IA de plataforma) | Autocomplete, Copilot, AI Debugger, Cost Optimizer — marcados `@ai` | ✅ suíte pronta (`tests/platform-ai/`) |
-| 11 | Busca global / Scheduler | Ctrl+K, agendamento cron de fluxo | pendente |
+| 11 | Busca global / Scheduler | Ctrl+K, agendamento cron de fluxo | ✅ suíte pronta (`tests/search-scheduler/`) |
 
 Cada fase futura ganha seu próprio `tests/<fase>/*.spec.ts` seguindo o mesmo
 padrão desta (helpers dedicados se precisar, doc manual companheiro em

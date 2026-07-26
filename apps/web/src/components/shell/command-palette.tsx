@@ -68,7 +68,10 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         onValueChange={setQuery}
         placeholder={t.shell.commandPalette.inputPlaceholder}
       />
-      <CommandList>
+      {/* cmdk usa a prop `label` (nao `aria-label`) pra nomear a lista —
+          sem isso o role="listbox" se anunciava como "Suggestions",
+          hardcoded em ingles pelo cmdk, numa UI pt-BR. */}
+      <CommandList label={t.shell.commandPalette.resultsAria}>
         {hasQuery && !isFetching && !hasResults && (
           <CommandEmpty>{t.shell.commandPalette.empty}</CommandEmpty>
         )}

@@ -49,10 +49,6 @@ function CommandDialog({
 }) {
   return (
     <Dialog {...props}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
-      </DialogHeader>
       <DialogContent
         className={cn(
           "top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0",
@@ -60,7 +56,23 @@ function CommandDialog({
         )}
         showCloseButton={showCloseButton}
       >
-        <Command>{children}</Command>
+        {/* Precisa estar DENTRO do DialogContent (Popup) — Dialog.Root
+            renderiza seus filhos diretos incondicionalmente, mas o Popup so
+            monta quando aberto. Antes, esse header sr-only era irmao do
+            DialogContent, entao "Busca global" e sua descricao ficavam no
+            DOM de toda pagina autenticada mesmo com a palette fechada. */}
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        {/* shouldFilter=false: os resultados ja vem filtrados pelo servidor
+            (SearchService faz `contains` no Postgres); o fuzzy-match proprio
+            do cmdk e redundante e, por rodar contra o `search` interno dele
+            (sincronizado direto do valor nao debounced do input), podia
+            esconder grupos inteiros de resultados legitimos por dessincronia
+            entre o texto digitado e o momento em que os itens da resposta do
+            servidor terminavam de montar no DOM. */}
+        <Command shouldFilter={false}>{children}</Command>
       </DialogContent>
     </Dialog>
   )

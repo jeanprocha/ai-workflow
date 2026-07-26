@@ -94,8 +94,28 @@ export class WorkflowsService {
   }
 
   async update(workspaceId: string, id: string, dto: UpdateWorkflowDto) {
-    await this.findOne(workspaceId, id);
-    return this.prisma.workflow.update({ where: { id }, data: dto });
+    const workflow = await this.findOne(workspaceId, id);
+    const updated = await this.prisma.workflow.update({
+      where: { id },
+      data: dto,
+    });
+
+    // O schedule (fila "schedules") so era sincronizado ao salvar o grafo —
+    // arquivar ou voltar pra rascunho um fluxo com trigger.cron habilitado
+    // NAO cancelava o agendamento, que continuava disparando execucoes pra
+    // sempre. Agora o PATCH de status tambem sincroniza: active re-agenda
+    // a partir do grafo atual, draft/archived remove.
+    if (dto.status === 'active') {
+      const graph = workflow.currentVersion?.graph as unknown as
+        WorkflowGraph | undefined;
+      if (graph) {
+        await this.scheduler.syncWorkflowSchedule(id, workspaceId, graph);
+      }
+    } else if (dto.status === 'draft' || dto.status === 'archived') {
+      await this.scheduler.removeSchedule(id);
+    }
+
+    return updated;
   }
 
   async remove(workspaceId: string, id: string) {
