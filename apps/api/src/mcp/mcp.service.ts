@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
@@ -95,28 +96,54 @@ export class McpService implements OnModuleDestroy {
     args: Record<string, unknown>,
   ) {
     await this.findOne(workspaceId, serverId);
+    // Conectividade primeiro: um servidor nunca conectado tem `tools: []`
+    // persistido, entao checar o nome da tool ANTES disso faria qualquer
+    // chamada nele devolver "tool nao encontrada" — mensagem enganosa que
+    // esconde o problema real (servidor inalcancavel). ensureConnected lanca
+    // 400 nesse caso.
     const client = await this.ensureConnected(serverId);
+    // Re-busca depois de conectar: se a conexao era lazy (server estava
+    // disconnected), establishConnection acabou de atualizar as tools
+    // persistidas — o `findOne` de cima poderia estar desatualizado.
+    const server = await this.findOne(workspaceId, serverId);
+    // O SDK devolve um JSON-RPC error generico (McpError) pra tool
+    // desconhecida, que nao e HttpException e virava 500 — checar contra as
+    // tools persistidas primeiro devolve um 404 de verdade.
+    if (!server.tools.some((tool) => tool.name === toolName)) {
+      throw new NotFoundException(
+        `Tool "${toolName}" nao encontrada neste servidor MCP.`,
+      );
+    }
     return callMcpTool(client, toolName, args);
   }
 
-  /** Job repeatable (fila mcp-health) — nao reconecta sozinho, so detecta e marca status. */
+  /**
+   * Job repeatable (fila mcp-health), consumido pelo worker (ADR-008: worker
+   * so processa filas, API nunca roda jobs — sao processos separados). As
+   * conexoes vivas (`this.clients`) sao estado em memoria do processo que
+   * fez o connect/reconnect (sempre a API, ja que so ela serve HTTP) — nesse
+   * processo (o worker) `this.clients` nunca tem essas entradas, entao
+   * confiar nela aqui marcaria TODO servidor conectado como "disconnected"
+   * no primeiro tick, mesmo saudavel. Em vez disso, o health check faz uma
+   * sondagem propria (conecta, lista tools, fecha) direto a partir da config
+   * persistida — funciona igual em qualquer processo e testa conectividade
+   * de verdade, nao um cache que pode estar morto silenciosamente.
+   */
   async healthCheckAll(): Promise<void> {
     const servers = await this.prisma.mcpServer.findMany({
       where: { status: 'connected' },
     });
 
     for (const server of servers) {
-      const client = this.clients.get(server.id);
-      if (!client) {
-        await this.prisma.mcpServer.update({
-          where: { id: server.id },
-          data: { status: 'disconnected', lastCheckedAt: new Date() },
-        });
-        continue;
-      }
-
       try {
-        await client.listTools();
+        const probe = await connectMcpServer(
+          this.buildConnectionConfig(server),
+        );
+        try {
+          await probe.listTools();
+        } finally {
+          await probe.close().catch(() => undefined);
+        }
         await this.prisma.mcpServer.update({
           where: { id: server.id },
           data: { lastCheckedAt: new Date() },
@@ -141,8 +168,35 @@ export class McpService implements OnModuleDestroy {
     if (existing) return existing;
     await this.establishConnection(id);
     const client = this.clients.get(id);
-    if (!client) throw new Error('Nao foi possivel conectar ao servidor MCP.');
+    if (!client) {
+      throw new BadRequestException(
+        'Nao foi possivel conectar ao servidor MCP.',
+      );
+    }
     return client;
+  }
+
+  private buildConnectionConfig(server: {
+    transport: 'stdio' | 'sse' | 'http';
+    command: string | null;
+    args: unknown;
+    env: unknown;
+    url: string | null;
+    headers: unknown;
+  }): McpConnectionConfig {
+    return server.transport === 'stdio'
+      ? {
+          transport: 'stdio',
+          command: server.command ?? '',
+          args: (server.args as string[] | null) ?? [],
+          env: (server.env as Record<string, string> | null) ?? undefined,
+        }
+      : {
+          transport: server.transport,
+          url: server.url ?? '',
+          headers:
+            (server.headers as Record<string, string> | null) ?? undefined,
+        };
   }
 
   private async establishConnection(id: string): Promise<void> {
@@ -152,21 +206,7 @@ export class McpService implements OnModuleDestroy {
     await this.closeClient(id);
 
     try {
-      const config: McpConnectionConfig =
-        server.transport === 'stdio'
-          ? {
-              transport: 'stdio',
-              command: server.command ?? '',
-              args: (server.args as string[] | null) ?? [],
-              env: (server.env as Record<string, string> | null) ?? undefined,
-            }
-          : {
-              transport: server.transport,
-              url: server.url ?? '',
-              headers:
-                (server.headers as Record<string, string> | null) ?? undefined,
-            };
-
+      const config = this.buildConnectionConfig(server);
       const client = await connectMcpServer(config);
       this.clients.set(id, client);
 

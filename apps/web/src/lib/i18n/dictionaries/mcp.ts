@@ -23,8 +23,12 @@ export const pt = {
   },
   reconnectTooltip: "Reconectar",
   disconnect: "Desconectar",
+  /** aria-label do botao de remover — nome do servidor e concatenado. */
+  removeAria: "Remover servidor",
   toasts: {
     connected: "Servidor MCP conectado.",
+    /** Toast quando o connect volta 201 mas com status "error" (ex.: comando invalido) — nao e sucesso de verdade. */
+    connectedWithError: (lastError: string) => `Nao foi possivel conectar: ${lastError}`,
     connectError: "Nao foi possivel conectar ao servidor MCP.",
     reconnected: "Reconectado.",
     reconnectError: "Nao foi possivel reconectar.",
@@ -82,8 +86,10 @@ export const en = {
   },
   reconnectTooltip: "Reconnect",
   disconnect: "Disconnect",
+  removeAria: "Remove server",
   toasts: {
     connected: "MCP server connected.",
+    connectedWithError: (lastError: string) => `Could not connect: ${lastError}`,
     connectError: "Could not connect to the MCP server.",
     reconnected: "Reconnected.",
     reconnectError: "Could not reconnect.",

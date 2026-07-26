@@ -64,6 +64,8 @@ export const STATIC_TRANSLATIONS: Record<string, string> = {
     'Set the embeddings provider credential on the knowledge base.',
   'Grafo invalido.': 'Invalid graph.',
   'Envie um arquivo no campo "file".': 'Send a file in the "file" field.',
+  'Nao foi possivel conectar ao servidor MCP.':
+    'Could not connect to the MCP server.',
 };
 
 /** Mensagens com valor interpolado (nome, id, erro concatenado) — regex + template. */
@@ -101,6 +103,10 @@ export const DYNAMIC_TRANSLATIONS: Array<{
       /^O node "(.+)" nao foi executado na execucao original — nao ha o que reaproveitar\.$/,
     translate: (m) =>
       `Node "${m[1]}" was not executed in the original run — there's nothing to reuse.`,
+  },
+  {
+    pattern: /^Tool "(.+)" nao encontrada neste servidor MCP\.$/,
+    translate: (m) => `Tool "${m[1]}" not found on this MCP server.`,
   },
 ];
 

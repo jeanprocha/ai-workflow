@@ -161,8 +161,15 @@ function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
       env: form.transport === "stdio" ? textToEnv(envText) : undefined,
     };
     try {
-      await connect.mutateAsync(payload);
-      toast.success(t.mcp.toasts.connected);
+      const result = await connect.mutateAsync(payload);
+      // connect() sempre responde 201 — falha de conexao vira status "error"
+      // no proprio servidor retornado, nao uma excecao HTTP. Sem essa
+      // checagem o toast dizia "conectado" mesmo quando o handshake falhou.
+      if (result.status === "error") {
+        toast.error(t.mcp.toasts.connectedWithError(result.lastError ?? t.mcp.toasts.connectError));
+      } else {
+        toast.success(t.mcp.toasts.connected);
+      }
       setForm({ name: "", transport: "stdio", command: "", args: [], env: {}, url: "", headers: {} });
       setArgsText("");
       setEnvText("");
@@ -361,6 +368,7 @@ export default function McpPage() {
                   <Button
                     variant="ghost"
                     size="icon-sm"
+                    aria-label={`${t.mcp.reconnectTooltip} ${server.name}`}
                     onClick={() => onReconnect(server.id)}
                     disabled={reconnect.isPending}
                     title={t.mcp.reconnectTooltip}
@@ -371,13 +379,19 @@ export default function McpPage() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      aria-label={`${t.mcp.disconnect} ${server.name}`}
                       onClick={() => onDisconnect(server.id)}
                       disabled={disconnect.isPending}
                     >
                       {t.mcp.disconnect}
                     </Button>
                   )}
-                  <Button variant="ghost" size="icon-sm" onClick={() => setDeleteTarget(server)}>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`${t.mcp.removeAria} ${server.name}`}
+                    onClick={() => setDeleteTarget(server)}
+                  >
                     <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                   </Button>
                 </div>

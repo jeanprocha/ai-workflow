@@ -110,7 +110,7 @@ anexos) no report HTML.
 | 05 | Executions | Lista com filtros, detalhe/timeline, replay total e parcial, stream SSE ao vivo | ✅ suíte pronta (`tests/executions/`) |
 | 06 | Agents | CRUD de agentes, ferramentas, memória, chat de teste | ✅ suíte pronta (`tests/agents/`) |
 | 07 | Knowledge | Upload de documento, ingestão (precisa do worker rodando), busca semântica | ✅ suíte pronta (`tests/knowledge/`) |
-| 08 | MCP | Conectar servidor, listar tools, chamar tool, desconectar | pendente |
+| 08 | MCP | Conectar servidor, listar tools, chamar tool, desconectar | ✅ suíte pronta (`tests/mcp/`) |
 | 09 | Dashboard/Analytics | Métricas agregadas, gráficos, timeseries | pendente |
 | 10 | Fase 11 (IA de plataforma) | Autocomplete, Copilot, AI Debugger, Cost Optimizer — marcados `@ai` | pendente |
 | 11 | Busca global / Scheduler | Ctrl+K, agendamento cron de fluxo | pendente |
