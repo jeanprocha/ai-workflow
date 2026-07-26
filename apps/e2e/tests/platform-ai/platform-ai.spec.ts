@@ -149,6 +149,10 @@ test.describe("Caminhos felizes com IA real", () => {
     context,
     request,
   }) => {
+    // Default de 30s do Playwright e menor que a soma dos timeouts das
+    // proprias asserções abaixo (60s + 30s) — sem isso o teste sempre falha
+    // por timeout global antes do LLM responder.
+    test.setTimeout(120_000);
     const apiKey = process.env.E2E_ANTHROPIC_KEY;
     test.skip(!apiKey, "E2E_ANTHROPIC_KEY nao definida — teste de IA real pulado.");
 
@@ -170,8 +174,9 @@ test.describe("Caminhos felizes com IA real", () => {
 
     await page.getByRole("button", { name: "Diagnosticar com IA" }).click();
     const dialog = page.getByRole("dialog");
-    await dialog.getByLabel("Modelo").fill("claude-haiku-4-5-20251001");
-    await dialog.getByLabel("Conexao (credential)").fill("anthropic-e2e");
+    // Modelo/Conexao sao <select> (ProviderModelFields), nao input de texto.
+    await dialog.getByLabel("Modelo").selectOption("claude-haiku-4-5-20251001");
+    await dialog.getByLabel("Conexao (credential)").selectOption("anthropic-e2e");
     await dialog.getByRole("button", { name: "Diagnosticar" }).click();
 
     await expect(dialog.getByText("Possivel causa")).toBeVisible({ timeout: 60_000 });

@@ -59,10 +59,9 @@ export const anthropicProvider: AIProvider = {
     const systemMessages = options.messages.filter((m) => m.role === "system");
     const conversation = options.messages.filter((m) => m.role !== "system");
 
-    const response = await client.messages.create({
+    const baseRequest: Omit<Anthropic.MessageCreateParamsNonStreaming, "temperature"> = {
       model: options.model,
       max_tokens: options.maxTokens ?? 4096,
-      temperature: options.temperature,
       system: systemMessages.map((m) => m.content).join("\n\n") || undefined,
       messages: conversation.map(toAnthropicMessage),
       tools: options.tools?.map((tool) => ({
@@ -71,9 +70,28 @@ export const anthropicProvider: AIProvider = {
         input_schema: tool.parameters as Anthropic.Tool.InputSchema,
       })),
       output_config: options.outputSchema
-        ? { format: { type: "json_schema", schema: toStrictJsonSchema(options.outputSchema) as Record<string, unknown> } }
+        ? { format: { type: "json_schema" as const, schema: toStrictJsonSchema(options.outputSchema) as Record<string, unknown> } }
         : undefined,
-    });
+    };
+
+    let response: Anthropic.Message;
+    try {
+      response = await client.messages.create({ ...baseRequest, temperature: options.temperature });
+    } catch (error) {
+      // Modelos mais novos (ex. claude-sonnet-5) nao aceitam customizar
+      // temperature — a API responde 400 "temperature is deprecated for
+      // this model". Refaz sem o parametro em vez de propagar o erro (500)
+      // pro usuario por causa de um valor default (0.7) que ele nem
+      // escolheu explicitamente.
+      const isTemperatureDeprecated =
+        options.temperature !== undefined &&
+        error instanceof Anthropic.APIError &&
+        error.status === 400 &&
+        error.message.includes("temperature") &&
+        error.message.includes("deprecated");
+      if (!isTemperatureDeprecated) throw error;
+      response = await client.messages.create(baseRequest);
+    }
 
     let content = "";
     const toolCalls: ToolCall[] = [];

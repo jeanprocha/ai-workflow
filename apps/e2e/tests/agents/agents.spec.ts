@@ -281,6 +281,10 @@ test.describe("Agents (via UI)", () => {
     context,
     request,
   }) => {
+    // Default de 30s do Playwright e menor que o timeout de 60s da propria
+    // asserção abaixo — sem isso o teste sempre falha por timeout global
+    // antes do LLM responder, independente da IA estar rapida ou não.
+    test.setTimeout(90_000);
     const apiKey = process.env.E2E_ANTHROPIC_KEY;
     test.skip(!apiKey, "E2E_ANTHROPIC_KEY nao definida — teste de IA real pulado.");
 
