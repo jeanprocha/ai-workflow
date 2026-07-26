@@ -4,6 +4,9 @@ export const pt = {
     description: "Historico de execucoes dos seus fluxos.",
     allFlows: "Todos os fluxos",
     allStatuses: "Todos os status",
+    /** aria-label dos selects de filtro — nenhum dos dois tem <label>. */
+    workflowFilterAria: "Filtrar por fluxo",
+    statusFilterAria: "Filtrar por status",
     searchPlaceholder: "Buscar por nome do fluxo...",
     emptyTitle: "Nenhuma execucao ainda",
     emptyDescription: "Execute um fluxo para ver o historico aqui.",
@@ -19,7 +22,7 @@ export const pt = {
     replayTag: "(replay)",
     retry: "Reexecutar",
     paginationSummary: (total: number, page: number, totalPages: number) =>
-      `${total} execucao${total === 1 ? "" : "es"} · pagina ${page} de ${totalPages}`,
+      `${total} execu${total === 1 ? "cao" : "coes"} · pagina ${page} de ${totalPages}`,
     previous: "Anterior",
     next: "Proxima",
     retryQueuedToast: "Nova execucao enfileirada.",
@@ -48,6 +51,8 @@ export const pt = {
     replayDialogDescription:
       "Os nodes anteriores nao serao re-executados — seus outputs originais serao reaproveitados. Ajuste o input abaixo e confirme.",
     replayInvalidJsonToast: "Input invalido: precisa ser JSON valido.",
+    /** aria-label da textarea — sem label, sem placeholder. */
+    replayInputAria: "Input do replay (JSON)",
     replaySending: "Enviando...",
     replaySubmit: "Rodar replay",
     replayQueuedToast: "Replay parcial enfileirado.",
@@ -81,6 +86,8 @@ export const en = {
     description: "History of your flow executions.",
     allFlows: "All flows",
     allStatuses: "All statuses",
+    workflowFilterAria: "Filter by flow",
+    statusFilterAria: "Filter by status",
     searchPlaceholder: "Search by flow name...",
     emptyTitle: "No executions yet",
     emptyDescription: "Run a flow to see its history here.",
@@ -125,6 +132,7 @@ export const en = {
     replayDialogDescription:
       "Previous nodes will not be re-run — their original outputs will be reused. Adjust the input below and confirm.",
     replayInvalidJsonToast: "Invalid input: must be valid JSON.",
+    replayInputAria: "Replay input (JSON)",
     replaySending: "Sending...",
     replaySubmit: "Run replay",
     replayQueuedToast: "Partial replay queued.",

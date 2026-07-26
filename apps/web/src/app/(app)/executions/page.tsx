@@ -62,6 +62,7 @@ export default function ExecutionsPage() {
 
       <div className="flex flex-wrap items-center gap-2">
         <select
+          aria-label={t.executions.list.workflowFilterAria}
           value={filters.workflowId ?? ""}
           onChange={(event) => updateFilter({ workflowId: event.target.value || undefined })}
           className="h-8 rounded-md border border-border bg-background px-2.5 text-sm text-foreground"
@@ -75,6 +76,7 @@ export default function ExecutionsPage() {
         </select>
 
         <select
+          aria-label={t.executions.list.statusFilterAria}
           value={filters.status ?? ""}
           onChange={(event) => updateFilter({ status: event.target.value || undefined })}
           className="h-8 rounded-md border border-border bg-background px-2.5 text-sm text-foreground"

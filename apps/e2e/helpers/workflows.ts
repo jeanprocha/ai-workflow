@@ -91,6 +91,82 @@ export const DELAY_GRAPH = {
   viewport: { x: 0, y: 0, zoom: 1 },
 };
 
+/** trigger.manual -> api.httpRequest pra uma porta discard (connection refused em ~5ms) — unica forma deterministica de produzir execucao "failed". */
+export const FAILING_GRAPH = {
+  nodes: [
+    ...TWO_NODE_GRAPH.nodes.slice(0, 1),
+    {
+      id: "n2",
+      type: "api.httpRequest",
+      category: "api",
+      label: "HTTP Request",
+      position: { x: 320, y: 0 },
+      config: { method: "GET", url: "http://127.0.0.1:9", headers: {}, timeoutMs: 3000 },
+    },
+  ],
+  edges: [{ id: "e1", source: "n1", target: "n2" }],
+  viewport: { x: 0, y: 0, zoom: 1 },
+};
+
+export interface ExecutionSummary {
+  id: string;
+  workflowId: string;
+  versionId: string;
+  status: "queued" | "running" | "success" | "failed" | "canceled";
+  triggerType: string;
+  parentExecutionId: string | null;
+  [key: string]: unknown;
+}
+
+export async function runWorkflowViaApi(
+  request: APIRequestContext,
+  tokens: AuthTokens,
+  workspaceId: string,
+  workflowId: string,
+  input: Record<string, unknown> = {},
+): Promise<ExecutionSummary> {
+  const response = await request.post(`${API_URL}/workflows/${workflowId}/run`, {
+    headers: workspaceHeaders(tokens, workspaceId),
+    data: { input },
+  });
+  if (!response.ok()) {
+    throw new Error(`runWorkflowViaApi falhou (${response.status()})`);
+  }
+  return response.json() as Promise<ExecutionSummary>;
+}
+
+export async function waitForExecutionStatus(
+  request: APIRequestContext,
+  tokens: AuthTokens,
+  workspaceId: string,
+  executionId: string,
+  status: ExecutionSummary["status"],
+  // Generoso de proposito: a fila de execucoes roda com concurrency=5
+  // (EXECUTIONS_CONCURRENCY), e a suite completa dispara dezenas de
+  // execucoes em paralelo (4 workers do Playwright) — sob essa contencao um
+  // job pode ficar mais de 15s na fila antes do worker pegar, mesmo sendo
+  // rapido pra processar.
+  timeoutMs = 30_000,
+): Promise<ExecutionSummary> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const response = await request.get(`${API_URL}/executions/${executionId}`, {
+      headers: workspaceHeaders(tokens, workspaceId),
+    });
+    if (!response.ok()) {
+      throw new Error(`waitForExecutionStatus falhou (${response.status()})`);
+    }
+    const execution = (await response.json()) as ExecutionSummary;
+    if (execution.status === status) return execution;
+    if (Date.now() > deadline) {
+      throw new Error(
+        `waitForExecutionStatus timeout: esperava "${status}", ultimo status foi "${execution.status}"`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+}
+
 export async function createWorkflowViaApi(
   request: APIRequestContext,
   tokens: AuthTokens,

@@ -14,6 +14,7 @@ import { ListExecutionsQueryDto } from './dto/list-executions-query.dto';
 import { ReplayExecutionDto } from './dto/replay-execution.dto';
 import { WorkspaceGuard } from '../workspaces/guards/workspace.guard';
 import { CurrentWorkspace } from '../workspaces/decorators/current-workspace.decorator';
+import { ExecutionOwnershipGuard } from './guards/execution-ownership.guard';
 
 @Controller('executions')
 @UseGuards(WorkspaceGuard)
@@ -50,13 +51,12 @@ export class ExecutionsController {
     return this.executionsService.replay(workspaceId, id, dto);
   }
 
+  // A checagem de posse do workspace fica no guard (nao aqui) — uma vez que
+  // o handler de uma rota @Sse() roda, o Nest ja comitou os headers da
+  // resposta (200 + text/event-stream) e nao ha mais como devolver 404.
+  @UseGuards(ExecutionOwnershipGuard)
   @Sse(':id/stream')
-  async stream(
-    @CurrentWorkspace() workspaceId: string,
-    @Param('id') id: string,
-  ) {
-    // Garante que a execucao pertence ao workspace antes de abrir o stream (evita IDOR).
-    await this.executionsService.findOne(workspaceId, id);
+  stream(@Param('id') id: string) {
     return this.events.toObservable(id);
   }
 }

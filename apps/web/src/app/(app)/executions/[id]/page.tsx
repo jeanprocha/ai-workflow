@@ -243,6 +243,7 @@ function ReplayFromNodeDialog({
         <Textarea
           rows={10}
           className="font-mono text-xs"
+          aria-label={t.executions.detail.replayInputAria}
           value={inputText}
           onChange={(event) => setInputText(event.target.value)}
         />
@@ -296,9 +297,20 @@ export default function ExecutionDetailPage({
     );
   }
 
+  // liveLogs (SSE) e execution.logs (poll REST a cada 2s enquanto ao vivo)
+  // sao duas fontes independentes do MESMO historico — sem dedupe, um log
+  // que o SSE ja mostrou reaparece duplicado assim que o proximo poll REST
+  // traz a mesma linha do banco. Chave por conteudo (nodeId+event+payload),
+  // nao por id (liveLogs nao tem id de banco).
+  const restLogKeys = new Set(
+    execution.logs.map((log) => `${log.nodeId}|${log.event}|${JSON.stringify(log.payload)}`),
+  );
+  const dedupedLiveLogs = liveLogs.filter(
+    (log) => !restLogKeys.has(`${log.nodeId}|${log.event}|${JSON.stringify(log.payload)}`),
+  );
   const allLogs: Array<{ nodeId: string | null; event: string; payload?: unknown }> = [
     ...execution.logs,
-    ...liveLogs,
+    ...dedupedLiveLogs,
   ];
 
   return (

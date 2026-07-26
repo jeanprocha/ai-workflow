@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ExecutionsController } from './executions.controller';
 import { ExecutionsService } from './executions.service';
+import { ExecutionOwnershipGuard } from './guards/execution-ownership.guard';
 import { QueueModule } from '../queue/queue.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 
@@ -11,7 +12,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 @Module({
   imports: [QueueModule, WorkspacesModule],
   controllers: [ExecutionsController],
-  providers: [ExecutionsService],
+  providers: [ExecutionsService, ExecutionOwnershipGuard],
   exports: [ExecutionsService],
 })
 export class ExecutionsModule {}
