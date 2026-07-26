@@ -19,6 +19,8 @@ export const pt = {
     rename: "Renomear",
     archive: "Arquivar",
     activate: "Ativar",
+    /** Prefixo do aria-label do trigger do menu — concatenado com o nome do fluxo. */
+    triggerAria: "Acoes do fluxo",
   },
   toasts: {
     created: "Fluxo criado.",
@@ -81,6 +83,7 @@ export const en = {
     rename: "Rename",
     archive: "Archive",
     activate: "Activate",
+    triggerAria: "Flow actions",
   },
   toasts: {
     created: "Flow created.",

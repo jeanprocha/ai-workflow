@@ -313,6 +313,11 @@ function DeleteFlowDialog({
       toast.success(t.flows.toasts.deleted);
     } catch (error) {
       toast.error(errorMessage(error, t.flows.toasts.deleteError));
+    } finally {
+      // O open e controlado por deleteTarget no pai — sem este reset o
+      // dialog ficava preso aberto (com o nome do fluxo ja excluido) apos
+      // confirmar. Mesmo padrao do delete em Settings. Pego pela suite E2E.
+      onOpenChange(false);
     }
   }
 
@@ -417,7 +422,13 @@ export default function FlowsPage() {
                 <div onClick={(event) => event.preventDefault()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger
-                      render={<Button variant="ghost" size="icon-sm" />}
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`${t.flows.menu.triggerAria} ${workflow.name}`}
+                        />
+                      }
                     >
                       <MoreHorizontal className="h-4 w-4" strokeWidth={1.5} />
                     </DropdownMenuTrigger>
