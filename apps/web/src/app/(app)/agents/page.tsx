@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CredentialSelect } from "@/components/credential-select";
 import {
   Dialog,
   DialogContent,
@@ -180,15 +181,12 @@ function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange
               />
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="agent-credential">{t.agents.form.credentialLabel}</Label>
-            <Input
-              id="agent-credential"
-              value={form.credential}
-              onChange={(event) => setForm({ ...form, credential: event.target.value })}
-              placeholder={t.agents.form.credentialPlaceholder}
-            />
-          </div>
+          <CredentialSelect
+            id="agent-credential"
+            label={t.agents.form.credentialLabel}
+            value={form.credential ?? ""}
+            onChange={(value) => setForm({ ...form, credential: value })}
+          />
           <div className="space-y-1.5">
             <Label>{t.agents.form.toolsLabel}</Label>
             <div className="flex flex-wrap gap-3">

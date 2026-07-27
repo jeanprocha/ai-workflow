@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CredentialSelect } from "@/components/credential-select";
 import {
   Dialog,
   DialogContent,
@@ -89,16 +90,13 @@ function CreateKnowledgeBaseDialog({
               onChange={(event) => setForm({ ...form, description: event.target.value })}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-credential">{t.knowledge.list.credentialLabel}</Label>
-            <Input
-              id="kb-credential"
-              value={form.credential}
-              onChange={(event) => setForm({ ...form, credential: event.target.value })}
-              placeholder={t.knowledge.list.credentialPlaceholder}
-            />
-            <p className="text-xs text-muted-foreground">{t.knowledge.list.embeddingsHint}</p>
-          </div>
+          <CredentialSelect
+            id="kb-credential"
+            label={t.knowledge.list.credentialLabel}
+            hint={t.knowledge.list.embeddingsHint}
+            value={form.credential ?? ""}
+            onChange={(value) => setForm({ ...form, credential: value })}
+          />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

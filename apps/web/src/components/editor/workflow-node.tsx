@@ -85,6 +85,21 @@ function outputHandleColor(output: string): string {
   return "!bg-primary";
 }
 
+/**
+ * Rotulo exibido pra cada saida do node. O Switch tem so 4 casos + default
+ * fixos no catalogo (["0","1","2","3","default"]) — "0".."3" sozinhos nao
+ * dizem nada sobre o que aquele caminho testa, entao mostramos o valor do
+ * caso configurado (ex.: "SP") em vez do indice cru, quando existir.
+ */
+function outputLabel(nodeType: string, output: string, config: Record<string, unknown>): string {
+  if (nodeType === "logic.switch" && output !== "default") {
+    const cases = (config.cases as unknown[]) ?? [];
+    const caseValue = cases[Number(output)];
+    if (typeof caseValue === "string" && caseValue.trim() !== "") return caseValue;
+  }
+  return output;
+}
+
 function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) {
   const dict = useDictionary();
   const t = dict.editor.workflowNode;
@@ -92,6 +107,12 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) 
   const isTrigger = data.category === "trigger";
   const outputs = entry?.outputs ?? ["default"];
   const subtitle = subtitleFor(data.nodeType, data.config, t);
+  // Os rotulos de saida ficam num container `absolute inset-y-1.5` que cobre
+  // quase a altura inteira do card (ver abaixo) — sem altura minima
+  // proporcional ao numero deles, um card so com header (~36px, sem
+  // subtitulo) nao cabe os ~16px por rotulo que 4-5 saidas precisam, e o
+  // texto vaza por baixo da borda.
+  const minHeight = outputs.length > 1 ? outputs.length * 18 + 16 : undefined;
 
   return (
     <div
@@ -103,6 +124,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) 
             ? "border-primary"
             : "border-border")
       }
+      style={minHeight ? { minHeight: `${minHeight}px` } : undefined}
     >
       {!isTrigger && <Handle type="target" position={Position.Left} className="!bg-border-strong" />}
 
@@ -143,12 +165,19 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) 
               className={outputHandleColor(output)}
             />
           ))}
-          <div className="pointer-events-none absolute inset-y-1.5 right-2.5 flex flex-col justify-between">
-            {outputs.map((output) => (
-              <span key={output} className="font-mono text-xs leading-none text-muted-foreground">
-                {output}
-              </span>
-            ))}
+          <div className="pointer-events-none absolute inset-y-1.5 right-2.5 flex max-w-[64px] flex-col justify-between">
+            {outputs.map((output) => {
+              const label = outputLabel(data.nodeType, output, data.config);
+              return (
+                <span
+                  key={output}
+                  title={label}
+                  className="truncate font-mono text-xs leading-none text-muted-foreground"
+                >
+                  {label}
+                </span>
+              );
+            })}
           </div>
         </>
       )}

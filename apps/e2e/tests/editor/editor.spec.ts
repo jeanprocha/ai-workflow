@@ -439,3 +439,63 @@ test.describe("Editor — Copilot (dialog raso, sem chamada real de IA)", () => 
     await expect(dialog.getByLabel("Enviar mensagem")).toBeVisible();
   });
 });
+
+test.describe("Editor — node Switch", () => {
+  test("5 saidas com um caso longo: rotulos ficam dentro do card, sem vazar", async ({
+    page,
+    context,
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Switch Overflow");
+    const longCase = "Regiao-Metropolitana-Sao-Paulo-Extremo-Sul-Litoral";
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, {
+      nodes: [
+        {
+          id: "n1",
+          type: "trigger.manual",
+          category: "trigger",
+          label: "Manual Trigger",
+          position: { x: 0, y: 0 },
+          config: {},
+        },
+        {
+          id: "n2",
+          type: "logic.switch",
+          category: "logic",
+          label: "Switch",
+          position: { x: 320, y: 0 },
+          config: { value: "{{ $input.regiao }}", cases: [longCase, "RJ", "MG", "BA"] },
+        },
+      ],
+      edges: [{ id: "e1", source: "n1", target: "n2" }],
+      viewport: { x: 0, y: 0, zoom: 1 },
+    });
+    await authenticateContext(context, await buildStorageState(request, tokens));
+
+    await page.goto(`/flows/${workflow.id}`);
+
+    const card = page.locator('[data-testid="rf__node-n2"]');
+    await expect(card).toBeVisible();
+    const cardBox = await card.boundingBox();
+    expect(cardBox).not.toBeNull();
+
+    // Os 5 rotulos de saida (0/1/2/3/default) — os 4 primeiros mostram o
+    // valor do caso configurado, nao o indice cru (ver outputLabel() em
+    // workflow-node.tsx); o mais longo vem com title pro texto inteiro.
+    const labels = card.locator("span.truncate.font-mono");
+    await expect(labels).toHaveCount(5);
+    await expect(labels.first()).toHaveAttribute("title", longCase);
+
+    for (let i = 0; i < 5; i += 1) {
+      const labelBox = await labels.nth(i).boundingBox();
+      expect(labelBox).not.toBeNull();
+      // Cada rotulo precisa caber inteiro dentro da altura do card — antes
+      // da altura minima proporcional ao numero de saidas, era exatamente
+      // isso que vazava por baixo da borda com 5 saidas.
+      expect(labelBox!.y).toBeGreaterThanOrEqual(cardBox!.y - 0.5);
+      expect(labelBox!.y + labelBox!.height).toBeLessThanOrEqual(cardBox!.y + cardBox!.height + 0.5);
+    }
+  });
+});

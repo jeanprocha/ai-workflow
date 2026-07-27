@@ -88,6 +88,9 @@ export const pt = {
     },
     credential: {
       label: "Conexão",
+      none: "Nenhuma",
+      orphan: (name: string) => `${name} (conexão não encontrada)`,
+      empty: "Nenhuma conexão no workspace ainda — crie uma em Configurações.",
     },
     github: {
       credentialHint: "Nome da conexão (Personal Access Token) do GitHub.",
@@ -342,6 +345,9 @@ export const en = {
     },
     credential: {
       label: "Connection",
+      none: "None",
+      orphan: (name: string) => `${name} (connection not found)`,
+      empty: "No connections in this workspace yet — create one in Settings.",
     },
     github: {
       credentialHint: "GitHub connection name (Personal Access Token).",

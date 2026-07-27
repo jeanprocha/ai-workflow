@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CredentialSelect } from "@/components/credential-select";
 import { getCatalogEntry } from "@/lib/node-catalog";
 import { getNodeIcon } from "@/lib/node-icons";
 import { usePreviewCron } from "@/hooks/use-scheduler";
@@ -217,12 +218,13 @@ function HttpRequestFields({
           {t.http.advanced}
         </summary>
         <div className="space-y-4 border-t border-border p-3">
-          <Field label={t.http.credentialLabel} hint={t.http.credentialHint}>
-            <Input
-              value={(config.credential as string) ?? ""}
-              onChange={(event) => onChange({ ...config, credential: event.target.value })}
-            />
-          </Field>
+          <CredentialSelect
+            id="http-credential"
+            label={t.http.credentialLabel}
+            hint={t.http.credentialHint}
+            value={(config.credential as string) ?? ""}
+            onChange={(value) => onChange({ ...config, credential: value })}
+          />
 
           <Field label={t.http.queryLabel}>
             <KeyValueList
@@ -669,7 +671,15 @@ function CredentialField({
   hint: string;
 }) {
   const t = useDictionary().editor.configPanel;
-  return <TextField config={config} onChange={onChange} field="credential" label={t.credential.label} hint={hint} />;
+  return (
+    <CredentialSelect
+      id="node-credential"
+      label={t.credential.label}
+      hint={hint}
+      value={(config.credential as string) ?? ""}
+      onChange={(value) => onChange({ ...config, credential: value })}
+    />
+  );
 }
 
 function GithubFields({

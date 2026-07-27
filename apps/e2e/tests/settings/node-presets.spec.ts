@@ -6,7 +6,7 @@ import {
   buildStorageState,
   authenticateContext,
 } from "../../helpers/auth";
-import { fetchWorkspaceId, workspaceHeaders } from "../../helpers/settings";
+import { fetchWorkspaceId, workspaceHeaders, createCredentialViaApi } from "../../helpers/settings";
 import { createWorkflowViaApi, saveGraphViaApi } from "../../helpers/workflows";
 
 /**
@@ -120,6 +120,14 @@ test.describe("Predefinicoes de node (UI)", () => {
       edges: [{ id: "e1", source: "n1", target: "n2" }],
       viewport: { x: 0, y: 0, zoom: 1 },
     });
+    // Conexao selecionada num <select> (CredentialSelect) precisa existir de
+    // verdade — ao contrario do <input> de texto livre de antes, nao da pra
+    // so digitar um nome que nao existe.
+    await createCredentialViaApi(request, tokens, workspaceId, {
+      provider: "custom",
+      name: "minha-conexao-e2e",
+      value: "qualquer-coisa",
+    });
     await authenticateContext(context, await buildStorageState(request, tokens));
 
     await page.goto(`/flows/${workflow.id}`);
@@ -129,7 +137,7 @@ test.describe("Predefinicoes de node (UI)", () => {
     await page.locator('[data-testid="rf__node-n2"]').click();
     const panelN2 = page.locator("aside").last();
     await panelN2.getByText("Avançado").click();
-    await panelN2.getByLabel("Conexão").fill("minha-conexao-e2e");
+    await panelN2.getByLabel("Conexão").selectOption({ label: "minha-conexao-e2e" });
 
     await panelN2.getByRole("button", { name: "Salvar como predefinição" }).click();
     const dialog = page.getByRole("dialog");
