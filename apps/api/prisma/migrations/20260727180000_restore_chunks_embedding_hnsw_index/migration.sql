@@ -1,0 +1,28 @@
+-- Recria o indice HNSW de busca vetorial em chunks.embedding, dropado sem
+-- querer na migration 20260725193432_ai_suggestion_telemetry.
+--
+-- Causa raiz (ver comentario acima do model Chunk em schema.prisma): a
+-- coluna `embedding` e Unsupported("vector(1536)") porque o Prisma nao tem
+-- tipo nativo pra pgvector, e por isso tambem nao consegue representar um
+-- indice HNSW em cima dela no schema. `prisma migrate dev`/`diff` enxerga
+-- esse indice como "drift" (existe no banco, nao no schema) e gera um DROP
+-- INDEX automatico em QUALQUER migration nova — foi exatamente isso que
+-- aconteceu em 20260725193432 (primeira linha do arquivo), sem nenhuma
+-- migration posterior recriando. Todo banco que rodar a sequencia completa
+-- de migrations — dev novo, staging, producao — fica sem o indice: a busca
+-- semantica da base de conhecimento continua funcionando (o pgvector aceita
+-- a query sem indice), so que com varredura sequencial em vez de HNSW.
+--
+-- `IF NOT EXISTS` torna esta migration segura tanto pra quem nunca teve o
+-- indice quanto pra quem (por precaucao manual, seguindo o aviso do
+-- schema.prisma) ja o recriou antes desta migration existir.
+--
+-- Aviso operacional para producao: CREATE INDEX comum toma lock exclusivo
+-- de escrita na tabela `chunks` durante a criacao — numa tabela grande isso
+-- bloqueia ingestao de novos documentos enquanto o indice e construido.
+-- CREATE INDEX CONCURRENTLY evitaria o lock, mas nao roda dentro da
+-- transacao que `prisma migrate deploy` usa. Se o volume de producao
+-- justificar, crie o indice manualmente (fora do migrate deploy, com
+-- CONCURRENTLY) antes de rodar esta migration la — o IF NOT EXISTS faz o
+-- `migrate deploy` so confirmar que ja existe, sem tentar recriar.
+CREATE INDEX IF NOT EXISTS "chunks_embedding_hnsw_idx" ON "chunks" USING hnsw ("embedding" vector_cosine_ops);
