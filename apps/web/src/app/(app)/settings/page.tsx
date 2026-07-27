@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { EmptyState } from "@workflow/ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,10 @@ import {
   useCreateCredential,
   useCredentials,
   useDeleteCredential,
+  useUpdateCredential,
+  type CredentialFieldInput,
+  type CredentialFieldType,
+  type CredentialSummary,
 } from "@/hooks/use-credentials";
 import { useCreateVariable, useDeleteVariable, useVariables } from "@/hooks/use-variables";
 import { useCreateNodePreset, useDeleteNodePreset, useNodePresets } from "@/hooks/use-node-presets";
@@ -73,28 +77,169 @@ function SettingsSection({
   );
 }
 
+function CredentialFieldsEditor({
+  fields,
+  onChange,
+}: {
+  fields: CredentialFieldInput[];
+  onChange: (next: CredentialFieldInput[]) => void;
+}) {
+  const t = useDictionary();
+  const c = t.settings.connections;
+
+  function update(index: number, patch: Partial<CredentialFieldInput>) {
+    onChange(fields.map((field, i) => (i === index ? { ...field, ...patch } : field)));
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {fields.map((field, index) => (
+        <div key={index} className="flex gap-1.5">
+          <Input
+            value={field.key}
+            onChange={(event) => update(index, { key: event.target.value })}
+            placeholder={c.fieldKeyPlaceholder}
+            className="flex-1"
+          />
+          <select
+            aria-label={`${c.fieldTypeAria} ${field.key || index + 1}`}
+            value={field.type}
+            onChange={(event) =>
+              update(index, { type: event.target.value as CredentialFieldType })
+            }
+            className="h-8 shrink-0 rounded-md border border-border bg-background px-2 text-sm"
+          >
+            <option value="text">{c.fieldTypeText}</option>
+            <option value="number">{c.fieldTypeNumber}</option>
+            <option value="boolean">{c.fieldTypeBoolean}</option>
+          </select>
+          <Input
+            type="password"
+            value={field.value}
+            onChange={(event) => update(index, { value: event.target.value })}
+            placeholder={c.fieldValuePlaceholder}
+            className="flex-1"
+          />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`${c.removeFieldAria} ${field.key || index + 1}`}
+            onClick={() => onChange(fields.filter((_, i) => i !== index))}
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+          </Button>
+        </div>
+      ))}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onChange([...fields, { key: "", value: "", type: "text" }])}
+      >
+        <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+        {c.addField}
+      </Button>
+    </div>
+  );
+}
+
+/** Resumo mascarado de uma conexao na lista, conforme o formato. */
+function credentialSummaryLine(
+  credential: CredentialSummary,
+  moreFields: (count: number) => string,
+): string {
+  if (credential.kind !== "fields") {
+    return `${credential.provider} · ••••${credential.lastFour ?? ""}`;
+  }
+  const keys = (credential.fieldsMeta ?? []).map((field) => field.key);
+  const shown = keys.slice(0, 4).join(", ");
+  const rest = keys.length - 4;
+  return `${credential.provider} · ${shown}${rest > 0 ? `, ${moreFields(rest)}` : ""}`;
+}
+
 function ConnectionsSection() {
   const t = useDictionary();
+  const c = t.settings.connections;
   const { data: credentials, isLoading } = useCredentials();
   const createCredential = useCreateCredential();
+  const updateCredential = useUpdateCredential();
   const deleteCredential = useDeleteCredential();
   const [open, setOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  /** Conexao em edicao — `null` significa "criando uma nova". */
+  const [editing, setEditing] = useState<CredentialSummary | null>(null);
   const [provider, setProvider] = useState("");
   const [name, setName] = useState("");
+  const [kind, setKind] = useState<"secret" | "fields">("secret");
   const [value, setValue] = useState("");
+  const [fields, setFields] = useState<CredentialFieldInput[]>([]);
 
-  async function onCreate() {
-    if (!provider.trim() || !name.trim() || !value.trim()) return;
+  function resetForm() {
+    setProvider("");
+    setName("");
+    setKind("secret");
+    setValue("");
+    setFields([]);
+    setEditing(null);
+  }
+
+  function openCreate() {
+    resetForm();
+    setOpen(true);
+  }
+
+  function openEdit(credential: CredentialSummary) {
+    setEditing(credential);
+    setProvider(credential.provider);
+    setName(credential.name);
+    setKind(credential.kind);
+    setValue("");
+    // Chaves e TIPOS vem preenchidos; valores sempre em branco — o segredo
+    // salvo nunca volta pro navegador. Sem carregar o tipo junto, editar
+    // rebaixaria silenciosamente um campo numerico pra texto.
+    setFields(
+      (credential.fieldsMeta ?? []).map((field) => ({ ...field, value: "" })),
+    );
+    setOpen(true);
+  }
+
+  const filledFields = fields.filter((field) => field.key.trim());
+  // Em edicao, deixar tudo em branco e valido: significa "mantenha o segredo".
+  const secretReady = editing
+    ? true
+    : kind === "secret"
+      ? !!value.trim()
+      : filledFields.length > 0 && filledFields.every((field) => field.value);
+  const canSubmit = !!provider.trim() && !!name.trim() && secretReady;
+
+  async function onSubmit() {
+    if (!canSubmit) return;
+    const base = { provider: provider.trim(), name: name.trim() };
+    // Em edicao, so manda o segredo se o usuario realmente digitou algo.
+    const touchedSecret =
+      kind === "secret" ? !!value.trim() : filledFields.some((field) => field.value);
+    const secret =
+      kind === "secret"
+        ? ({ kind: "secret", value } as const)
+        : ({ kind: "fields", fields: filledFields } as const);
+
     try {
-      await createCredential.mutateAsync({ provider: provider.trim(), name: name.trim(), value });
-      toast.success(t.settings.connections.createdToast);
-      setProvider("");
-      setName("");
-      setValue("");
+      if (editing) {
+        await updateCredential.mutateAsync({
+          id: editing.id,
+          ...base,
+          ...(touchedSecret ? secret : {}),
+        });
+        toast.success(c.updatedToast);
+      } else {
+        await createCredential.mutateAsync({ ...base, ...secret });
+        toast.success(c.createdToast);
+      }
+      resetForm();
       setOpen(false);
     } catch (error) {
-      toast.error(errorMessage(error, t.settings.connections.createErrorFallback));
+      toast.error(
+        errorMessage(error, editing ? c.updateErrorFallback : c.createErrorFallback),
+      );
     }
   }
 
@@ -102,9 +247,9 @@ function ConnectionsSection() {
     if (!deleteId) return;
     try {
       await deleteCredential.mutateAsync(deleteId);
-      toast.success(t.settings.connections.removedToast);
+      toast.success(c.removedToast);
     } catch (error) {
-      toast.error(errorMessage(error, t.settings.connections.removeErrorFallback));
+      toast.error(errorMessage(error, c.removeErrorFallback));
     } finally {
       setDeleteId(null);
     }
@@ -112,15 +257,17 @@ function ConnectionsSection() {
 
   if (isLoading) return <Skeleton className="h-16 rounded-lg" />;
 
+  const pending = createCredential.isPending || updateCredential.isPending;
+
   return (
     <>
       {!credentials?.length ? (
         <EmptyState
-          title={t.settings.connections.emptyTitle}
-          description={t.settings.connections.emptyDescription}
+          title={c.emptyTitle}
+          description={c.emptyDescription}
           action={
-            <Button size="sm" onClick={() => setOpen(true)}>
-              {t.settings.connections.add}
+            <Button size="sm" onClick={openCreate}>
+              {c.add}
             </Button>
           }
         />
@@ -129,70 +276,120 @@ function ConnectionsSection() {
           {credentials.map((credential) => (
             <div
               key={credential.id}
-              className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+              className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
             >
-              <div>
-                <p className="text-sm font-medium text-foreground">{credential.name}</p>
-                <p className="font-mono text-xs text-muted-foreground">
-                  {credential.provider} · ••••{credential.lastFour}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{credential.name}</p>
+                <p className="truncate font-mono text-xs text-muted-foreground">
+                  {credentialSummaryLine(credential, c.moreFields)}
                 </p>
               </div>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`${t.settings.connections.removeAria} ${credential.name}`}
-                onClick={() => setDeleteId(credential.id)}
-              >
-                <Trash2 className="h-4 w-4" strokeWidth={1.5} />
-              </Button>
+              <div className="flex shrink-0 items-center">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`${c.editAria} ${credential.name}`}
+                  onClick={() => openEdit(credential)}
+                >
+                  <Pencil className="h-4 w-4" strokeWidth={1.5} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`${c.removeAria} ${credential.name}`}
+                  onClick={() => setDeleteId(credential.id)}
+                >
+                  <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+                </Button>
+              </div>
             </div>
           ))}
-          <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-            {t.settings.connections.add}
+          <Button size="sm" variant="outline" onClick={openCreate}>
+            {c.add}
           </Button>
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) resetForm();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t.settings.connections.dialogTitle}</DialogTitle>
+            <DialogTitle>{editing ? c.editDialogTitle : c.dialogTitle}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="cred-provider">{t.settings.connections.providerLabel}</Label>
+              <Label htmlFor="cred-provider">{c.providerLabel}</Label>
               <Input
                 id="cred-provider"
-                placeholder={t.settings.connections.providerPlaceholder}
+                placeholder={c.providerPlaceholder}
                 value={provider}
                 onChange={(event) => setProvider(event.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cred-name">{t.settings.connections.nameLabel}</Label>
+              <Label htmlFor="cred-name">{c.nameLabel}</Label>
               <Input
                 id="cred-name"
-                placeholder={t.settings.connections.namePlaceholder}
+                placeholder={c.namePlaceholder}
                 value={name}
                 onChange={(event) => setName(event.target.value)}
               />
             </div>
+
             <div className="space-y-1.5">
-              <Label htmlFor="cred-value">{t.settings.connections.valueLabel}</Label>
-              <Input
-                id="cred-value"
-                type="password"
-                value={value}
-                onChange={(event) => setValue(event.target.value)}
-              />
+              <Label htmlFor="cred-kind">{c.kindLabel}</Label>
+              <select
+                id="cred-kind"
+                value={kind}
+                onChange={(event) => setKind(event.target.value as "secret" | "fields")}
+                className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm"
+              >
+                <option value="secret">{c.kindSecret}</option>
+                <option value="fields">{c.kindFields}</option>
+              </select>
+              <p className="text-xs text-muted-foreground">
+                {kind === "secret" ? c.kindSecretHint : c.kindFieldsHint}
+              </p>
             </div>
+
+            {editing && <p className="text-xs text-muted-foreground">{c.editReplacesSecret}</p>}
+
+            {kind === "secret" ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="cred-value">{c.valueLabel}</Label>
+                <Input
+                  id="cred-value"
+                  type="password"
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                />
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label>{c.fieldsLabel}</Label>
+                <CredentialFieldsEditor fields={fields} onChange={setFields} />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               {t.common.cancel}
             </Button>
-            <Button onClick={onCreate} disabled={createCredential.isPending}>
-              {createCredential.isPending ? t.common.adding : t.common.add}
+            {/* Desabilitado ate os obrigatorios estarem preenchidos — antes o
+                submit era um no-op silencioso, sem nenhum feedback do que faltava. */}
+            <Button onClick={onSubmit} disabled={pending || !canSubmit}>
+              {pending
+                ? editing
+                  ? t.common.saving
+                  : t.common.adding
+                : editing
+                  ? t.common.save
+                  : t.common.add}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -201,10 +398,8 @@ function ConnectionsSection() {
       <AlertDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t.settings.connections.removeConfirmTitle}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t.settings.connections.removeConfirmDescription}
-            </AlertDialogDescription>
+            <AlertDialogTitle>{c.removeConfirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{c.removeConfirmDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>

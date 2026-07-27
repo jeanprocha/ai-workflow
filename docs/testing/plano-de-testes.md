@@ -116,6 +116,7 @@ anexos) no report HTML.
 | 11 | Busca global / Scheduler | Ctrl+K, agendamento cron de fluxo | ✅ suíte pronta (`tests/search-scheduler/`) |
 | 12 | Chat | Trigger `trigger.chat`/node `chat.reply`, páginas públicas `/chat` e `/inbox`, estado por conversa, atendimento manual | ✅ suíte pronta (`tests/chat/`) |
 | 13 | Node HTTP white-label | `$auth`/`$sig`, assinatura HMAC configurável, predefinições de node (CRUD + PresetBar), editor: salvar manual (sem autosave) | ✅ suíte pronta (`tests/http-node/`, `tests/settings/node-presets.spec.ts`) |
+| 14 | Conexões multi-campo | `kind` secret/fields, campos chave/valor tipados (coerção número/booleano até o corpo da requisição), editar sem devolver o segredo | ✅ suíte pronta (`tests/settings/credentials.spec.ts`) |
 
 Cada fase futura ganha seu próprio `tests/<fase>/*.spec.ts` seguindo o mesmo
 padrão desta (helpers dedicados se precisar, doc manual companheiro em

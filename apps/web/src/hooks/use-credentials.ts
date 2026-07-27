@@ -1,13 +1,45 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 
+/** Tipo de um campo de conexao multi-campo — decide a coercao antes de virar JSON no backend. */
+export type CredentialFieldType = "text" | "number" | "boolean";
+
+/** Chave + tipo de um campo. O VALOR nunca vem do servidor. */
+export interface CredentialFieldMeta {
+  key: string;
+  type: CredentialFieldType;
+}
+
 export interface CredentialSummary {
   id: string;
   provider: string;
   name: string;
+  /** "secret" = valor unico; "fields" = varios pares chave/valor. */
+  kind: "secret" | "fields";
+  /** Preenchido so quando kind = "fields" — nunca traz valores. */
+  fieldsMeta: CredentialFieldMeta[] | null;
+  /** Ultimos 4 chars do valor; sempre null quando kind = "fields". */
   lastFour: string | null;
   createdAt: string;
+  updatedAt: string;
 }
+
+/** Campo com valor — so trafega do cliente PRA o servidor, nunca de volta. */
+export interface CredentialFieldInput extends CredentialFieldMeta {
+  value: string;
+}
+
+export interface CredentialSecretInput {
+  kind?: "secret";
+  value: string;
+}
+
+export interface CredentialFieldsInput {
+  kind: "fields";
+  fields: CredentialFieldInput[];
+}
+
+export type CredentialValueInput = CredentialSecretInput | CredentialFieldsInput;
 
 const CREDENTIALS_KEY = ["credentials"];
 
@@ -21,8 +53,30 @@ export function useCredentials() {
 export function useCreateCredential() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { provider: string; name: string; value: string }) =>
+    mutationFn: (input: { provider: string; name: string } & CredentialValueInput) =>
       apiFetch<CredentialSummary>("/credentials", { method: "POST", body: input }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CREDENTIALS_KEY }),
+  });
+}
+
+/** Identificacao + (opcionalmente) um segredo novo, nas duas formas possiveis. */
+export type UpdateCredentialInput = { id: string; provider?: string; name?: string } & (
+  | CredentialSecretInput
+  | CredentialFieldsInput
+  // Sem `value`/`fields`: renomeia mantendo o segredo atual.
+  | { kind?: undefined }
+);
+
+/**
+ * Omitir `value`/`fields` renomeia sem tocar no segredo; mandar qualquer um
+ * dos dois SUBSTITUI o segredo inteiro (nao ha atualizacao parcial — o valor
+ * salvo nunca volta pro navegador, entao nao ha o que mesclar).
+ */
+export function useUpdateCredential() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: UpdateCredentialInput) =>
+      apiFetch<CredentialSummary>(`/credentials/${id}`, { method: "PATCH", body }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: CREDENTIALS_KEY }),
   });
 }

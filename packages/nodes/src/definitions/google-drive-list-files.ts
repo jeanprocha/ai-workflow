@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import type { NodeDefinition } from "../types.js";
+import { requireCredentialObject } from "../credential-payload.js";
 import {
   googleDriveListFilesMeta,
   type GoogleDriveListFilesConfig,
@@ -10,8 +11,15 @@ interface ServiceAccountKey {
   private_key: string;
 }
 
-async function getAccessToken(serviceAccountJson: string): Promise<string> {
-  const key = JSON.parse(serviceAccountJson) as ServiceAccountKey;
+async function getAccessToken(
+  serviceAccountJson: string,
+  credentialName: string,
+): Promise<string> {
+  const key = requireCredentialObject(
+    serviceAccountJson,
+    credentialName,
+    "client_email, private_key",
+  ) as unknown as ServiceAccountKey;
   const now = Math.floor(Date.now() / 1000);
 
   const assertion = jwt.sign(
@@ -46,7 +54,7 @@ export const googleDriveListFilesNode: NodeDefinition<GoogleDriveListFilesConfig
   ...googleDriveListFilesMeta,
   execute: async (ctx) => {
     const serviceAccountJson = await ctx.getCredential(ctx.config.credential);
-    const accessToken = await getAccessToken(serviceAccountJson);
+    const accessToken = await getAccessToken(serviceAccountJson, ctx.config.credential);
 
     const params = new URLSearchParams({ pageSize: String(ctx.config.pageSize) });
     if (ctx.config.query) params.set("q", ctx.config.query);

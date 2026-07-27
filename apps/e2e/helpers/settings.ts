@@ -26,12 +26,27 @@ export async function fetchWorkspaceId(
   return workspaces[0].id;
 }
 
-/** Setup rapido: credencial criada direto na API (teste de UI que so precisa de uma existente). */
+/** Campo tipado de uma conexao multi-campo (kind: "fields"). */
+export interface CredentialFieldInput {
+  key: string;
+  value: string;
+  type: "text" | "number" | "boolean";
+}
+
+/**
+ * Setup rapido: credencial criada direto na API (teste de UI que so precisa
+ * de uma existente). Aceita as duas formas: `{value}` pra conexao de valor
+ * unico (formato historico, usado pela maioria das chamadas) ou
+ * `{kind:"fields", fields}` pra multi-campo.
+ */
 export async function createCredentialViaApi(
   request: APIRequestContext,
   tokens: AuthTokens,
   workspaceId: string,
-  data: { provider: string; name: string; value: string },
+  data: { provider: string; name: string } & (
+    | { value: string }
+    | { kind: "fields"; fields: CredentialFieldInput[] }
+  ),
 ): Promise<{ id: string }> {
   const response = await request.post(`${API_URL}/credentials`, {
     headers: workspaceHeaders(tokens, workspaceId),

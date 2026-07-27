@@ -121,6 +121,20 @@ model Credential {
   encryptedData String   @map("encrypted_data")
   lastFour      String?  @map("last_four")
   createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  /// "secret" = um valor unico (token, webhook URL, connection string).
+  /// "fields" = varios pares chave/valor, guardados como um objeto JSON —
+  /// e o que o node HTTP expoe como {{ $auth.<chave> }}.
+  kind String @default("secret")
+
+  /// [{ key, type }] de cada campo quando kind = "fields". Guardado SEM
+  /// criptografia de proposito: nome e tipo de chave nao sao segredo, e ter
+  /// isso em claro permite (a) listar as conexoes sem descriptografar nada e
+  /// (b) a tela de edicao pre-preencher as chaves com o TIPO certo — sem
+  /// isso, editar rebaixaria silenciosamente um campo numerico pra texto.
+  /// O VALOR de cada campo nunca mora aqui, so dentro de encryptedData.
+  fieldsMeta Json? @map("fields_meta")
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 

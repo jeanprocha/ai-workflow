@@ -1,12 +1,17 @@
 import nodemailer from "nodemailer";
 import type { NodeDefinition } from "../types.js";
+import { requireCredentialObject } from "../credential-payload.js";
 import { emailSendMeta, type EmailSendConfig, type SmtpCredential } from "./email-send.meta.js";
 
 export const emailSendNode: NodeDefinition<EmailSendConfig> = {
   ...emailSendMeta,
   execute: async (ctx) => {
     const raw = await ctx.getCredential(ctx.config.credential);
-    const smtp = JSON.parse(raw) as SmtpCredential;
+    const smtp = requireCredentialObject(
+      raw,
+      ctx.config.credential,
+      "host, port, user, pass",
+    ) as unknown as SmtpCredential;
 
     const transporter = nodemailer.createTransport({
       host: smtp.host,

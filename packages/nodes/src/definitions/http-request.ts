@@ -1,25 +1,8 @@
 import { createHmac } from "node:crypto";
 import type { NodeDefinition } from "../types.js";
 import { resolveExpressions, hasUnresolvedExpression } from "../expressions.js";
+import { parseCredentialPayload } from "../credential-payload.js";
 import { httpRequestMeta, type HttpRequestConfig } from "./http-request.meta.js";
-
-/**
- * Credencial pode ser um JSON estruturado (ex.: Rein — clientId/clientSecret/
- * database/filialId/vendedorId, tudo numa Conexao so) ou um token simples
- * (GitHub PAT etc.) — nesse segundo caso vira `{ value: <string> }`, pra
- * credenciais existentes continuarem funcionando sem nenhuma migracao.
- */
-function parseCredential(raw: string): Record<string, unknown> {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
-    }
-  } catch {
-    // Nao e JSON — cai no fallback abaixo.
-  }
-  return { value: raw };
-}
 
 /**
  * Segunda passada de expressoes, so pra `$auth`/`$sig` — a primeira passada
@@ -78,7 +61,9 @@ export const httpRequestNode: NodeDefinition<HttpRequestConfig> = {
       );
     }
 
-    const auth = credential ? parseCredential(await ctx.getCredential(credential)) : {};
+    const auth = credential
+      ? parseCredentialPayload(await ctx.getCredential(credential))
+      : {};
 
     // Calculado UMA vez e reusado em tudo — recalcular por campo faria a
     // assinatura divergir do header Timestamp enviado (armadilha real de

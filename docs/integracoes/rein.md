@@ -22,19 +22,21 @@ Token      = HMAC-SHA256(dataToSign, client_secret), em hex
 
 ## 2. Criar a Conexão
 
-Em **Configurações → Conexões**, crie uma conexão com o valor em **JSON**
-(não um token simples) contendo tudo que a Rein e os pedidos precisam:
+Em **Configurações → Conexões** → **Adicionar conexão**, escolha o formato
+**"Vários campos"** e preencha uma linha por parâmetro. Os tipos importam: o
+que estiver marcado como **número** chega na Rein como `1`, não como `"1"` —
+e a API recusa o pedido se receber string onde espera número.
 
-```json
-{
-  "clientId": "SEU_CLIENT_ID",
-  "clientSecret": "SEU_CLIENT_SECRET",
-  "database": "nome_do_banco_rein",
-  "filialId": 1,
-  "vendedorId": 33,
-  "tabelaPrecoId": 1
-}
-```
+| Campo | Tipo | Valor |
+|---|---|---|
+| `clientId` | texto | seu client id |
+| `clientSecret` | texto | seu client secret |
+| `database` | texto | nome do banco na Rein |
+| `filialId` | **número** | id da filial |
+| `vendedorId` | **número** | ver o aviso abaixo |
+| `tabelaPrecoId` | **número** | id da tabela de preço |
+
+Provider e nome da conexão são livres — este documento usa `rein` para os dois.
 
 > **`vendedorId` não é o `Id` interno do usuário na Rein** — é o
 > `CodigoUsuarioReferenciado` do vendedor. Usar o `Id` errado retorna
@@ -42,6 +44,11 @@ Em **Configurações → Conexões**, crie uma conexão com o valor em **JSON**
 > com "Tabela de preço não permitida" se aquele vendedor não tiver vínculo
 > cadastral com a tabela de preço configurada — isso não aparece em nenhuma
 > consulta pública da API, só o suporte Rein confirma.
+
+Para corrigir um campo depois, use o botão de editar na linha da conexão. Por
+segurança os valores salvos nunca são exibidos de volta: as chaves e os tipos
+voltam preenchidos, os valores vêm em branco, e salvar substitui o segredo
+inteiro (deixar tudo em branco mantém o que já estava lá).
 
 Dentro do node, esse conteúdo fica disponível como `{{ $auth.clientId }}`,
 `{{ $auth.clientSecret }}`, `{{ $auth.database }}`, `{{ $auth.filialId }}`,

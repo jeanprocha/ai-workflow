@@ -72,6 +72,10 @@ export const STATIC_TRANSLATIONS: Record<string, string> = {
   'Muitas mensagens em pouco tempo. Aguarde um instante.':
     'Too many messages in a short time. Please wait a moment.',
   'Predefinicao nao encontrada.': 'Preset not found.',
+  'Informe pelo menos um campo nesta conexao.':
+    'Add at least one field to this connection.',
+  'Todo campo precisa de um nome.': 'Every field needs a name.',
+  'Informe o valor desta conexao.': "Provide this connection's value.",
   'Ja existe uma predefinicao com este nome para este tipo de node.':
     'A preset with this name already exists for this node type.',
 };

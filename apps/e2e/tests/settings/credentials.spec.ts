@@ -12,6 +12,13 @@ import {
   fetchWorkspaceId,
   workspaceHeaders,
 } from "../../helpers/settings";
+import {
+  createWorkflowViaApi,
+  saveGraphViaApi,
+  runWorkflowViaApi,
+  waitForExecutionStatus,
+  httpRequestGraph,
+} from "../../helpers/workflows";
 
 /**
  * Fase 02 — Conexoes (credenciais).
@@ -22,9 +29,15 @@ import {
  * - O titulo do dialog e identico ao texto do botao que o abre ("Adicionar
  *   conexão") — usar getByRole("heading") dentro do dialog evita violacao de
  *   strict mode enquanto ele esta aberto.
- * - Submit com campo vazio e um no-op silencioso (guard client-side, sem
- *   toast nem erro inline) — a unica assercao possivel e o dialog continuar
- *   aberto.
+ * - Submit fica DESABILITADO enquanto faltar campo obrigatorio (antes era um
+ *   no-op silencioso, sem nenhum feedback do que faltava).
+ * - "Adicionar" colide com "Adicionar campo" (editor multi-campo) em
+ *   getByRole — usar { exact: true }.
+ *
+ * Uma conexao tem dois formatos (`kind`): "secret" (um valor unico — token,
+ * webhook URL, connection string) e "fields" (varios pares chave/valor
+ * tipados, guardados como objeto JSON criptografado). O tipo por campo
+ * importa: e o que faz {{ $auth.filialId }} chegar como numero 1 e nao "1".
  */
 
 async function fillCredentialDialog(
@@ -91,7 +104,7 @@ test.describe("Conexoes (via UI)", () => {
     ).toHaveAttribute("type", "password");
   });
 
-  test("submit com campos vazios e no-op: dialog permanece aberto", async ({
+  test("campos obrigatorios vazios deixam o botao desabilitado ate serem preenchidos", async ({
     page,
     context,
     request,
@@ -103,11 +116,19 @@ test.describe("Conexoes (via UI)", () => {
 
     await page.getByRole("button", { name: "Adicionar conexão" }).click();
     const dialog = page.getByRole("dialog");
-    await dialog.getByRole("button", { name: "Adicionar", exact: true }).click();
+    const submit = dialog.getByRole("button", { name: "Adicionar", exact: true });
 
-    // Guard client-side silencioso: sem toast, sem erro — o dialog so fica aberto.
-    await expect(dialog).toBeVisible();
-    await expect(page.getByText("Conexão adicionada.")).not.toBeVisible();
+    // Antes o submit era um no-op silencioso (sem toast nem erro inline) e o
+    // usuario nao tinha como saber o que faltava — agora o proprio botao
+    // comunica isso, e so libera quando provider + nome + valor existem.
+    await expect(submit).toBeDisabled();
+
+    await dialog.getByLabel("Provider").fill("openai");
+    await expect(submit).toBeDisabled();
+    await dialog.getByLabel("Nome").fill("Parcial");
+    await expect(submit).toBeDisabled();
+    await dialog.getByLabel("Chave / valor").fill("sk-agora-vai");
+    await expect(submit).toBeEnabled();
   });
 
   test("Cancelar fecha o dialog sem criar nada", async ({
@@ -372,5 +393,266 @@ test.describe("Conexoes via API", () => {
       const noAuth = await request.get(`${API_URL}/credentials`);
       expect(noAuth.status()).toBe(401);
     });
+  });
+});
+
+test.describe("Conexoes multi-campo (kind: fields)", () => {
+  test("API: cria com tipos, fieldsMeta so traz chave+tipo, lastFour vem null", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const headers = workspaceHeaders(tokens, workspaceId);
+
+    const response = await request.post(`${API_URL}/credentials`, {
+      headers,
+      data: {
+        provider: "erp",
+        name: "erp-fields",
+        kind: "fields",
+        fields: [
+          { key: "clientId", value: "cid-abc", type: "text" },
+          { key: "clientSecret", value: "segredo-xyz", type: "text" },
+          { key: "filialId", value: "1", type: "number" },
+          { key: "ativo", value: "true", type: "boolean" },
+        ],
+      },
+    });
+    expect(response.status()).toBe(201);
+    const body = await response.json();
+
+    expect(body).toMatchObject({ kind: "fields", lastFour: null });
+    // Chave e tipo sim; valor NUNCA.
+    expect(body.fieldsMeta).toEqual([
+      { key: "clientId", type: "text" },
+      { key: "clientSecret", type: "text" },
+      { key: "filialId", type: "number" },
+      { key: "ativo", type: "boolean" },
+    ]);
+    expect(JSON.stringify(body)).not.toContain("segredo-xyz");
+    expect(body).not.toHaveProperty("value");
+    expect(body).not.toHaveProperty("encryptedData");
+  });
+
+  test("API: conexao de valor unico nao regride (lastFour continua os 4 ultimos chars)", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+
+    // Corpo no formato historico, SEM `kind` — precisa continuar valido.
+    const response = await request.post(`${API_URL}/credentials`, {
+      headers: workspaceHeaders(tokens, workspaceId),
+      data: { provider: "openai", name: "sem-kind", value: "sk-teste-abcd1234" },
+    });
+    expect(response.status()).toBe(201);
+    expect(await response.json()).toMatchObject({
+      kind: "secret",
+      lastFour: "1234",
+      fieldsMeta: null,
+    });
+  });
+
+  test("API: validacoes (zero campos, chave com ponto, chave duplicada, numero invalido, secret sem valor)", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const headers = workspaceHeaders(tokens, workspaceId);
+
+    const cases: Array<{ data: Record<string, unknown>; contains: string }> = [
+      {
+        data: { provider: "x", name: "v1", kind: "fields", fields: [] },
+        contains: "pelo menos um campo",
+      },
+      {
+        // Chave com ponto quebraria {{ $auth.<chave> }} — getPath() em
+        // packages/nodes/src/expressions.ts corta o caminho pelo ponto.
+        data: {
+          provider: "x",
+          name: "v2",
+          kind: "fields",
+          fields: [{ key: "a.b", value: "1", type: "text" }],
+        },
+        contains: "nao pode conter ponto",
+      },
+      {
+        data: {
+          provider: "x",
+          name: "v3",
+          kind: "fields",
+          fields: [
+            { key: "dup", value: "1", type: "text" },
+            { key: "dup", value: "2", type: "text" },
+          ],
+        },
+        contains: "repetido",
+      },
+      {
+        data: {
+          provider: "x",
+          name: "v4",
+          kind: "fields",
+          fields: [{ key: "n", value: "abc", type: "number" }],
+        },
+        contains: "numero valido",
+      },
+      { data: { provider: "x", name: "v5", kind: "secret" }, contains: "valor" },
+    ];
+
+    for (const { data, contains } of cases) {
+      const response = await request.post(`${API_URL}/credentials`, { headers, data });
+      expect(response.status()).toBe(400);
+      expect((await response.json()).message).toContain(contains);
+    }
+  });
+
+  test("API: PATCH renomeia sem tocar no segredo; PATCH com fields substitui", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const headers = workspaceHeaders(tokens, workspaceId);
+    const created = await createCredentialViaApi(request, tokens, workspaceId, {
+      provider: "erp",
+      name: "patch-alvo",
+      kind: "fields",
+      fields: [{ key: "clientId", value: "cid-1", type: "text" }],
+    });
+
+    const renamed = await request.patch(`${API_URL}/credentials/${created.id}`, {
+      headers,
+      data: { name: "patch-renomeado" },
+    });
+    expect(renamed.status()).toBe(200);
+    const renamedBody = await renamed.json();
+    expect(renamedBody.name).toBe("patch-renomeado");
+    // Sem value/fields no corpo, os campos continuam os mesmos.
+    expect(renamedBody.fieldsMeta).toEqual([{ key: "clientId", type: "text" }]);
+
+    const replaced = await request.patch(`${API_URL}/credentials/${created.id}`, {
+      headers,
+      data: {
+        kind: "fields",
+        fields: [
+          { key: "clientId", value: "cid-2", type: "text" },
+          { key: "filialId", value: "7", type: "number" },
+        ],
+      },
+    });
+    expect((await replaced.json()).fieldsMeta).toEqual([
+      { key: "clientId", type: "text" },
+      { key: "filialId", type: "number" },
+    ]);
+
+    const foreign = await registerViaApi(request, buildTestUser());
+    const foreignWorkspace = await fetchWorkspaceId(request, foreign);
+    const crossWorkspace = await request.patch(`${API_URL}/credentials/${created.id}`, {
+      headers: workspaceHeaders(foreign, foreignWorkspace),
+      data: { name: "invadido" },
+    });
+    expect(crossWorkspace.status()).toBe(404);
+  });
+
+  test("o tipo do campo sobrevive ate o corpo da requisicao (numero e numero, nao string)", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const headers = workspaceHeaders(tokens, workspaceId);
+    await createCredentialViaApi(request, tokens, workspaceId, {
+      provider: "erp",
+      name: "erp-tipos",
+      kind: "fields",
+      fields: [
+        { key: "clientId", value: "cid-abc", type: "text" },
+        { key: "filialId", value: "1", type: "number" },
+        { key: "ativo", value: "true", type: "boolean" },
+      ],
+    });
+
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Coercao De Tipo");
+    await saveGraphViaApi(
+      request,
+      tokens,
+      workspaceId,
+      workflow.id,
+      httpRequestGraph({
+        method: "PUT",
+        url: `${API_URL}/debug/echo`,
+        headers: { "Content-Type": "application/json" },
+        query: {},
+        body: {
+          FilialId: "{{ $auth.filialId }}",
+          ClientId: "{{ $auth.clientId }}",
+          Ativo: "{{ $auth.ativo }}",
+        },
+        timeoutMs: 5000,
+        credential: "erp-tipos",
+        signature: { enabled: false },
+      }),
+    );
+
+    const execution = await runWorkflowViaApi(request, tokens, workspaceId, workflow.id);
+    const done = await waitForExecutionStatus(request, tokens, workspaceId, execution.id, "success");
+    const detail = await (await request.get(`${API_URL}/executions/${done.id}`, { headers })).json();
+
+    // O ponto da feature: uma UI de chave/valor produz so strings, mas o ERP
+    // espera numero/booleano. Sem a coercao por tipo, FilialId chegaria "1".
+    expect(detail.outputPayload.body.body).toEqual({
+      FilialId: 1,
+      ClientId: "cid-abc",
+      Ativo: true,
+    });
+  });
+
+  test("UI: criar multi-campo, ver os nomes na lista e editar com chaves/tipos preenchidos e valores em branco", async ({
+    page,
+    context,
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    await authenticateContext(context, await buildStorageState(request, tokens));
+    await page.goto("/settings");
+
+    const section = page
+      .locator("section")
+      .filter({ has: page.getByRole("heading", { name: "Conexões" }) });
+    await section.getByRole("button", { name: "Adicionar conexão" }).click();
+
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Provider").fill("erp");
+    await dialog.getByLabel("Nome").fill("erp-ui");
+    await dialog.getByLabel("Formato").selectOption("fields");
+
+    const segredo = "valor-super-secreto-98765";
+    await dialog.getByRole("button", { name: "Adicionar campo" }).click();
+    await dialog.getByPlaceholder("nome do campo").fill("clientSecret");
+    await dialog.getByPlaceholder("valor").fill(segredo);
+
+    await dialog.getByRole("button", { name: "Adicionar campo" }).click();
+    await dialog.getByPlaceholder("nome do campo").nth(1).fill("filialId");
+    await dialog.getByLabel("Tipo do campo filialId").selectOption("number");
+    await dialog.getByPlaceholder("valor").nth(1).fill("1");
+
+    await dialog.getByRole("button", { name: "Adicionar", exact: true }).click();
+    await expect(page.getByText("Conexão adicionada.")).toBeVisible();
+
+    // Lista mostra os NOMES dos campos (nao sao segredo) — nunca os valores.
+    await expect(section.getByText("erp · clientSecret, filialId")).toBeVisible();
+    expect(await page.content()).not.toContain(segredo);
+
+    await section.getByLabel("Editar conexão erp-ui").click();
+    const editDialog = page.getByRole("dialog");
+    await expect(editDialog.getByRole("heading", { name: "Editar conexão" })).toBeVisible();
+    // Chave e TIPO voltam preenchidos; o valor salvo nunca volta pro navegador.
+    await expect(editDialog.getByPlaceholder("nome do campo").first()).toHaveValue("clientSecret");
+    await expect(editDialog.getByLabel("Tipo do campo filialId")).toHaveValue("number");
+    await expect(editDialog.getByPlaceholder("valor").first()).toHaveValue("");
+
+    await editDialog.getByLabel("Nome").fill("erp-ui-renomeado");
+    await editDialog.getByRole("button", { name: "Salvar" }).click();
+    await expect(page.getByText("Conexão atualizada.")).toBeVisible();
+    await expect(section.getByText("erp-ui-renomeado")).toBeVisible();
   });
 });
