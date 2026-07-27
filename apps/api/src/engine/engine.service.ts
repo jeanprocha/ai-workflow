@@ -391,6 +391,12 @@ export class EngineService {
       input,
       vars,
       nodeOutputs,
+      // $auth/$sig so existem dentro do execute do node HTTP (credencial lida
+      // e timestamp calculado no proprio sandbox) — aqui, no thread principal,
+      // essas expressoes tem que sobreviver intactas pra uma segunda passada
+      // resolver depois (ver http-request.ts). Inocuo pra qualquer outro node,
+      // que nunca tem esses campos no config.
+      preserveRoots: ['$auth', '$sig'],
     });
     const attempts = node.retry?.attempts ?? 1;
     const backoffMs = node.retry?.backoffMs ?? 0;

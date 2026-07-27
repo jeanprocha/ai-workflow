@@ -8,6 +8,22 @@ export interface ExpressionContext {
   input: unknown;
   vars: Record<string, unknown>;
   nodeOutputs: Record<string, unknown>;
+  /**
+   * Raizes extras alem de $input/$vars/$node — chave SEM "$" (ex.:
+   * `{ auth: {...} }` habilita `{{ $auth.clientId }}`). Usado por nodes que
+   * precisam expor dado que so existe dentro do proprio execute (ex.: o node
+   * HTTP resolve `$auth`/`$sig` depois de ler a credencial — ver
+   * http-request.ts), rodando `resolveExpressions` de novo por dentro.
+   */
+  extraRoots?: Record<string, unknown>;
+  /**
+   * Raizes cujas expressoes NAO devem ser resolvidas nesta passada — o texto
+   * `{{ $auth.x }}` e devolvido literal, pra uma segunda chamada (com
+   * `extraRoots` preenchido) resolver depois. Sem isso, a primeira passada
+   * (no thread principal do engine, antes do node existir) apagaria
+   * `{{ $auth.x }}` -> `undefined` -> string vazia, antes do node ver.
+   */
+  preserveRoots?: readonly string[];
 }
 
 const EXPRESSION_RE = /\{\{\s*([^}]+?)\s*\}\}/g;
@@ -21,6 +37,17 @@ function getPath(root: unknown, path: string): unknown {
     current = (current as Record<string, unknown>)[segment];
   }
   return current;
+}
+
+/** Raiz de uma expressao (`"$auth.clientId"` -> `"$auth"`), pra decidir preserveRoots. */
+function exprRoot(expr: string): string {
+  const trimmed = expr.trim();
+  const dotIndex = trimmed.indexOf(".");
+  return dotIndex === -1 ? trimmed : trimmed.slice(0, dotIndex);
+}
+
+function isPreservedRoot(expr: string, preserveRoots: readonly string[] | undefined): boolean {
+  return !!preserveRoots && preserveRoots.includes(exprRoot(expr));
 }
 
 function evaluateExpression(expr: string, ctx: ExpressionContext): unknown {
@@ -40,6 +67,14 @@ function evaluateExpression(expr: string, ctx: ExpressionContext): unknown {
     return getPath(ctx.nodeOutputs[nodeId], path);
   }
 
+  if (ctx.extraRoots) {
+    for (const [name, root] of Object.entries(ctx.extraRoots)) {
+      const prefix = `$${name}`;
+      if (trimmed === prefix) return root;
+      if (trimmed.startsWith(`${prefix}.`)) return getPath(root, trimmed.slice(prefix.length + 1));
+    }
+  }
+
   return undefined;
 }
 
@@ -49,10 +84,13 @@ function resolveString(value: string, ctx: ExpressionContext): unknown {
   if (matches.length === 0 || !singleMatch) return value;
 
   if (matches.length === 1 && singleMatch[0] === value.trim()) {
-    return evaluateExpression(singleMatch[1] ?? "", ctx);
+    const expr = singleMatch[1] ?? "";
+    if (isPreservedRoot(expr, ctx.preserveRoots)) return value;
+    return evaluateExpression(expr, ctx);
   }
 
-  return value.replace(EXPRESSION_RE, (_full, expr: string) => {
+  return value.replace(EXPRESSION_RE, (full, expr: string) => {
+    if (isPreservedRoot(expr, ctx.preserveRoots)) return full;
     const resolved = evaluateExpression(expr, ctx);
     if (resolved === undefined || resolved === null) return "";
     return typeof resolved === "string" ? resolved : JSON.stringify(resolved);
@@ -70,4 +108,27 @@ export function resolveExpressions(value: unknown, ctx: ExpressionContext): unkn
     return result;
   }
   return value;
+}
+
+/** true se `value` (apos resolveExpressions) ainda contem algum `{{ ... }}` nao resolvido. */
+export function hasUnresolvedExpression(value: unknown): string | null {
+  if (typeof value === "string") {
+    const match = value.match(EXPRESSION_RE);
+    return match ? match[0] : null;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = hasUnresolvedExpression(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (value && typeof value === "object") {
+    for (const val of Object.values(value)) {
+      const found = hasUnresolvedExpression(val);
+      if (found) return found;
+    }
+    return null;
+  }
+  return null;
 }

@@ -50,6 +50,32 @@ export const pt = {
     /** Prefixo do aria-label do botao de lixeira — concatenado com a chave da variavel. */
     removeAria: "Remover variável",
   },
+  nodePresets: {
+    title: "Predefinições de node",
+    description:
+      "Configurações de node salvas para reusar em qualquer fluxo — ex.: uma chamada HTTP assinada já pronta pra um ERP.",
+    emptyTitle: "Nenhuma predefinição ainda",
+    emptyDescription:
+      "Salve a configuração de um node pelo painel do editor (\"Salvar como predefinição\") ou crie uma aqui.",
+    add: "Nova predefinição",
+    dialogTitle: "Nova predefinição",
+    nodeTypeLabel: "Tipo de node",
+    nameLabel: "Nome",
+    namePlaceholder: "Ex.: Rein - Buscar produto",
+    descriptionLabel: "Descrição",
+    descriptionPlaceholder: "Opcional",
+    configLabel: "Configuração (JSON)",
+    configInvalidError: "JSON inválido.",
+    createdToast: "Predefinição criada.",
+    createErrorFallback: "Não foi possível criar a predefinição.",
+    removedToast: "Predefinição removida.",
+    removeErrorFallback: "Não foi possível remover a predefinição.",
+    removeConfirmTitle: "Remover esta predefinição?",
+    removeConfirmDescription:
+      "Nodes que já aplicaram esta predefinição não são afetados — ela só deixa de aparecer pra aplicar em novos nodes.",
+    /** Prefixo do aria-label do botao de lixeira — concatenado com o nome da predefinicao. */
+    removeAria: "Remover predefinição",
+  },
 };
 
 export const en = {
@@ -101,5 +127,30 @@ export const en = {
     removeConfirmTitle: "Remove this variable?",
     removeConfirmDescription: "Flows that reference this variable will fail until it's recreated.",
     removeAria: "Remove variable",
+  },
+  nodePresets: {
+    title: "Node presets",
+    description:
+      "Saved node configurations to reuse across any flow — e.g., a signed HTTP call already set up for an ERP.",
+    emptyTitle: "No presets yet",
+    emptyDescription:
+      'Save a node\'s configuration from the editor panel ("Save as preset") or create one here.',
+    add: "New preset",
+    dialogTitle: "New preset",
+    nodeTypeLabel: "Node type",
+    nameLabel: "Name",
+    namePlaceholder: "E.g.: Rein - Search product",
+    descriptionLabel: "Description",
+    descriptionPlaceholder: "Optional",
+    configLabel: "Configuration (JSON)",
+    configInvalidError: "Invalid JSON.",
+    createdToast: "Preset created.",
+    createErrorFallback: "Could not create the preset.",
+    removedToast: "Preset removed.",
+    removeErrorFallback: "Could not remove the preset.",
+    removeConfirmTitle: "Remove this preset?",
+    removeConfirmDescription:
+      "Nodes that already applied this preset are unaffected — it just stops showing up to apply on new nodes.",
+    removeAria: "Remove preset",
   },
 } satisfies typeof pt;

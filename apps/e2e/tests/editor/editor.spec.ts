@@ -27,8 +27,10 @@ import {
  *   (dropNodeOnCanvas). O handler de drop escuta na div pai de .react-flow;
  *   como eventos DOM borbulham antes do React sintetico, disparar em
  *   .react-flow mesmo funciona.
- * - Sem botao Salvar — autosave debounced em 800ms; "Alterações não
- *   salvas" -> "Salvando..." -> "Salvo" na toolbar e o unico indicador.
+ * - Sem autosave: toda mudanca so marca "Alterações não salvas" (texto em
+ *   destaque na toolbar) — precisa clicar em "Salvar" (ou Ctrl+S) pra virar
+ *   "Salvando..." -> "Salvo" de verdade. Padrao Make/n8n, ver discovery
+ *   deste passo: o usuario decide quando publicar a mudanca.
  * - Deletar node/edge e so com Backspace (default do React Flow — Delete
  *   NAO funciona).
  * - React Flow da data-testid gratis: rf__wrapper, rf__node-<id>,
@@ -51,10 +53,18 @@ async function dropNodeOnCanvas(page: Page, nodeType: string, x: number, y: numb
   );
 }
 
-/** Confirma o CICLO completo (nao so que "Salvo" esta visivel — isso e o estado inicial tambem). */
-async function waitForAutosaveCycle(page: Page) {
+/**
+ * Confirma o estado "dirty" (alteracao marcada mas NAO persistida ainda),
+ * clica em Salvar e espera o ciclo completo ("Salvando..." -> "Salvo").
+ * Sem autosave, isso e o unico jeito de uma mudanca chegar no servidor.
+ */
+async function saveAndWait(page: Page) {
   await expect(page.getByText("Alterações não salvas")).toBeVisible();
+  const saveButton = page.getByRole("button", { name: "Salvar", exact: true });
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
   await expect(page.getByText("Salvo")).toBeVisible({ timeout: 10_000 });
+  await expect(saveButton).toBeDisabled();
 }
 
 test.describe("Editor — canvas e paleta", () => {
@@ -89,7 +99,7 @@ test.describe("Editor — canvas e paleta", () => {
     await expect(palette.getByText("Log", { exact: true })).toBeVisible();
   });
 
-  test("drag-and-drop adiciona node, autosalva e persiste apos reload", async ({
+  test("drag-and-drop adiciona node; marca alteracao nao salva; salvar persiste apos reload", async ({
     page,
     context,
     request,
@@ -103,15 +113,81 @@ test.describe("Editor — canvas e paleta", () => {
     await expect(page.locator(".react-flow")).toBeVisible();
 
     await dropNodeOnCanvas(page, "trigger.manual", 500, 300);
-    await waitForAutosaveCycle(page);
-
     const node = page.locator(".react-flow__node").filter({ hasText: "Manual Trigger" });
     await expect(node).toBeVisible();
+    await expect(page.getByText("Alterações não salvas")).toBeVisible();
+
+    // Sem autosave: antes de clicar em Salvar, o grafo no servidor continua vazio.
+    const beforeSave = await request.get(
+      `${process.env.E2E_API_URL ?? "http://localhost:3333"}/workflows/${workflow.id}`,
+      { headers: { Authorization: `Bearer ${tokens.accessToken}`, "x-workspace-id": workspaceId } },
+    );
+    expect((await beforeSave.json()).currentVersion.graph.nodes).toEqual([]);
+
+    await saveAndWait(page);
 
     await page.reload();
     await expect(
       page.locator(".react-flow__node").filter({ hasText: "Manual Trigger" }),
     ).toBeVisible();
+  });
+});
+
+test.describe("Editor — salvar manualmente", () => {
+  test("botao Salvar comeca desabilitado; Ctrl+S salva sem precisar clicar", async ({
+    page,
+    context,
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Salvar Ctrl S");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, TWO_NODE_GRAPH);
+    await authenticateContext(context, await buildStorageState(request, tokens));
+
+    await page.goto(`/flows/${workflow.id}`);
+    const saveButton = page.getByRole("button", { name: "Salvar", exact: true });
+    await expect(page.getByText("Salvo")).toBeVisible();
+    await expect(saveButton).toBeDisabled();
+
+    await page.locator('[data-testid="rf__node-n2"]').click();
+    const panel = page.locator("aside").last();
+    await panel.getByLabel("Mensagem").fill("via Ctrl+S");
+
+    await expect(page.getByText("Alterações não salvas")).toBeVisible();
+    await expect(saveButton).toBeEnabled();
+
+    await page.keyboard.press("ControlOrMeta+s");
+    await expect(page.getByText("Salvo")).toBeVisible({ timeout: 10_000 });
+    await expect(saveButton).toBeDisabled();
+
+    const response = await request.get(
+      `${process.env.E2E_API_URL ?? "http://localhost:3333"}/workflows/${workflow.id}`,
+      { headers: { Authorization: `Bearer ${tokens.accessToken}`, "x-workspace-id": workspaceId } },
+    );
+    const body = await response.json();
+    const savedNode = body.currentVersion.graph.nodes.find((n: { id: string }) => n.id === "n2");
+    expect(savedNode.config.message).toBe("via Ctrl+S");
+  });
+
+  test("selecionar um node (sem editar nada) NAO marca alteracoes nao salvas", async ({
+    page,
+    context,
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Selecionar Sem Editar");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, TWO_NODE_GRAPH);
+    await authenticateContext(context, await buildStorageState(request, tokens));
+
+    await page.goto(`/flows/${workflow.id}`);
+    await page.locator('[data-testid="rf__node-n1"]').click();
+    await page.locator('[data-testid="rf__node-n2"]').click();
+    await page.locator(".react-flow__pane").click({ position: { x: 50, y: 50 } });
+
+    await expect(page.getByText("Salvo")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Salvar", exact: true })).toBeDisabled();
   });
 });
 
@@ -152,7 +228,7 @@ test.describe("Editor — painel de configuracao", () => {
     await expect(page.locator("aside")).toHaveCount(1);
   });
 
-  test("editar Mensagem: ciclo de autosave e subtitle do node atualiza", async ({
+  test("editar Mensagem: precisa salvar manualmente; subtitle do node atualiza", async ({
     page,
     context,
     request,
@@ -168,7 +244,7 @@ test.describe("Editor — painel de configuracao", () => {
 
     const panel = page.locator("aside").last();
     await panel.getByLabel("Mensagem").fill("Ola do teste E2E");
-    await waitForAutosaveCycle(page);
+    await saveAndWait(page);
 
     await expect(page.locator('[data-testid="rf__node-n2"]')).toContainText(
       "Ola do teste E2E",
@@ -205,7 +281,7 @@ test.describe("Editor — painel de configuracao", () => {
     await retryToggle.check();
     await expect(panel.getByLabel("Tentativas")).toHaveValue("3");
     await expect(panel.getByLabel("Intervalo (ms)")).toHaveValue("1000");
-    await waitForAutosaveCycle(page);
+    await saveAndWait(page);
   });
 });
 
@@ -232,7 +308,7 @@ test.describe("Editor — canvas: conectar e deletar", () => {
     await expect(page.locator(".react-flow__edge")).toHaveCount(1);
     // Ver comentario na primeira spec sobre toBeAttached() vs toBeVisible() em edges SVG.
     await expect(page.getByRole("group", { name: "Edge from n1 to n2" })).toBeAttached();
-    await waitForAutosaveCycle(page);
+    await saveAndWait(page);
   });
 
   test("Backspace deleta o node selecionado (Delete nao faz nada)", async ({
@@ -257,7 +333,7 @@ test.describe("Editor — canvas: conectar e deletar", () => {
     await expect(page.locator('[data-testid="rf__node-n2"]')).not.toBeVisible();
     // A edge que apontava pro node removido some junto.
     await expect(page.locator(".react-flow__edge")).toHaveCount(0);
-    await waitForAutosaveCycle(page);
+    await saveAndWait(page);
   });
 });
 

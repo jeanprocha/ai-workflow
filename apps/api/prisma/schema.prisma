@@ -45,6 +45,7 @@ model Workspace {
   knowledgeBases KnowledgeBase[]
   mcpServers     McpServer[]
   aiSuggestions  AiSuggestion[]
+  nodePresets    NodePreset[]
 
   @@map("workspaces")
 }
@@ -150,6 +151,29 @@ model Variable {
 
   @@unique([workspaceId, key])
   @@map("variables")
+}
+
+/**
+ * Predefinicao de config salva por tipo de node (ex.: um node HTTP Request
+ * ja pronto pra chamar um ERP assinado) — reusavel entre fluxos do mesmo
+ * workspace, sem repetir a configuracao node a node. `config` e mesclado por
+ * cima do config atual do node ao aplicar (ver ConfigPanel > PresetBar).
+ */
+model NodePreset {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  nodeType    String   @map("node_type")
+  name        String
+  description String   @default("")
+  config      Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, nodeType, name])
+  @@index([workspaceId, nodeType])
+  @@map("node_presets")
 }
 
 enum ExecutionStatus {

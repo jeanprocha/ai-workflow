@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Play } from "lucide-react";
+import { ArrowLeft, Play, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +16,7 @@ import {
 import { useRunWorkflow } from "@/hooks/use-workflows";
 import { ApiError } from "@/lib/api-client";
 import { useDictionary } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 import { VersionHistoryDialog } from "./version-history-dialog";
 import { CopilotDialog } from "./copilot-dialog";
 
@@ -23,6 +24,7 @@ export interface EditorToolbarProps {
   workflowId: string;
   name: string;
   saveState: "saved" | "saving" | "dirty";
+  onSave: () => void;
   onRunStarted: (executionId: string) => void;
   currentVersionId: string | null;
 }
@@ -31,6 +33,7 @@ export function EditorToolbar({
   workflowId,
   name,
   saveState,
+  onSave,
   onRunStarted,
   currentVersionId,
 }: EditorToolbarProps) {
@@ -77,12 +80,27 @@ export function EditorToolbar({
           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
         </Button>
         <span className="truncate text-sm font-medium text-foreground">{name}</span>
-        <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+        <span
+          role={saveState === "dirty" ? "status" : undefined}
+          className={cn(
+            "hidden shrink-0 text-xs sm:inline",
+            saveState === "dirty" ? "font-medium text-warning" : "text-muted-foreground",
+          )}
+        >
           {saveLabel[saveState]}
         </span>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        <Button
+          variant={saveState === "dirty" ? "default" : "outline"}
+          onClick={onSave}
+          disabled={saveState !== "dirty"}
+          title={t.saveAria}
+        >
+          <Save className="h-4 w-4" strokeWidth={1.5} />
+          {t.save}
+        </Button>
         <CopilotDialog workflowId={workflowId} />
         {currentVersionId && (
           <VersionHistoryDialog workflowId={workflowId} currentVersionId={currentVersionId} />

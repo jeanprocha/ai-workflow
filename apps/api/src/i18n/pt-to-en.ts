@@ -71,6 +71,9 @@ export const STATIC_TRANSLATIONS: Record<string, string> = {
   'Conversa nao encontrada.': 'Conversation not found.',
   'Muitas mensagens em pouco tempo. Aguarde um instante.':
     'Too many messages in a short time. Please wait a moment.',
+  'Predefinicao nao encontrada.': 'Preset not found.',
+  'Ja existe uma predefinicao com este nome para este tipo de node.':
+    'A preset with this name already exists for this node type.',
 };
 
 /** Mensagens com valor interpolado (nome, id, erro concatenado) — regex + template. */

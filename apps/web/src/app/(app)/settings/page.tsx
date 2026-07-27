@@ -7,6 +7,7 @@ import { EmptyState } from "@workflow/ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -32,6 +33,8 @@ import {
   useDeleteCredential,
 } from "@/hooks/use-credentials";
 import { useCreateVariable, useDeleteVariable, useVariables } from "@/hooks/use-variables";
+import { useCreateNodePreset, useDeleteNodePreset, useNodePresets } from "@/hooks/use-node-presets";
+import { NODE_CATALOG } from "@/lib/node-catalog";
 import { errorMessage } from "@/lib/errors";
 import { useDictionary, useLocale, setLocale, type Locale } from "@/lib/i18n";
 
@@ -366,6 +369,185 @@ function VariablesSection() {
   );
 }
 
+function NodePresetsSection() {
+  const t = useDictionary();
+  const { data: presets, isLoading } = useNodePresets();
+  const createPreset = useCreateNodePreset();
+  const deletePreset = useDeleteNodePreset();
+  const [open, setOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [nodeType, setNodeType] = useState(NODE_CATALOG[0]?.type ?? "");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [configText, setConfigText] = useState("{}");
+  const [configError, setConfigError] = useState<string | null>(null);
+
+  function onConfigChange(value: string) {
+    setConfigText(value);
+    try {
+      JSON.parse(value);
+      setConfigError(null);
+    } catch {
+      setConfigError(t.settings.nodePresets.configInvalidError);
+    }
+  }
+
+  async function onCreate() {
+    if (!nodeType || !name.trim() || configError) return;
+    try {
+      const config = JSON.parse(configText) as Record<string, unknown>;
+      await createPreset.mutateAsync({ nodeType, name: name.trim(), description: description.trim(), config });
+      toast.success(t.settings.nodePresets.createdToast);
+      setName("");
+      setDescription("");
+      setConfigText("{}");
+      setOpen(false);
+    } catch (error) {
+      toast.error(errorMessage(error, t.settings.nodePresets.createErrorFallback));
+    }
+  }
+
+  async function onDelete() {
+    if (!deleteId) return;
+    try {
+      await deletePreset.mutateAsync(deleteId);
+      toast.success(t.settings.nodePresets.removedToast);
+    } catch (error) {
+      toast.error(errorMessage(error, t.settings.nodePresets.removeErrorFallback));
+    } finally {
+      setDeleteId(null);
+    }
+  }
+
+  if (isLoading) return <Skeleton className="h-16 rounded-lg" />;
+
+  return (
+    <>
+      {!presets?.length ? (
+        <EmptyState
+          title={t.settings.nodePresets.emptyTitle}
+          description={t.settings.nodePresets.emptyDescription}
+          action={
+            <Button size="sm" onClick={() => setOpen(true)}>
+              {t.settings.nodePresets.add}
+            </Button>
+          }
+        />
+      ) : (
+        <div className="space-y-2">
+          {presets.map((preset) => (
+            <div
+              key={preset.id}
+              className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{preset.name}</p>
+                <p className="truncate font-mono text-xs text-muted-foreground">
+                  {preset.nodeType}
+                  {preset.description ? ` · ${preset.description}` : ""}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`${t.settings.nodePresets.removeAria} ${preset.name}`}
+                onClick={() => setDeleteId(preset.id)}
+              >
+                <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+              </Button>
+            </div>
+          ))}
+          <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+            {t.settings.nodePresets.add}
+          </Button>
+        </div>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.settings.nodePresets.dialogTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="preset-node-type">{t.settings.nodePresets.nodeTypeLabel}</Label>
+              <select
+                id="preset-node-type"
+                value={nodeType}
+                onChange={(event) => setNodeType(event.target.value)}
+                className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm"
+              >
+                {NODE_CATALOG.map((entry) => (
+                  <option key={entry.type} value={entry.type}>
+                    {entry.label} ({entry.type})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="preset-name">{t.settings.nodePresets.nameLabel}</Label>
+              <Input
+                id="preset-name"
+                placeholder={t.settings.nodePresets.namePlaceholder}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="preset-description">{t.settings.nodePresets.descriptionLabel}</Label>
+              <Input
+                id="preset-description"
+                placeholder={t.settings.nodePresets.descriptionPlaceholder}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="preset-config">{t.settings.nodePresets.configLabel}</Label>
+              <Textarea
+                id="preset-config"
+                rows={8}
+                value={configText}
+                onChange={(event) => onConfigChange(event.target.value)}
+                className="font-mono text-xs"
+              />
+              {configError && <p className="text-xs text-danger">{configError}</p>}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              {t.common.cancel}
+            </Button>
+            <Button onClick={onCreate} disabled={createPreset.isPending || !!configError}>
+              {createPreset.isPending ? t.common.creating : t.common.create}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.settings.nodePresets.removeConfirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.settings.nodePresets.removeConfirmDescription}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-danger/10 text-danger hover:bg-danger/20"
+              onClick={onDelete}
+            >
+              {t.common.remove}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
 export default function SettingsPage() {
   const t = useDictionary();
 
@@ -403,6 +585,13 @@ export default function SettingsPage() {
         description={t.settings.variables.description}
       >
         <VariablesSection />
+      </SettingsSection>
+
+      <SettingsSection
+        title={t.settings.nodePresets.title}
+        description={t.settings.nodePresets.description}
+      >
+        <NodePresetsSection />
       </SettingsSection>
     </div>
   );

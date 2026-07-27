@@ -14,6 +14,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { CredentialsModule } from './credentials/credentials.module';
 import { VariablesModule } from './variables/variables.module';
+import { NodePresetsModule } from './node-presets/node-presets.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { ExecutionsModule } from './executions/executions.module';
 import { HooksModule } from './hooks/hooks.module';
@@ -43,6 +44,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
     WorkspacesModule,
     CredentialsModule,
     VariablesModule,
+    NodePresetsModule,
     WorkflowsModule,
     ExecutionsModule,
     HooksModule,

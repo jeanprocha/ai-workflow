@@ -1,14 +1,24 @@
 import { cloneElement, createElement, isValidElement, useId, useState } from "react";
+import { toast } from "sonner";
 import { Plus, Trash2, X } from "lucide-react";
 import type { NodeRetryPolicy } from "@workflow/shared";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getCatalogEntry } from "@/lib/node-catalog";
 import { getNodeIcon } from "@/lib/node-icons";
 import { usePreviewCron } from "@/hooks/use-scheduler";
+import { useCreateNodePreset, useNodePresets } from "@/hooks/use-node-presets";
 import { ApiError } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { useDictionary, useLocale } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/format";
 import type { WorkflowFlowNode } from "./workflow-node";
@@ -46,6 +56,79 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
+interface HttpSignatureConfig {
+  enabled: boolean;
+  algorithm: "sha256" | "sha1" | "sha512";
+  encoding: "hex" | "base64";
+  secret: string;
+  template: string;
+  timestampOffsetSec: number;
+}
+
+const DEFAULT_HTTP_SIGNATURE: HttpSignatureConfig = {
+  enabled: false,
+  algorithm: "sha256",
+  encoding: "hex",
+  secret: "",
+  template: "",
+  timestampOffsetSec: 0,
+};
+
+/** Lista chave/valor editavel — mesmo padrao dos headers, reusado pra query string. */
+function KeyValueList({
+  entries,
+  onChange,
+  keyPlaceholder,
+  valuePlaceholder,
+  addLabel,
+}: {
+  entries: Record<string, string>;
+  onChange: (next: Record<string, string>) => void;
+  keyPlaceholder: string;
+  valuePlaceholder: string;
+  addLabel: string;
+}) {
+  const rows = Object.entries(entries);
+
+  function setRow(index: number, key: string, value: string) {
+    const next = [...rows];
+    next[index] = [key, value];
+    onChange(Object.fromEntries(next));
+  }
+
+  function removeRow(index: number) {
+    onChange(Object.fromEntries(rows.filter((_, i) => i !== index)));
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {rows.map(([key, value], index) => (
+        <div key={index} className="flex gap-1.5">
+          <Input
+            value={key}
+            onChange={(event) => setRow(index, event.target.value, value)}
+            placeholder={keyPlaceholder}
+            className="flex-1"
+          />
+          <Input
+            value={value}
+            onChange={(event) => setRow(index, key, event.target.value)}
+            placeholder={valuePlaceholder}
+            className="flex-1"
+          />
+          <Button variant="ghost" size="icon-sm" onClick={() => removeRow(index)}>
+            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+          </Button>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={() => onChange({ ...entries, "": "" })}>
+        <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+        {addLabel}
+      </Button>
+    </div>
+  );
+}
+
 function HttpRequestFields({
   config,
   onChange,
@@ -55,17 +138,35 @@ function HttpRequestFields({
 }) {
   const t = useDictionary().editor.configPanel;
   const headers = (config.headers as Record<string, string>) ?? {};
-  const headerEntries = Object.entries(headers);
+  const query = (config.query as Record<string, string>) ?? {};
+  const signature = (config.signature as HttpSignatureConfig) ?? DEFAULT_HTTP_SIGNATURE;
 
-  function setHeader(index: number, key: string, value: string) {
-    const next = [...headerEntries];
-    next[index] = [key, value];
-    onChange({ ...config, headers: Object.fromEntries(next) });
+  // Corpo e JSON livre — igual JsonConfigFields, texto local + erro de parse,
+  // so re-sincroniza do config quando o node muda (ConfigPanel remonta com
+  // `key={node.id}`, ver flow-editor.tsx).
+  const [bodyText, setBodyText] = useState(() =>
+    config.body !== undefined ? JSON.stringify(config.body, null, 2) : "",
+  );
+  const [bodyError, setBodyError] = useState<string | null>(null);
+
+  function handleBodyChange(value: string) {
+    setBodyText(value);
+    if (value.trim() === "") {
+      setBodyError(null);
+      onChange({ ...config, body: undefined });
+      return;
+    }
+    try {
+      const parsed: unknown = JSON.parse(value);
+      setBodyError(null);
+      onChange({ ...config, body: parsed });
+    } catch {
+      setBodyError(t.json.invalidError);
+    }
   }
 
-  function removeHeader(index: number) {
-    const next = headerEntries.filter((_, i) => i !== index);
-    onChange({ ...config, headers: Object.fromEntries(next) });
+  function updateSignature(patch: Partial<HttpSignatureConfig>) {
+    onChange({ ...config, signature: { ...signature, ...patch } });
   }
 
   return (
@@ -93,35 +194,13 @@ function HttpRequestFields({
       </Field>
 
       <Field label={t.http.headers}>
-        <div className="space-y-1.5">
-          {headerEntries.map(([key, value], index) => (
-            <div key={index} className="flex gap-1.5">
-              <Input
-                value={key}
-                onChange={(event) => setHeader(index, event.target.value, value)}
-                placeholder={t.http.headerNamePlaceholder}
-                className="flex-1"
-              />
-              <Input
-                value={value}
-                onChange={(event) => setHeader(index, key, event.target.value)}
-                placeholder={t.http.headerValuePlaceholder}
-                className="flex-1"
-              />
-              <Button variant="ghost" size="icon-sm" onClick={() => removeHeader(index)}>
-                <X className="h-3.5 w-3.5" strokeWidth={1.5} />
-              </Button>
-            </div>
-          ))}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onChange({ ...config, headers: { ...headers, "": "" } })}
-          >
-            <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
-            {t.http.addHeader}
-          </Button>
-        </div>
+        <KeyValueList
+          entries={headers}
+          onChange={(next) => onChange({ ...config, headers: next })}
+          keyPlaceholder={t.http.headerNamePlaceholder}
+          valuePlaceholder={t.http.headerValuePlaceholder}
+          addLabel={t.http.addHeader}
+        />
       </Field>
 
       <Field label={t.http.timeout}>
@@ -131,6 +210,120 @@ function HttpRequestFields({
           onChange={(event) => onChange({ ...config, timeoutMs: Number(event.target.value) })}
         />
       </Field>
+
+      {/* Sem primitiva de Collapsible no design system — details/summary e acessivel por padrao e nao precisa de dependencia nova. */}
+      <details className="rounded-md border border-border">
+        <summary className="cursor-pointer select-none rounded-md px-3 py-2 text-sm font-medium text-foreground">
+          {t.http.advanced}
+        </summary>
+        <div className="space-y-4 border-t border-border p-3">
+          <Field label={t.http.credentialLabel} hint={t.http.credentialHint}>
+            <Input
+              value={(config.credential as string) ?? ""}
+              onChange={(event) => onChange({ ...config, credential: event.target.value })}
+            />
+          </Field>
+
+          <Field label={t.http.queryLabel}>
+            <KeyValueList
+              entries={query}
+              onChange={(next) => onChange({ ...config, query: next })}
+              keyPlaceholder={t.http.queryKeyPlaceholder}
+              valuePlaceholder={t.http.queryValuePlaceholder}
+              addLabel={t.http.addQueryParam}
+            />
+          </Field>
+
+          <Field label={t.http.bodyLabel} hint={t.http.bodyHint}>
+            <Textarea
+              value={bodyText}
+              onChange={(event) => handleBodyChange(event.target.value)}
+              rows={6}
+              className="font-mono text-xs"
+            />
+            {bodyError && <p className="text-xs text-danger">{bodyError}</p>}
+          </Field>
+
+          <section className="space-y-2 rounded-md border border-border p-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <input
+                type="checkbox"
+                checked={signature.enabled}
+                onChange={(event) => updateSignature({ enabled: event.target.checked })}
+                className="h-4 w-4 rounded border-border-strong"
+              />
+              {t.http.signature.toggle}
+            </label>
+            {signature.enabled && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label={t.http.signature.algorithm}>
+                    <select
+                      value={signature.algorithm}
+                      onChange={(event) =>
+                        updateSignature({
+                          algorithm: event.target.value as HttpSignatureConfig["algorithm"],
+                        })
+                      }
+                      className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm"
+                    >
+                      {["sha256", "sha1", "sha512"].map((algorithm) => (
+                        <option key={algorithm} value={algorithm}>
+                          {algorithm}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label={t.http.signature.encoding}>
+                    <select
+                      value={signature.encoding}
+                      onChange={(event) =>
+                        updateSignature({
+                          encoding: event.target.value as HttpSignatureConfig["encoding"],
+                        })
+                      }
+                      className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm"
+                    >
+                      {["hex", "base64"].map((encoding) => (
+                        <option key={encoding} value={encoding}>
+                          {encoding}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                <Field label={t.http.signature.secretLabel}>
+                  <Input
+                    value={signature.secret}
+                    onChange={(event) => updateSignature({ secret: event.target.value })}
+                    placeholder={t.http.signature.secretPlaceholder}
+                    className="font-mono text-xs"
+                  />
+                </Field>
+                <Field label={t.http.signature.templateLabel}>
+                  <Input
+                    value={signature.template}
+                    onChange={(event) => updateSignature({ template: event.target.value })}
+                    placeholder={t.http.signature.templatePlaceholder}
+                    className="font-mono text-xs"
+                  />
+                </Field>
+                <Field label={t.http.signature.offsetLabel}>
+                  <Input
+                    type="number"
+                    value={signature.timestampOffsetSec}
+                    onChange={(event) =>
+                      updateSignature({ timestampOffsetSec: Number(event.target.value) })
+                    }
+                  />
+                </Field>
+              </>
+            )}
+          </section>
+
+          <p className="text-xs text-muted-foreground">{t.http.rootsHint}</p>
+        </div>
+      </details>
     </>
   );
 }
@@ -799,6 +992,95 @@ const JSON_FALLBACK_TYPES = new Set([
   "mcp.tool",
 ]);
 
+/**
+ * Barra generica no topo do painel — funciona pra QUALQUER tipo de node
+ * (nao so api.httpRequest): aplica uma predefinicao salva (mescla por cima
+ * do config atual) ou salva o config atual como uma predefinicao nova.
+ * Gerenciar/excluir predefinicoes fica em Configuracoes (mesmo padrao de
+ * Conexoes/Variaveis).
+ */
+function PresetBar({
+  nodeType,
+  config,
+  onApply,
+}: {
+  nodeType: string;
+  config: Record<string, unknown>;
+  onApply: (config: Record<string, unknown>) => void;
+}) {
+  const dict = useDictionary();
+  const t = dict.editor.configPanel.presets;
+  const { data: presets } = useNodePresets(nodeType);
+  const createPreset = useCreateNodePreset();
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [name, setName] = useState("");
+
+  function onSelectPreset(id: string) {
+    const preset = presets?.find((p) => p.id === id);
+    if (!preset) return;
+    onApply({ ...config, ...preset.config });
+    toast.success(t.appliedToast);
+  }
+
+  async function onSave() {
+    if (!name.trim()) return;
+    try {
+      await createPreset.mutateAsync({ nodeType, name: name.trim(), config });
+      toast.success(t.savedToast);
+      setName("");
+      setSaveOpen(false);
+    } catch (error) {
+      toast.error(errorMessage(error, t.saveErrorFallback));
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <select
+        aria-label={t.applyLabel}
+        value=""
+        onChange={(event) => onSelectPreset(event.target.value)}
+        className="h-8 flex-1 rounded-md border border-border bg-background px-2.5 text-sm"
+      >
+        <option value="">{t.applyPlaceholder}</option>
+        {presets?.map((preset) => (
+          <option key={preset.id} value={preset.id}>
+            {preset.name}
+          </option>
+        ))}
+      </select>
+      <Button variant="outline" size="sm" onClick={() => setSaveOpen(true)}>
+        {t.saveButton}
+      </Button>
+
+      <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.saveDialogTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="preset-save-name">{t.nameLabel}</Label>
+            <Input
+              id="preset-save-name"
+              placeholder={t.namePlaceholder}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveOpen(false)}>
+              {dict.common.cancel}
+            </Button>
+            <Button onClick={onSave} disabled={createPreset.isPending || !name.trim()}>
+              {createPreset.isPending ? dict.common.saving : dict.common.save}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: ConfigPanelProps) {
   const t = useDictionary().editor.configPanel;
   const entry = getCatalogEntry(node.data.nodeType);
@@ -825,6 +1107,8 @@ export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: C
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        <PresetBar nodeType={node.data.nodeType} config={config} onApply={onChange} />
+
         {node.data.nodeType === "trigger.manual" && (
           <p className="text-sm text-muted-foreground">
             {t.noConfig.manualTrigger}

@@ -18,6 +18,7 @@ import {
   type Viewport,
 } from "@xyflow/react";
 import { nanoid } from "nanoid";
+import { toast } from "sonner";
 import type { NodeRetryPolicy, WorkflowGraph } from "@workflow/shared";
 import { NODE_TYPES, type WorkflowFlowNode } from "./workflow-node";
 import { EDGE_TYPES } from "./pulse-edge";
@@ -27,6 +28,7 @@ import { EditorToolbar } from "./editor-toolbar";
 import { useSaveGraph, useWorkflow } from "@/hooks/use-workflows";
 import { useExecutionStream } from "@/hooks/use-execution-stream";
 import { getCatalogEntry } from "@/lib/node-catalog";
+import { ApiError } from "@/lib/api-client";
 import { useDictionary } from "@/lib/i18n";
 import { useTheme } from "@/hooks/use-theme";
 
@@ -100,7 +102,6 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
   // ultima", nao "e mais novo" — uma resposta atrasada com versionNumber
   // menor que a que ja aplicamos e ignorada, nao importa a ordem de chegada.
   const loadedVersionNumber = useRef<number>(-1);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Espelha saveState pra ler o valor ATUAL dentro do effect de sync abaixo
   // sem precisar dele nas deps (isso faria o effect re-rodar a cada
   // transicao de estado, nao so quando `workflow` muda). Atualizado num
@@ -134,78 +135,76 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
     setViewport(graph.viewport ?? DEFAULT_VIEWPORT);
   }, [workflow]);
 
-  const scheduleSave = useCallback(
-    (nextNodes: WorkflowFlowNode[], nextEdges: Edge[]) => {
-      setSaveState("dirty");
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        setSaveState("saving");
-        saveGraph.mutate(flowToGraph(nextNodes, nextEdges, viewport), {
-          onSuccess: (data) => {
-            // Cada save cria uma versao nova no servidor — useSaveGraph.
-            // onSuccess atualiza o cache de useWorkflow() com essa resposta,
-            // o que reexecutaria o effect de sync acima e substituiria
-            // nodes/edges por objetos NOVOS vindos do servidor. O React Flow
-            // trata isso como troca completa de identidade dos nodes, remede
-            // dimensoes e dispara onNodesChange de novo — que chama
-            // scheduleSave outra vez, criando um loop de save infinito
-            // (achado ao vivo: 23 PUT /graph pra UMA unica marcacao de
-            // checkbox). Marcar a versao como "ja carregada" aqui, antes do
-            // effect rodar, corta o loop: o echo do nosso proprio save nunca
-            // re-sincroniza o canvas.
-            if (data.currentVersion && data.currentVersion.versionNumber > loadedVersionNumber.current) {
-              loadedVersionNumber.current = data.currentVersion.versionNumber;
-            }
-            setSaveState("saved");
-          },
-          onError: () => setSaveState("dirty"),
-        });
-      }, 800);
-    },
-    [saveGraph, viewport],
-  );
+  // So marca "dirty" — o save so acontece quando o usuario pede (botao
+  // Salvar ou Ctrl+S), ver handleSave abaixo. Sem debounce/PUT automatico
+  // (padrao Make/n8n: o usuario decide quando publicar a mudanca).
+  const markDirty = useCallback(() => setSaveState("dirty"), []);
+
+  const handleSave = useCallback(() => {
+    setSaveState("saving");
+    saveGraph.mutate(flowToGraph(nodes, edges, viewport), {
+      onSuccess: () => {
+        // NAO pre-marcamos loadedVersionNumber aqui (como a versao antiga
+        // fazia): deixamos o effect de sync (acima) reaplicar o grafo que
+        // voltou do servidor por cima do estado local — e assim que campos
+        // gerados no backend (ex.: chatToken/inboxToken/webhookId) aparecem
+        // no painel de configuracao sem precisar recarregar a pagina. Sem
+        // risco do loop antigo: como o save so dispara por acao explicita do
+        // usuario (nunca mais a partir de onNodesChange), o remede de
+        // dimensoes que essa troca de objetos causa nao pode re-disparar
+        // outro save sozinho.
+        setSaveState("saved");
+      },
+      onError: (error) => {
+        setSaveState("dirty");
+        toast.error(error instanceof ApiError ? error.message : t.editor.toolbar.saveErrorFallback);
+      },
+    });
+  }, [nodes, edges, viewport, saveGraph, t]);
+
+  // Ctrl/Cmd+S salva sem precisar clicar no botao (mesmo atalho do Make/n8n).
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") return;
+      event.preventDefault();
+      if (saveStateRef.current === "dirty") handleSave();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleSave]);
 
   const onNodesChange: OnNodesChange<WorkflowFlowNode> = useCallback(
     (changes) => {
-      setNodes((current) => {
-        const next = applyNodeChanges(changes, current);
-        // "dimensions" (medicao inicial de tamanho pelo ResizeObserver do
-        // React Flow, dispara pra TODO node ao montar) e "select" (clique
-        // pra selecionar, so estado de UI) nunca sao persistidos —
-        // flowToGraph so grava id/type/label/position/config/retry. Sem
-        // filtrar esses dois tipos, so ABRIR um fluxo ja salvo disparava um
-        // autosave (e uma versao nova) sem nenhuma edicao real do usuario
-        // (achado ao vivo pela suite E2E: numero de versao avancava sozinho).
-        const persistable = changes.some(
-          (change) => change.type !== "dimensions" && change.type !== "select",
-        );
-        if (persistable) scheduleSave(next, edges);
-        return next;
-      });
+      // "dimensions" (medicao inicial de tamanho pelo ResizeObserver do
+      // React Flow, dispara pra TODO node ao montar/trocar de identidade) e
+      // "select" (clique pra selecionar, so estado de UI) nunca sao
+      // persistidos — flowToGraph so grava id/type/label/position/config/
+      // retry. Sem filtrar esses dois tipos, so ABRIR um fluxo ja salvo (ou
+      // so clicar num node) marcava "alteracoes nao salvas" sem nenhuma
+      // edicao real do usuario (achado ao vivo pela suite E2E).
+      const persistable = changes.some(
+        (change) => change.type !== "dimensions" && change.type !== "select",
+      );
+      if (persistable) markDirty();
+      setNodes((current) => applyNodeChanges(changes, current));
     },
-    [edges, scheduleSave],
+    [markDirty],
   );
 
   const onEdgesChange: OnEdgesChange = useCallback(
     (changes) => {
-      setEdges((current) => {
-        const next = applyEdgeChanges(changes, current);
-        scheduleSave(nodes, next);
-        return next;
-      });
+      markDirty();
+      setEdges((current) => applyEdgeChanges(changes, current));
     },
-    [nodes, scheduleSave],
+    [markDirty],
   );
 
   const onConnect: OnConnect = useCallback(
     (connection) => {
-      setEdges((current) => {
-        const next = addEdge({ ...connection, id: nanoid(8), type: "pulse" }, current);
-        scheduleSave(nodes, next);
-        return next;
-      });
+      markDirty();
+      setEdges((current) => addEdge({ ...connection, id: nanoid(8), type: "pulse" }, current));
     },
-    [nodes, scheduleSave],
+    [markDirty],
   );
 
   const onDrop = useCallback(
@@ -228,33 +227,28 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
         },
       };
 
-      setNodes((current) => {
-        const next = [...current, newNode];
-        scheduleSave(next, edges);
-        return next;
-      });
+      markDirty();
+      setNodes((current) => [...current, newNode]);
     },
-    [edges, screenToFlowPosition, scheduleSave],
+    [screenToFlowPosition, markDirty],
   );
 
   function updateSelectedNodeConfig(config: Record<string, unknown>) {
-    setNodes((current) => {
-      const next = current.map((node) =>
+    markDirty();
+    setNodes((current) =>
+      current.map((node) =>
         node.id === selectedNodeId ? { ...node, data: { ...node.data, config } } : node,
-      );
-      scheduleSave(next, edges);
-      return next;
-    });
+      ),
+    );
   }
 
   function updateSelectedNodeRetry(retry: NodeRetryPolicy | undefined) {
-    setNodes((current) => {
-      const next = current.map((node) =>
+    markDirty();
+    setNodes((current) =>
+      current.map((node) =>
         node.id === selectedNodeId ? { ...node, data: { ...node.data, retry } } : node,
-      );
-      scheduleSave(next, edges);
-      return next;
-    });
+      ),
+    );
   }
 
   const nodesWithStatus = nodes.map((node) => ({
@@ -278,6 +272,7 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
         workflowId={workflowId}
         name={workflow?.name ?? t.common.loading}
         saveState={saveState}
+        onSave={handleSave}
         onRunStarted={setExecutionId}
         currentVersionId={workflow?.currentVersion?.id ?? null}
       />

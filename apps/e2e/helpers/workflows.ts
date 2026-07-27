@@ -336,3 +336,36 @@ export function chatFailingGraph(errorMessage: string) {
     viewport: { x: 0, y: 0, zoom: 1 },
   };
 }
+
+/**
+ * trigger.manual -> api.httpRequest com o config passado inteiro (sem
+ * defaults aplicados de proposito) — usado pelos testes de $auth/$sig/
+ * assinatura HMAC do node HTTP e pelo teste de regressao de "config legado"
+ * (grafo salvo antes de query/signature/credential existirem: graph.schema.ts
+ * so valida node.type, nunca o shape do config de cada node — ver
+ * apps/api/src/workflows/graph.schema.ts).
+ */
+export function httpRequestGraph(nodeConfig: Record<string, unknown>) {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.manual",
+        category: "trigger",
+        label: "Manual Trigger",
+        position: { x: 0, y: 0 },
+        config: {},
+      },
+      {
+        id: "n2",
+        type: "api.httpRequest",
+        category: "api",
+        label: "HTTP Request",
+        position: { x: 320, y: 0 },
+        config: nodeConfig,
+      },
+    ],
+    edges: [{ id: "e1", source: "n1", target: "n2" }],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
