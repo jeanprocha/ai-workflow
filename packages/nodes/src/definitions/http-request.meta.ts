@@ -28,9 +28,14 @@ export type SignatureConfig = z.infer<typeof signatureConfigSchema>;
 export const httpRequestConfigSchema = z.object({
   method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]).default("GET"),
   url: z.string().min(1, "Informe uma URL."),
-  headers: z.record(z.string(), z.string()).default({}),
+  // Valor `string | undefined` (nao so `string`): uma expressao tipo
+  // `{{ $vars.termo }}` que ainda nao foi setada resolve pra `undefined`
+  // antes de chegar aqui — legitimo, nao e erro de shape de config. Quem
+  // decide o que fazer com undefined e o execute (query omite a chave; ver
+  // http-request.ts), nao o parse.
+  headers: z.record(z.string(), z.string().optional()).default({}),
   /** Vira query string na URL final — separado de `url` pra poder referenciar `{{ $auth.* }}`/`{{ $sig.* }}` com encoding correto (new URL() + URLSearchParams). */
-  query: z.record(z.string(), z.string()).default({}),
+  query: z.record(z.string(), z.string().optional()).default({}),
   body: z.unknown().optional(),
   timeoutMs: z.number().int().positive().default(10_000),
   /** Nome de uma Conexao (Configuracoes -> Conexoes) — habilita `{{ $auth.* }}`. JSON na credencial vira objeto; string simples vira `{ value: <string> }`. */

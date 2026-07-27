@@ -123,6 +123,7 @@ export class EngineService {
     const nodesById = new Map<string, WorkflowNode>(
       graph.nodes.map((node) => [node.id, node]),
     );
+    const knownNodeIds = new Set(graph.nodes.map((node) => node.id));
     const outgoing = new Map<string, WorkflowEdge[]>();
     const incoming = new Map<string, WorkflowEdge[]>();
     const incomingCount = new Map<string, number>();
@@ -228,6 +229,7 @@ export class EngineService {
               nodeOutputs,
               workspaceId,
               conversationId,
+              knownNodeIds,
             });
           }),
         );
@@ -360,6 +362,7 @@ export class EngineService {
     nodeOutputs: Record<string, unknown>;
     workspaceId: string;
     conversationId?: string;
+    knownNodeIds: ReadonlySet<string>;
   }): Promise<NodeStepResult> {
     const {
       executionId,
@@ -369,6 +372,7 @@ export class EngineService {
       nodeOutputs,
       workspaceId,
       conversationId,
+      knownNodeIds,
     } = params;
 
     const definition = getNodeDefinition(node.type);
@@ -387,17 +391,48 @@ export class EngineService {
       return { nodeId: node.id, ok: false, error: message };
     }
 
-    const resolvedConfig = resolveExpressions(node.config, {
-      input,
-      vars,
-      nodeOutputs,
-      // $auth/$sig so existem dentro do execute do node HTTP (credencial lida
-      // e timestamp calculado no proprio sandbox) — aqui, no thread principal,
-      // essas expressoes tem que sobreviver intactas pra uma segunda passada
-      // resolver depois (ver http-request.ts). Inocuo pra qualquer outro node,
-      // que nunca tem esses campos no config.
-      preserveRoots: ['$auth', '$sig'],
-    });
+    let resolvedConfig: unknown;
+    try {
+      resolvedConfig = resolveExpressions(node.config, {
+        input,
+        vars,
+        nodeOutputs,
+        // $auth/$sig so existem dentro do execute do node HTTP (credencial lida
+        // e timestamp calculado no proprio sandbox) — aqui, no thread principal,
+        // essas expressoes tem que sobreviver intactas pra uma segunda passada
+        // resolver depois (ver http-request.ts). Inocuo pra qualquer outro node,
+        // que nunca tem esses campos no config.
+        preserveRoots: ['$auth', '$sig'],
+        // Um id inexistente aqui e quase sempre erro de digitacao na propria
+        // expressao (ver ADR — UnknownNodeIdError) — sem isso, viraria
+        // `undefined` em silencio e so estouraria la na frente, dentro do
+        // execute do node (ex.: chat.reply gravando mensagem vazia).
+        knownNodeIds,
+      });
+    } catch (error) {
+      // Sem isso, o throw escaparia do Promise.all da wave (ver run()) sem
+      // gravar nenhum step, deixando a execucao pendurada sem explicacao.
+      const message =
+        error instanceof Error ? error.message : 'Erro ao resolver expressao.';
+      await this.recordStep({
+        executionId,
+        node,
+        status: 'failed',
+        input,
+        output: null,
+        error: message,
+        durationMs: 0,
+        attempt: 1,
+      });
+      this.events.emit({
+        type: 'step.completed',
+        executionId,
+        nodeId: node.id,
+        status: 'failed',
+        error: message,
+      });
+      return { nodeId: node.id, ok: false, error: message };
+    }
     const attempts = node.retry?.attempts ?? 1;
     const backoffMs = node.retry?.backoffMs ?? 0;
 

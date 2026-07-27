@@ -24,6 +24,24 @@ export interface ExpressionContext {
    * `{{ $auth.x }}` -> `undefined` -> string vazia, antes do node ver.
    */
   preserveRoots?: readonly string[];
+  /**
+   * Ids de node que existem no grafo desta execucao. Quando presente,
+   * `{{ $node.<id> }}` com um id AUSENTE daqui lanca erro nomeando o id —
+   * normalmente um typo. Um id presente mas cujo node ainda nao executou
+   * (branch nao tomada, node a frente no grafo) continua resolvendo pra
+   * `undefined` normalmente, que e legitimo. Omitir o campo (ex.: na segunda
+   * passada de $auth/$sig dentro do http-request.ts) preserva o
+   * comportamento antigo, sem essa checagem.
+   */
+  knownNodeIds?: ReadonlySet<string>;
+}
+
+/** Erro de expressao com id de node que nao existe no grafo — ver `knownNodeIds`. */
+export class UnknownNodeIdError extends Error {
+  constructor(public readonly nodeId: string) {
+    super(`Node "${nodeId}" nao existe neste fluxo — confira a expressao.`);
+    this.name = "UnknownNodeIdError";
+  }
 }
 
 const EXPRESSION_RE = /\{\{\s*([^}]+?)\s*\}\}/g;
@@ -64,6 +82,9 @@ function evaluateExpression(expr: string, ctx: ExpressionContext): unknown {
     const dotIndex = rest.indexOf(".");
     const nodeId = dotIndex === -1 ? rest : rest.slice(0, dotIndex);
     const path = dotIndex === -1 ? "" : rest.slice(dotIndex + 1);
+    if (ctx.knownNodeIds && !ctx.knownNodeIds.has(nodeId)) {
+      throw new UnknownNodeIdError(nodeId);
+    }
     return getPath(ctx.nodeOutputs[nodeId], path);
   }
 

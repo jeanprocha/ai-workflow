@@ -9,6 +9,7 @@ import {
   chatGraph,
   chatStatefulGraph,
   chatFailingGraph,
+  chatWrongNodeIdGraph,
 } from "../../helpers/workflows";
 import {
   createChatConversation,
@@ -204,6 +205,41 @@ test.describe("Chat (API)", () => {
     expect(messages[1]).toMatchObject({
       role: "bot",
       content: "Desculpe, algo deu errado ao processar sua mensagem. Tente novamente em instantes.",
+    });
+  });
+
+  test("chat.reply referenciando id de node inexistente falha com errorMessage — nunca um erro cru do Prisma", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const { chatToken } = await setupChatWorkflow(
+      request,
+      tokens,
+      workspaceId,
+      "Chat Id Inexistente",
+      chatWrongNodeIdGraph("Desculpe, tive um problema — tente de novo em instantes."),
+    );
+    const { body: conversation } = await createChatConversation(request, chatToken);
+
+    const { body: execution } = await postVisitorMessage(
+      request,
+      chatToken,
+      conversation.conversationId,
+      "oi",
+    );
+    const done = await waitForExecutionStatus(request, tokens, workspaceId, execution.id as string, "failed");
+    // O erro registrado no step precisa nomear o id errado (prova que parou
+    // no knownNodeIds, antes do execute do chat.reply) — nunca a mensagem
+    // crua de um Prisma "Argument 'content' is missing".
+    expect(done.error).toContain("n9NaoExiste");
+    expect(done.error).not.toContain("Prisma");
+    expect(done.error).not.toContain("prisma");
+
+    const messages = await waitForChatMessageCount(request, chatToken, conversation.conversationId, 2);
+    expect(messages[1]).toMatchObject({
+      role: "bot",
+      content: "Desculpe, tive um problema — tente de novo em instantes.",
     });
   });
 

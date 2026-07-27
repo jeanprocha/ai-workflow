@@ -311,6 +311,39 @@ export function chatStatefulGraph() {
   };
 }
 
+/**
+ * trigger.chat -> chat.reply referenciando um id de node que NAO existe no
+ * grafo (so tem n1/n2) — reproduz o bug real: `{{ $node.idErrado }}` virando
+ * `undefined` em silencio fazia o chat.reply gravar mensagem vazia e
+ * estourar um erro cru do Prisma na tela do visitante. Com knownNodeIds
+ * (engine.service.ts), isso agora falha ANTES do execute do node, com
+ * errorMessage configurada — nunca mais chega no Prisma.
+ */
+export function chatWrongNodeIdGraph(errorMessage: string) {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.chat",
+        category: "trigger",
+        label: "Chat",
+        position: { x: 0, y: 0 },
+        config: { chatToken: "", inboxToken: "", welcomeMessage: "", errorMessage },
+      },
+      {
+        id: "n2",
+        type: "chat.reply",
+        category: "communication",
+        label: "Responder no chat",
+        position: { x: 320, y: 0 },
+        config: { message: "{{ $node.n9NaoExiste.value }}" },
+      },
+    ],
+    edges: [{ id: "e1", source: "n1", target: "n2" }],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
 /** trigger.chat -> api.httpRequest pra porta discard (connection refused) — dispara o caminho de falha/errorMessage. */
 export function chatFailingGraph(errorMessage: string) {
   return {

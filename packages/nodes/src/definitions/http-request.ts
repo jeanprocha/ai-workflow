@@ -36,20 +36,11 @@ function assertFullyResolved(parts: Record<string, unknown>): void {
 export const httpRequestNode: NodeDefinition<HttpRequestConfig> = {
   ...httpRequestMeta,
   execute: async (ctx) => {
-    // O grafo so valida que node.type existe no catalogo (ver
-    // apps/api/src/workflows/graph.schema.ts) — o configSchema deste node
-    // NUNCA e de fato parseado/aplicado em cima do config salvo. Um fluxo
-    // salvo ANTES de query/signature existirem chega aqui sem esses campos
-    // (nao com os defaults do zod, ausentes mesmo) — sem este fallback
-    // explicito, `Object.entries(undefined)` e `signature.enabled` de
-    // `undefined` derrubam a execucao de todo node HTTP legado.
-    const defaults = httpRequestMeta.defaultConfig;
-    const { method, url, body } = ctx.config;
-    const headers = ctx.config.headers ?? defaults.headers;
-    const timeoutMs = ctx.config.timeoutMs ?? defaults.timeoutMs;
-    const credential = ctx.config.credential ?? defaults.credential;
-    const query = ctx.config.query ?? defaults.query;
-    const signature = { ...defaults.signature, ...(ctx.config.signature ?? {}) };
+    // `node-worker-entry.ts` ja rodou `configSchema.safeParse` antes de
+    // chegar aqui — um fluxo salvo ANTES de query/signature existirem ganha
+    // os defaults do zod (headers/query: {}, signature.enabled: false etc.)
+    // de graca, sem fallback manual nenhum neste execute.
+    const { method, url, body, headers, timeoutMs, credential, query, signature } = ctx.config;
 
     // Gate: "{{ $auth... }}" em algum campo mas nenhuma Conexao selecionada —
     // erro explicito, ANTES de qualquer coisa (nunca sai pra rede com $auth
@@ -74,10 +65,18 @@ export const httpRequestNode: NodeDefinition<HttpRequestConfig> = {
     // existem depois que a URL final estiver montada.
     const sigStage1 = { method, timestamp };
     const resolvedUrl = resolveAuthSig(url, auth, sigStage1) as string;
-    const resolvedQuery = resolveAuthSig(query, auth, sigStage1) as Record<string, string>;
+    const resolvedQuery = resolveAuthSig(query, auth, sigStage1) as Record<
+      string,
+      string | undefined
+    >;
 
     const finalUrl = new URL(resolvedUrl);
     for (const [key, value] of Object.entries(resolvedQuery)) {
+      // Uma expressao que resolve pra undefined/null (ex.: $vars ainda vazio)
+      // e omitida, em vez de virar a string literal "undefined"/"null" na
+      // URL — foi o que fez uma busca por termo ainda nao definido devolver
+      // zero resultados sem nenhum erro explicando o motivo.
+      if (value === undefined || value === null) continue;
       finalUrl.searchParams.set(key, value);
     }
 

@@ -260,4 +260,65 @@ test.describe("Node HTTP — $auth/$sig/assinatura HMAC (API)", () => {
     ).json();
     expect(detail.outputPayload.body.headers["x-legacy"]).toBe("1");
   });
+
+  test("expressao com id de node inexistente falha citando o id, sem chegar no execute do node", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "HTTP Node Id Inexistente");
+    // "n9NaoExiste" nao esta na lista de nodes do grafo (so n1/n2) — o
+    // engine.service.ts (knownNodeIds) precisa pegar isso ANTES do
+    // resolveExpressions devolver undefined em silencio.
+    await saveGraphViaApi(
+      request,
+      tokens,
+      workspaceId,
+      workflow.id,
+      httpRequestGraph({
+        method: "GET",
+        url: ECHO_URL,
+        headers: { "X-Ref": "{{ $node.n9NaoExiste.value }}" },
+        query: {},
+        timeoutMs: 5000,
+      }),
+    );
+
+    const execution = await runWorkflowViaApi(request, tokens, workspaceId, workflow.id);
+    const done = await waitForExecutionStatus(request, tokens, workspaceId, execution.id, "failed");
+    expect(done.error).toContain("n9NaoExiste");
+    expect(done.error).toContain("nao existe");
+  });
+
+  test("query com expressao ainda nao resolvida (undefined) e omitida da URL, nunca vira a string 'undefined'", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const headers = workspaceHeaders(tokens, workspaceId);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "HTTP Query Undefined");
+    // $vars.termoBusca nunca foi setada (nenhum logic.setVariables antes) —
+    // resolve pra undefined legitimamente, nao e id de node errado.
+    await saveGraphViaApi(
+      request,
+      tokens,
+      workspaceId,
+      workflow.id,
+      httpRequestGraph({
+        method: "GET",
+        url: ECHO_URL,
+        headers: {},
+        query: { termo: "{{ $vars.termoBusca }}", page: "1" },
+        timeoutMs: 5000,
+      }),
+    );
+
+    const execution = await runWorkflowViaApi(request, tokens, workspaceId, workflow.id);
+    const done = await waitForExecutionStatus(request, tokens, workspaceId, execution.id, "success");
+    const detail = await (
+      await request.get(`${API_URL}/executions/${done.id}`, { headers })
+    ).json();
+    expect(detail.outputPayload.body.query.termo).toBeUndefined();
+    expect(detail.outputPayload.body.query.page).toBe("1");
+  });
 });

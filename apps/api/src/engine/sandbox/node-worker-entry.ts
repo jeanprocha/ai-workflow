@@ -1,5 +1,5 @@
 import { parentPort, workerData } from 'node:worker_threads';
-import { getNodeDefinition } from '@workflow/nodes';
+import { getNodeDefinition, formatConfigError } from '@workflow/nodes';
 import { setTelemetryHandler } from '@workflow/ai';
 import type {
   SandboxRequest,
@@ -82,9 +82,27 @@ async function run(): Promise<void> {
     return;
   }
 
+  // `graph.schema.ts` (save do fluxo) so confere que `node.type` existe no
+  // catalogo — o `configSchema` de cada node nunca era de fato parseado em
+  // cima do config salvo, nem aqui nem la. Parseando AQUI (config ja
+  // resolvida, sem `{{ }}`, tipos reais) em vez de no save: no save os
+  // campos ainda sao string de expressao crua, e um `timeoutMs: "{{ $vars.t }}"`
+  // legitimo falharia contra um `z.number()`. Efeito colateral de graca:
+  // aplica os defaults do zod que antes nunca chegavam na config real.
+  const parsed = definition.configSchema.safeParse(data.config);
+  if (!parsed.success) {
+    const result: SandboxResult = {
+      kind: 'result',
+      ok: false,
+      error: formatConfigError(data.nodeType, parsed.error),
+    };
+    port.postMessage(result);
+    return;
+  }
+
   try {
     const executionResult = await definition.execute({
-      config: data.config as never,
+      config: parsed.data,
       input: data.input,
       vars: data.vars,
       log: (event, payload, level) =>
