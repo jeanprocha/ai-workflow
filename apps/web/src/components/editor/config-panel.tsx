@@ -423,6 +423,76 @@ function SetVariablesFields({
   );
 }
 
+function TransformListFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const t = useDictionary().editor.configPanel;
+  const fields = (config.fields as Array<{ as: string; path: string }>) ?? [];
+
+  function update(index: number, patch: Partial<{ as: string; path: string }>) {
+    const next = fields.map((field, i) => (i === index ? { ...field, ...patch } : field));
+    onChange({ ...config, fields: next });
+  }
+
+  return (
+    <>
+      <Field label={t.transformList.source} hint={t.transformList.sourceHint}>
+        <Input
+          value={String(config.source ?? "")}
+          onChange={(event) => onChange({ ...config, source: event.target.value })}
+        />
+      </Field>
+      <Field label={t.transformList.limit} hint={t.transformList.limitHint}>
+        <Input
+          type="number"
+          min={0}
+          value={Number(config.limit ?? 0)}
+          onChange={(event) => onChange({ ...config, limit: Number(event.target.value) || 0 })}
+        />
+      </Field>
+      <Field label={t.transformList.fieldsLabel}>
+        <div className="space-y-1.5">
+          {fields.map((field, index) => (
+            <div key={index} className="flex gap-1.5">
+              <Input
+                value={field.as}
+                onChange={(event) => update(index, { as: event.target.value })}
+                placeholder={t.transformList.asPlaceholder}
+                className="flex-1"
+              />
+              <Input
+                value={field.path}
+                onChange={(event) => update(index, { path: event.target.value })}
+                placeholder={t.transformList.pathPlaceholder}
+                className="flex-1"
+              />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => onChange({ ...config, fields: fields.filter((_, i) => i !== index) })}
+              >
+                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+              </Button>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onChange({ ...config, fields: [...fields, { as: "", path: "" }] })}
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+            {t.transformList.add}
+          </Button>
+        </div>
+      </Field>
+    </>
+  );
+}
+
 function DelayFields({
   config,
   onChange,
@@ -1149,6 +1219,10 @@ export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: C
 
         {node.data.nodeType === "logic.setVariables" && (
           <SetVariablesFields config={config} onChange={onChange} />
+        )}
+
+        {node.data.nodeType === "logic.transformList" && (
+          <TransformListFields config={config} onChange={onChange} />
         )}
 
         {node.data.nodeType === "logic.log" && (

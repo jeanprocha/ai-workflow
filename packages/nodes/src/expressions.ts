@@ -46,7 +46,13 @@ export class UnknownNodeIdError extends Error {
 
 const EXPRESSION_RE = /\{\{\s*([^}]+?)\s*\}\}/g;
 
-function getPath(root: unknown, path: string): unknown {
+/**
+ * Travessia de caminho por ponto — usada tanto na resolucao de `{{ }}`
+ * quanto pelo node `logic.transformList` (ver transform-list.ts) pra extrair
+ * campos de cada item de uma lista. Indexa objeto e array do mesmo jeito
+ * (`"items.0.nome"` funciona), por isso e reaproveitada em vez de duplicada.
+ */
+export function getPath(root: unknown, path: string): unknown {
   if (path === "") return root;
   const segments = path.split(".").filter(Boolean);
   let current = root;

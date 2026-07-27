@@ -89,8 +89,15 @@ Assinatura (dentro de Avançado):
 
 A resposta chega em `{{ $node.<id-deste-node>.body.data.items }}` — o
 formato é aninhado (preço em `ProdutoGrade.ProdutoMargem.Preco`, código em
-`ProdutoGrade.Sku`). Formatar a lista pro visitante costuma ficar melhor com
-um node `ai.chat` logo depois, em vez de tentar montar o texto manualmente.
+`ProdutoGrade.Sku`), e a Rein costuma devolver a lista inteira, não só os
+primeiros N. Antes de mandar isso pra um `ai.chat` formatar pro visitante,
+intercale um node `logic.transformList`: Origem
+`{{ $node.<id-deste-node>.body.data.items }}`, Limite (ex.: `5`) e os campos
+que interessam (`sku` ← `ProdutoGrade.Sku`, `preco` ←
+`ProdutoGrade.ProdutoMargem.Preco` etc.) — o `ai.chat` recebe só os 5 itens
+já enxutos (`{{ $node.<id-do-transformList>.items }}`) em vez do JSON aninhado
+inteiro de todos os resultados, e o campo `total` deixa a IA dizer "encontrei
+37, mostrando 5" sem custo extra de IA pra isso.
 
 Depois de montar, clique **"Salvar como predefinição"** no painel — próxima
 vez que precisar deste node (neste ou em outro fluxo), é só escolher a

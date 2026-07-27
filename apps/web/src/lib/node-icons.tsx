@@ -8,6 +8,7 @@ import {
   Box,
   MessagesSquare,
   MessageSquare,
+  ListFilter,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,6 +22,7 @@ const ICONS: Record<string, LucideIcon> = {
   Terminal,
   MessagesSquare,
   MessageSquare,
+  ListFilter,
 };
 
 export function getNodeIcon(name: string): LucideIcon {

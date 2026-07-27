@@ -56,6 +56,16 @@ export const pt = {
       valuePlaceholder: "valor",
       add: "Adicionar variável",
     },
+    transformList: {
+      source: "Origem",
+      sourceHint: "Expressão que resolve numa lista, ex: {{ $node.n2.body.data.items }}",
+      limit: "Limite de itens",
+      limitHint: "0 = sem limite (mantém todos os itens).",
+      fieldsLabel: "Campos (vazio mantém o item inteiro)",
+      asPlaceholder: "nome do campo de saída",
+      pathPlaceholder: "caminho no item original (ex: Produto.Sku)",
+      add: "Adicionar campo",
+    },
     delay: {
       duration: "Duração (ms)",
     },
@@ -300,6 +310,16 @@ export const en = {
       keyPlaceholder: "key",
       valuePlaceholder: "value",
       add: "Add variable",
+    },
+    transformList: {
+      source: "Source",
+      sourceHint: "Expression that resolves to a list, e.g.: {{ $node.n2.body.data.items }}",
+      limit: "Item limit",
+      limitHint: "0 = no limit (keeps all items).",
+      fieldsLabel: "Fields (empty keeps the whole item)",
+      asPlaceholder: "output field name",
+      pathPlaceholder: "path in the original item (e.g.: Produto.Sku)",
+      add: "Add field",
     },
     delay: {
       duration: "Duration (ms)",

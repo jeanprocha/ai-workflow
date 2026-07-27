@@ -378,6 +378,64 @@ export function chatFailingGraph(errorMessage: string) {
  * so valida node.type, nunca o shape do config de cada node — ver
  * apps/api/src/workflows/graph.schema.ts).
  */
+/**
+ * trigger.manual -> api.httpRequest (POST `items` pro /debug/echo, que
+ * devolve o corpo tal e qual recebeu) -> logic.transformList lendo
+ * `$node.n2.body.body` — prova o valor do node: uma lista grande e crua vira
+ * poucos itens enxutos antes de seguir adiante (ex.: pro prompt de um agente
+ * de IA), sem custar uma chamada de IA a mais so pra isso.
+ */
+export function transformListGraph(options: {
+  echoUrl: string;
+  items: unknown[];
+  limit: number;
+  fields: Array<{ as: string; path: string }>;
+}) {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.manual",
+        category: "trigger",
+        label: "Manual Trigger",
+        position: { x: 0, y: 0 },
+        config: {},
+      },
+      {
+        id: "n2",
+        type: "api.httpRequest",
+        category: "api",
+        label: "HTTP Request",
+        position: { x: 320, y: 0 },
+        config: {
+          method: "POST",
+          url: options.echoUrl,
+          headers: { "Content-Type": "application/json" },
+          body: options.items,
+          timeoutMs: 5000,
+        },
+      },
+      {
+        id: "n3",
+        type: "logic.transformList",
+        category: "logic",
+        label: "Transformar lista",
+        position: { x: 640, y: 0 },
+        config: {
+          source: "{{ $node.n2.body.body }}",
+          limit: options.limit,
+          fields: options.fields,
+        },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", target: "n2" },
+      { id: "e2", source: "n2", target: "n3" },
+    ],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
 export function httpRequestGraph(nodeConfig: Record<string, unknown>) {
   return {
     nodes: [

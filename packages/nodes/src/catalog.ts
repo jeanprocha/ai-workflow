@@ -17,6 +17,7 @@ import { httpRequestMeta } from "./definitions/http-request.meta.js";
 import { ifNode } from "./definitions/if.js";
 import { switchNode } from "./definitions/switch.js";
 import { setVariablesNode } from "./definitions/set-variables.js";
+import { transformListNode } from "./definitions/transform-list.js";
 import { delayNode } from "./definitions/delay.js";
 import { mergeNode } from "./definitions/merge.js";
 import { parallelNode } from "./definitions/parallel.js";
@@ -94,6 +95,7 @@ export const NODE_CATALOG: readonly NodeCatalogEntry[] = [
   ifNode,
   switchNode,
   setVariablesNode,
+  transformListNode,
   delayNode,
   mergeNode,
   parallelNode,

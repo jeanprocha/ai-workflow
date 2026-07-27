@@ -7,6 +7,7 @@ import { chatReplyNode } from "./definitions/chat-reply.js";
 import { httpRequestNode } from "./definitions/http-request.js";
 import { ifNode } from "./definitions/if.js";
 import { setVariablesNode } from "./definitions/set-variables.js";
+import { transformListNode } from "./definitions/transform-list.js";
 import { logNode } from "./definitions/log.js";
 import { switchNode } from "./definitions/switch.js";
 import { delayNode } from "./definitions/delay.js";
@@ -55,6 +56,7 @@ export const NODE_DEFINITIONS: readonly NodeDefinition<never>[] = [
   ifNode,
   switchNode,
   setVariablesNode,
+  transformListNode,
   delayNode,
   mergeNode,
   parallelNode,
