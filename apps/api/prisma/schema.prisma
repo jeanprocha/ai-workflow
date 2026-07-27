@@ -78,6 +78,9 @@ model Workflow {
   currentVersionId  String?        @unique @map("current_version_id")
   /** Sincronizado a cada save do grafo: id do node trigger.webhook, se houver. */
   webhookId         String?        @unique @map("webhook_id")
+  /** Sincronizados a cada save do grafo: tokens do node trigger.chat, se houver. */
+  chatToken         String?        @unique @map("chat_token")
+  inboxToken        String?        @unique @map("inbox_token")
   createdAt         DateTime       @default(now()) @map("created_at")
   updatedAt         DateTime       @updatedAt @map("updated_at")
 
@@ -86,6 +89,7 @@ model Workflow {
   currentVersion WorkflowVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])
   executions     Execution[]
   aiSuggestions  AiSuggestion[]
+  conversations  Conversation[]
 
   @@index([workspaceId])
   @@map("workflows")
@@ -161,6 +165,7 @@ enum TriggerType {
   webhook
   cron
   event
+  chat
 }
 
 model Execution {
@@ -464,4 +469,48 @@ model AiSuggestion {
   @@index([workspaceId])
   @@index([workflowId])
   @@map("ai_suggestions")
+}
+
+/**
+ * Fase 12 (Chat trigger): conversa de um fluxo conversacional, identificada
+ * por canal + chave externa. `channel` e uma string livre (nao enum) de
+ * proposito — WhatsApp/Telegram/Discord entram depois sem migration; so o
+ * canal "web" (chat publico da propria plataforma) e implementado agora.
+ * `externalKey` e nulo no canal web (a conversa e identificada so pelo id,
+ * guardado no localStorage do visitante); em canais externos seria o id do
+ * contato no provedor (numero de telefone, chat id etc.).
+ */
+model Conversation {
+  id          String   @id @default(uuid())
+  workflowId  String   @map("workflow_id")
+  channel     String   @default("web")
+  externalKey String?  @map("external_key")
+  /** Espelha $vars da ultima execucao concluida com sucesso — carrinho, etapa etc. */
+  state       Json     @default("{}")
+  status      String   @default("open")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workflow Workflow              @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  messages ConversationMessage[]
+
+  @@unique([workflowId, channel, externalKey])
+  @@index([workflowId, updatedAt])
+  @@map("conversations")
+}
+
+model ConversationMessage {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  /** "user" (visitante) | "bot" (node chat.reply) | "operator" (inbox humano). */
+  role           String
+  content        String
+  /** Execucao que gerou esta mensagem, quando role = "bot". */
+  executionId    String?  @map("execution_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("conversation_messages")
 }

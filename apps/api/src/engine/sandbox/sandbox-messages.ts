@@ -12,7 +12,8 @@ export type CtxRpcMethod =
   | 'getCredential'
   | 'callAgent'
   | 'searchKnowledge'
-  | 'callMcpTool';
+  | 'callMcpTool'
+  | 'sendChatMessage';
 
 export interface CtxRpcCall {
   kind: 'rpc';

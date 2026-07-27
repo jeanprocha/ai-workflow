@@ -17,6 +17,7 @@ import { VariablesModule } from './variables/variables.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { ExecutionsModule } from './executions/executions.module';
 import { HooksModule } from './hooks/hooks.module';
+import { ChatModule } from './chat/chat.module';
 import { AgentsModule } from './agents/agents.module';
 import { TemplatesModule } from './templates/templates.module';
 import { AnalyticsModule } from './analytics/analytics.module';
@@ -45,6 +46,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
     WorkflowsModule,
     ExecutionsModule,
     HooksModule,
+    ChatModule,
     AgentsModule,
     TemplatesModule,
     AnalyticsModule,

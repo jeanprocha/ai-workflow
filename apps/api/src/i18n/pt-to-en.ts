@@ -66,6 +66,11 @@ export const STATIC_TRANSLATIONS: Record<string, string> = {
   'Envie um arquivo no campo "file".': 'Send a file in the "file" field.',
   'Nao foi possivel conectar ao servidor MCP.':
     'Could not connect to the MCP server.',
+  'Link de chat invalido ou expirado.': 'Invalid or expired chat link.',
+  'Link de inbox invalido ou expirado.': 'Invalid or expired inbox link.',
+  'Conversa nao encontrada.': 'Conversation not found.',
+  'Muitas mensagens em pouco tempo. Aguarde um instante.':
+    'Too many messages in a short time. Please wait a moment.',
 };
 
 /** Mensagens com valor interpolado (nome, id, erro concatenado) — regex + template. */

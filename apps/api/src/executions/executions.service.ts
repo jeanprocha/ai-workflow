@@ -61,6 +61,25 @@ export class ExecutionsService {
     });
   }
 
+  /**
+   * Disparado pelo ChatService a cada mensagem do visitante — o workflow ja
+   * foi resolvido por chatToken la (mesmo papel que triggerByWebhook faz
+   * sozinho pra webhookId, so que aqui a resolucao mora no ChatService por
+   * tambem precisar tocar Conversation).
+   */
+  async triggerChat(
+    workflowId: string,
+    versionId: string | null,
+    inputPayload: unknown,
+  ) {
+    return this.createAndEnqueue({
+      workflowId,
+      versionId,
+      triggerType: 'chat',
+      inputPayload,
+    });
+  }
+
   private async createAndEnqueue(params: {
     workflowId: string;
     versionId: string | null;

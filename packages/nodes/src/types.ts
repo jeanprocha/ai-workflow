@@ -37,6 +37,16 @@ export interface NodeExecutionContext<Config = Record<string, unknown>> {
     toolName: string,
     args: Record<string, unknown>,
   ) => Promise<unknown>;
+  /**
+   * Envia uma mensagem ao visitante da conversa atual (node Chat Reply).
+   * So funciona numa execucao disparada por trigger.chat — a engine grava a
+   * mensagem em conversation_messages e, para canais externos futuros
+   * (WhatsApp etc.), tambem faria a chamada ao provedor. Fora de uma
+   * execucao de chat (sem conversationId no input do trigger), a engine
+   * rejeita com erro claro — mais util para quem monta o fluxo do que um
+   * no-op silencioso que nunca entrega a mensagem.
+   */
+  sendChatMessage: (content: string) => Promise<void>;
 }
 
 export interface NodeExecutionResult {

@@ -610,6 +610,73 @@ function SwitchFields({
   );
 }
 
+function ChatTriggerFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const t = useDictionary().editor.configPanel;
+  const chatToken = config.chatToken as string | undefined;
+  const inboxToken = config.inboxToken as string | undefined;
+  // As paginas publicas sao servidas pelo proprio app web (nao pela API) —
+  // mesma origem do editor, entao window.location.origin sempre resolve certo.
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+  return (
+    <>
+      <Field label={t.chatTrigger.chatUrlLabel}>
+        <Input
+          readOnly
+          value={chatToken ? `${origin}/chat/${chatToken}` : t.chatTrigger.pendingSave}
+          className="font-mono text-xs"
+        />
+      </Field>
+      <Field label={t.chatTrigger.inboxUrlLabel}>
+        <Input
+          readOnly
+          value={inboxToken ? `${origin}/inbox/${inboxToken}` : t.chatTrigger.pendingSave}
+          className="font-mono text-xs"
+        />
+      </Field>
+      <Field label={t.chatTrigger.welcomeMessage} hint={t.chatTrigger.welcomeMessageHint}>
+        <Textarea
+          rows={2}
+          value={(config.welcomeMessage as string) ?? ""}
+          onChange={(event) => onChange({ ...config, welcomeMessage: event.target.value })}
+        />
+      </Field>
+      <Field label={t.chatTrigger.errorMessage} hint={t.chatTrigger.errorMessageHint}>
+        <Textarea
+          rows={2}
+          value={(config.errorMessage as string) ?? ""}
+          onChange={(event) => onChange({ ...config, errorMessage: event.target.value })}
+        />
+      </Field>
+    </>
+  );
+}
+
+function ChatReplyFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const t = useDictionary().editor.configPanel;
+  return (
+    <Field label={t.chatReply.message} hint={t.chatReply.messageHint}>
+      <Textarea
+        rows={3}
+        value={(config.message as string) ?? ""}
+        onChange={(event) => onChange({ ...config, message: event.target.value })}
+      />
+    </Field>
+  );
+}
+
 function NoConfigNote({ text }: { text: string }) {
   return <p className="text-sm text-muted-foreground">{text}</p>;
 }
@@ -780,6 +847,14 @@ export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: C
 
         {node.data.nodeType === "trigger.cron" && (
           <CronFields config={config} onChange={onChange} />
+        )}
+
+        {node.data.nodeType === "trigger.chat" && (
+          <ChatTriggerFields config={config} onChange={onChange} />
+        )}
+
+        {node.data.nodeType === "chat.reply" && (
+          <ChatReplyFields config={config} onChange={onChange} />
         )}
 
         {node.data.nodeType === "api.httpRequest" && (

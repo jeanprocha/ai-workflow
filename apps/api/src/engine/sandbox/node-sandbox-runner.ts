@@ -29,6 +29,7 @@ export interface SandboxCtxHandlers {
     toolName: string,
     args: unknown,
   ) => Promise<unknown>;
+  sendChatMessage: (content: string) => Promise<void>;
 }
 
 export interface SandboxOptions {
@@ -171,6 +172,9 @@ export class NodeSandboxRunner {
             call.args[1] as string,
             call.args[2],
           );
+          break;
+        case 'sendChatMessage':
+          result = await handlers.sendChatMessage(call.args[0] as string);
           break;
       }
       const reply: CtxRpcReply = {

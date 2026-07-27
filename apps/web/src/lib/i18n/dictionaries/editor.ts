@@ -122,6 +122,19 @@ export const pt = {
       label: "URL do webhook",
       pendingSave: "salve o fluxo para gerar a URL",
     },
+    chatTrigger: {
+      welcomeMessage: "Mensagem de boas-vindas",
+      welcomeMessageHint: "Enviada automaticamente quando uma conversa nova começa. Deixe em branco para não enviar nada.",
+      errorMessage: "Mensagem de erro",
+      errorMessageHint: "Enviada ao visitante se o fluxo falhar no meio da execução.",
+      chatUrlLabel: "URL do chat (visitante)",
+      inboxUrlLabel: "URL da inbox (atendimento)",
+      pendingSave: "salve o fluxo para gerar as URLs",
+    },
+    chatReply: {
+      message: "Mensagem",
+      messageHint: "Enviada ao visitante da conversa. Suporta expressões {{ }}.",
+    },
     json: {
       label: "Configuração (JSON)",
       hint: "Campos deste node em JSON. Valores de texto suportam expressões {{ }}.",
@@ -315,6 +328,19 @@ export const en = {
     webhook: {
       label: "Webhook URL",
       pendingSave: "save the flow to generate the URL",
+    },
+    chatTrigger: {
+      welcomeMessage: "Welcome message",
+      welcomeMessageHint: "Sent automatically when a new conversation starts. Leave blank to send nothing.",
+      errorMessage: "Error message",
+      errorMessageHint: "Sent to the visitor if the flow fails partway through.",
+      chatUrlLabel: "Chat URL (visitor)",
+      inboxUrlLabel: "Inbox URL (support)",
+      pendingSave: "save the flow to generate the URLs",
+    },
+    chatReply: {
+      message: "Message",
+      messageHint: "Sent to the conversation's visitor. Supports {{ }} expressions.",
     },
     json: {
       label: "Configuration (JSON)",

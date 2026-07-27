@@ -2,6 +2,8 @@ import type { NodeDefinition } from "./types.js";
 import { manualTriggerNode } from "./definitions/manual-trigger.js";
 import { webhookTriggerNode } from "./definitions/webhook-trigger.js";
 import { cronTriggerNode } from "./definitions/cron-trigger.js";
+import { chatTriggerNode } from "./definitions/chat-trigger.js";
+import { chatReplyNode } from "./definitions/chat-reply.js";
 import { httpRequestNode } from "./definitions/http-request.js";
 import { ifNode } from "./definitions/if.js";
 import { setVariablesNode } from "./definitions/set-variables.js";
@@ -47,6 +49,8 @@ export const NODE_DEFINITIONS: readonly NodeDefinition<never>[] = [
   manualTriggerNode,
   webhookTriggerNode,
   cronTriggerNode,
+  chatTriggerNode,
+  chatReplyNode,
   httpRequestNode,
   ifNode,
   switchNode,

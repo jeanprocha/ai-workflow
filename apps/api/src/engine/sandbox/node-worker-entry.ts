@@ -96,6 +96,7 @@ async function run(): Promise<void> {
         callMain('searchKnowledge', [knowledgeBaseId, query, opts]),
       callMcpTool: (mcpServerId, toolName, args) =>
         callMain('callMcpTool', [mcpServerId, toolName, args]),
+      sendChatMessage: (content) => callMain('sendChatMessage', [content]),
     });
 
     const result: SandboxResult = {

@@ -37,6 +37,12 @@ function subtitleFor(
   switch (nodeType) {
     case "trigger.webhook":
       return config.webhookId ? `POST /hooks/${config.webhookId}` : t.pendingSave;
+    case "trigger.chat":
+      return typeof config.chatToken === "string" && config.chatToken
+        ? `/chat/${config.chatToken}`
+        : t.pendingSave;
+    case "chat.reply":
+      return typeof config.message === "string" && config.message ? config.message : null;
     case "api.httpRequest":
       return config.url ? `${config.method ?? "GET"} ${config.url}` : null;
     case "logic.if":

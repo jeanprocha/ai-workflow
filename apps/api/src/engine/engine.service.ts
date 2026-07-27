@@ -19,6 +19,15 @@ import { MetricsService } from '../observability/metrics.service';
 
 const NODE_TIMEOUT_MS = Number(process.env.NODE_SANDBOX_TIMEOUT_MS ?? 30_000);
 const NODE_MEMORY_LIMIT_MB = Number(process.env.NODE_SANDBOX_MEMORY_MB ?? 256);
+const DEFAULT_CHAT_ERROR_MESSAGE =
+  'Desculpe, algo deu errado ao processar sua mensagem. Tente novamente em instantes.';
+
+/** Formato de execution.inputPayload quando triggerType === 'chat' (montado pelo ChatService). */
+interface ChatInputPayload {
+  conversationId?: string;
+  state?: Record<string, unknown>;
+  [key: string]: unknown;
+}
 
 function toJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
@@ -129,8 +138,21 @@ export class EngineService {
 
     const triggerNode = graph.nodes.find((node) => node.category === 'trigger');
 
+    // Conversas: $vars comeca semeado do estado persistido da conversa (o
+    // ChatService le a Conversation e embute o state atual no inputPayload
+    // ao enfileirar) e, em execucao bem-sucedida, e regravado de volta no
+    // final — e assim que o carrinho/etapa sobrevivem entre mensagens.
+    const isChatExecution = execution.triggerType === 'chat';
+    const chatInput = isChatExecution
+      ? (execution.inputPayload as ChatInputPayload | null)
+      : null;
+    const conversationId = chatInput?.conversationId;
+
     const nodeOutputs: Record<string, unknown> = {};
-    let vars: Record<string, unknown> = {};
+    let vars: Record<string, unknown> =
+      chatInput?.state && typeof chatInput.state === 'object'
+        ? { ...chatInput.state }
+        : {};
     let lastOutput: unknown = null;
     let overallStatus: 'success' | 'failed' = 'success';
     let failureError: string | null = null;
@@ -205,6 +227,7 @@ export class EngineService {
               vars,
               nodeOutputs,
               workspaceId,
+              conversationId,
             });
           }),
         );
@@ -275,6 +298,27 @@ export class EngineService {
       },
     });
 
+    if (conversationId) {
+      if (overallStatus === 'success') {
+        // So persiste em sucesso: uma falha no meio do fluxo nao deve gravar
+        // um $vars parcial/inconsistente por cima do estado anterior valido.
+        await this.prisma.conversation.update({
+          where: { id: conversationId },
+          data: { state: toJson(vars) },
+        });
+      } else {
+        const chatConfig =
+          triggerNode?.type === 'trigger.chat'
+            ? (triggerNode.config as { errorMessage?: string })
+            : undefined;
+        await this.appendBotMessage(
+          conversationId,
+          chatConfig?.errorMessage || DEFAULT_CHAT_ERROR_MESSAGE,
+          executionId,
+        );
+      }
+    }
+
     this.events.emit({
       type: 'execution.completed',
       executionId,
@@ -315,8 +359,17 @@ export class EngineService {
     vars: Record<string, unknown>;
     nodeOutputs: Record<string, unknown>;
     workspaceId: string;
+    conversationId?: string;
   }): Promise<NodeStepResult> {
-    const { executionId, node, input, vars, nodeOutputs, workspaceId } = params;
+    const {
+      executionId,
+      node,
+      input,
+      vars,
+      nodeOutputs,
+      workspaceId,
+      conversationId,
+    } = params;
 
     const definition = getNodeDefinition(node.type);
     if (!definition) {
@@ -403,6 +456,14 @@ export class EngineService {
               toolName,
               args as Record<string, unknown>,
             ),
+          sendChatMessage: async (content) => {
+            if (!conversationId) {
+              throw new Error(
+                'Chat Reply so funciona em fluxos disparados pelo trigger Chat.',
+              );
+            }
+            await this.appendBotMessage(conversationId, content, executionId);
+          },
         },
         { timeoutMs: NODE_TIMEOUT_MS, memoryLimitMb: NODE_MEMORY_LIMIT_MB },
       );
@@ -504,6 +565,29 @@ export class EngineService {
       }
     }
     return seen;
+  }
+
+  /**
+   * Ponto unico de saida de mensagem do bot — canal "web" so grava no banco
+   * (a pagina publica le por polling); um canal externo futuro (WhatsApp,
+   * Telegram...) faria a chamada ao provedor aqui tambem, num switch por
+   * `conversation.channel`. Chamado tanto pelo RPC sendChatMessage quanto
+   * pela mensagem de erro de execucao falha.
+   */
+  private async appendBotMessage(
+    conversationId: string,
+    content: string,
+    executionId: string,
+  ): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.conversationMessage.create({
+        data: { conversationId, role: 'bot', content, executionId },
+      }),
+      this.prisma.conversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: new Date() },
+      }),
+    ]);
   }
 
   private async getCredential(

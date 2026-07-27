@@ -11,6 +11,8 @@ import type { NodeCategory } from "@workflow/shared";
 import { manualTriggerNode } from "./definitions/manual-trigger.js";
 import { webhookTriggerNode } from "./definitions/webhook-trigger.js";
 import { cronTriggerNode } from "./definitions/cron-trigger.js";
+import { chatTriggerNode } from "./definitions/chat-trigger.js";
+import { chatReplyNode } from "./definitions/chat-reply.js";
 import { httpRequestNode } from "./definitions/http-request.js";
 import { ifNode } from "./definitions/if.js";
 import { switchNode } from "./definitions/switch.js";
@@ -86,6 +88,8 @@ export const NODE_CATALOG: readonly NodeCatalogEntry[] = [
   manualTriggerNode,
   webhookTriggerNode,
   cronTriggerNode,
+  chatTriggerNode,
+  chatReplyNode,
   httpRequestNode,
   ifNode,
   switchNode,

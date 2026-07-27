@@ -114,6 +114,7 @@ anexos) no report HTML.
 | 09 | Dashboard/Analytics | Métricas agregadas, gráficos, timeseries | ✅ suíte pronta (`tests/analytics/`) |
 | 10 | Fase 11 (IA de plataforma) | Autocomplete, Copilot, AI Debugger, Cost Optimizer — marcados `@ai` | ✅ suíte pronta (`tests/platform-ai/`) |
 | 11 | Busca global / Scheduler | Ctrl+K, agendamento cron de fluxo | ✅ suíte pronta (`tests/search-scheduler/`) |
+| 12 | Chat | Trigger `trigger.chat`/node `chat.reply`, páginas públicas `/chat` e `/inbox`, estado por conversa, atendimento manual | ✅ suíte pronta (`tests/chat/`) |
 
 Cada fase futura ganha seu próprio `tests/<fase>/*.spec.ts` seguindo o mesmo
 padrão desta (helpers dedicados se precisar, doc manual companheiro em

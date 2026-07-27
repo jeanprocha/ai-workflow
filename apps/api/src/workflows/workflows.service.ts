@@ -47,6 +47,45 @@ export function ensureWebhookId(graph: WorkflowGraph): {
   };
 }
 
+/**
+ * Garante chatToken/inboxToken estaveis para o node trigger.chat (se houver),
+ * gerando-os na primeira vez que o node e salvo. Mesmo padrao de
+ * ensureWebhookId acima, so que gera DOIS tokens (visitante e operador da
+ * inbox) em vez de um.
+ */
+export function ensureChatTokens(graph: WorkflowGraph): {
+  graph: WorkflowGraph;
+  chatToken: string | null;
+  inboxToken: string | null;
+} {
+  const chatNode = graph.nodes.find((node) => node.type === 'trigger.chat');
+  if (!chatNode) return { graph, chatToken: null, inboxToken: null };
+
+  const existingChatToken = chatNode.config?.chatToken;
+  const chatToken =
+    typeof existingChatToken === 'string' && existingChatToken
+      ? existingChatToken
+      : randomUUID();
+  const existingInboxToken = chatNode.config?.inboxToken;
+  const inboxToken =
+    typeof existingInboxToken === 'string' && existingInboxToken
+      ? existingInboxToken
+      : randomUUID();
+
+  return {
+    chatToken,
+    inboxToken,
+    graph: {
+      ...graph,
+      nodes: graph.nodes.map((node) =>
+        node.id === chatNode.id
+          ? { ...node, config: { ...node.config, chatToken, inboxToken } }
+          : node,
+      ),
+    },
+  };
+}
+
 @Injectable()
 export class WorkflowsService {
   constructor(
@@ -145,7 +184,8 @@ export class WorkflowsService {
       orderBy: { versionNumber: 'desc' },
     });
     const nextVersionNumber = (lastVersion?.versionNumber ?? 0) + 1;
-    const { graph, webhookId } = ensureWebhookId(parsed.data);
+    const { graph: graphWithWebhook, webhookId } = ensureWebhookId(parsed.data);
+    const { graph, chatToken, inboxToken } = ensureChatTokens(graphWithWebhook);
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const version = await tx.workflowVersion.create({
@@ -158,7 +198,12 @@ export class WorkflowsService {
       });
       return tx.workflow.update({
         where: { id: workflow.id },
-        data: { currentVersionId: version.id, webhookId },
+        data: {
+          currentVersionId: version.id,
+          webhookId,
+          chatToken,
+          inboxToken,
+        },
         include: { currentVersion: true },
       });
     });
@@ -218,9 +263,10 @@ export class WorkflowsService {
       orderBy: { versionNumber: 'desc' },
     });
     const nextVersionNumber = (lastVersion?.versionNumber ?? 0) + 1;
-    const { graph, webhookId } = ensureWebhookId(
+    const { graph: graphWithWebhook, webhookId } = ensureWebhookId(
       target.graph as unknown as WorkflowGraph,
     );
+    const { graph, chatToken, inboxToken } = ensureChatTokens(graphWithWebhook);
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const version = await tx.workflowVersion.create({
@@ -233,7 +279,12 @@ export class WorkflowsService {
       });
       return tx.workflow.update({
         where: { id: workflow.id },
-        data: { currentVersionId: version.id, webhookId },
+        data: {
+          currentVersionId: version.id,
+          webhookId,
+          chatToken,
+          inboxToken,
+        },
         include: { currentVersion: true },
       });
     });
