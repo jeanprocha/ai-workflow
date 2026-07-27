@@ -11,6 +11,25 @@ import { ApiError, NetworkError, TimeoutError } from "./errors";
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333";
 const REQUEST_TIMEOUT_MS = 30_000;
 
+/**
+ * `crypto.randomUUID()` só existe em contexto seguro (HTTPS ou
+ * localhost/127.0.0.1) — acessar o dev server por IP de LAN em HTTP puro
+ * (ex.: outra máquina na rede) faz essa chamada estourar TypeError síncrono
+ * ANTES de qualquer fetch, e a página nunca sabe por quê (achado ao vivo:
+ * login "falhava" sem nenhuma requisição aparecer na aba Network). Só serve
+ * pra correlacionar logs, não precisa ser criptograficamente forte.
+ */
+export function generateRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+    const random = (Math.random() * 16) | 0;
+    const value = char === "x" ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
+
 export { ApiError };
 
 declare global {
@@ -75,7 +94,7 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 
   // Mesmo id nas duas tentativas (original + retry pos-refresh de 401) — e
   // logicamente a mesma operacao do ponto de vista de quem chamou.
-  const requestId = crypto.randomUUID();
+  const requestId = generateRequestId();
   const testRun = typeof window !== "undefined" ? window.__E2E_TEST_RUN__ : undefined;
 
   async function doFetch(): Promise<Response> {

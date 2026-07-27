@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, generateRequestId } from "@/lib/api-client";
 import { getAccessToken, getWorkspaceId } from "@/lib/auth-storage";
 import { ApiError } from "@/lib/errors";
 import { getLocale } from "@/lib/i18n/store";
@@ -105,7 +105,7 @@ export function useUploadDocument(knowledgeBaseId: string) {
       // mensagem de erro do servidor nunca chega ao toast (Error puro nao e
       // desembrulhado por errorMessage(), so ApiError e) e o upload some da
       // correlacao de logs da suite E2E (sem x-test-run).
-      const requestId = crypto.randomUUID();
+      const requestId = generateRequestId();
       const testRun = typeof window !== "undefined" ? window.__E2E_TEST_RUN__ : undefined;
       const headers: Record<string, string> = {
         Authorization: `Bearer ${getAccessToken() ?? ""}`,
