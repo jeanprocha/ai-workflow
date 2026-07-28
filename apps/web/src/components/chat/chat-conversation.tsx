@@ -38,8 +38,47 @@ function useStoredConversationId(chatToken: string): string | null {
   );
 }
 
+const VISIBLE_LINES_INITIAL = 10;
+const VISIBLE_LINES_INCREMENT = 10;
+
+/**
+ * Uma linha de item de catalogo (ver systemPrompt do node ai.chat no fluxo
+ * de vendas): "codigo - descricao - R$ preco". `.+` guloso backtracka a
+ * partir do fim — a descricao pode ter seus proprios hifens (ex.: "LE42H057
+ * - PCI-BC-374"), mas so existe UM "R$ ..." no fim da linha, entao o motor
+ * de regex sempre acerta o corte certo antes dele.
+ */
+const CATALOG_LINE_RE = /^(\S+)\s-\s(.+)\s-\s(R\$\s?[\d.,]+)\s*$/;
+
+function MessageLine({ line }: { line: string }) {
+  const match = line.match(CATALOG_LINE_RE);
+  if (!match) return <p className="whitespace-pre-wrap">{line}</p>;
+
+  const [, code, description, price] = match;
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+        {code}
+      </span>
+      <span className="min-w-0 flex-1 leading-snug">{description}</span>
+      <span className="shrink-0 font-semibold tabular-nums text-foreground">{price}</span>
+    </div>
+  );
+}
+
 function MessageBubble({ message }: { message: ChatMessage }) {
+  const t = useDictionary().chat.visitor;
   const isVisitor = message.role === "user";
+  const lines = message.content.split("\n");
+  // Mensagens longas (ex.: lista de produtos de uma busca) chegam inteiras
+  // do bot numa unica mensagem — truncar a EXIBICAO aqui, por linha, evita
+  // que "ver mais" precise de uma nova chamada de IA/rodada no fluxo: o
+  // texto todo ja esta no cliente, so decide quanto mostrar.
+  const [visibleCount, setVisibleCount] = useState(() =>
+    Math.min(VISIBLE_LINES_INITIAL, lines.length),
+  );
+  const hasMore = visibleCount < lines.length;
+
   return (
     <div
       className={
@@ -48,7 +87,22 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           : "mr-8 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
       }
     >
-      <p className="whitespace-pre-wrap">{message.content}</p>
+      <div className="space-y-1">
+        {lines.slice(0, visibleCount).map((line, index) => (
+          <MessageLine key={index} line={line} />
+        ))}
+      </div>
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() =>
+            setVisibleCount((count) => Math.min(count + VISIBLE_LINES_INCREMENT, lines.length))
+          }
+          className="mt-1.5 text-xs font-medium text-primary hover:underline"
+        >
+          {t.showMore}
+        </button>
+      )}
     </div>
   );
 }

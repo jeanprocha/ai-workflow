@@ -7,6 +7,7 @@ export const pt = {
     invalidDescription: "Este link de chat não existe mais ou expirou.",
     loading: "Carregando conversa...",
     sendErrorFallback: "Não foi possível enviar sua mensagem. Tente novamente.",
+    showMore: "Mostrar mais",
   },
   inbox: {
     title: "Conversas",
@@ -40,6 +41,7 @@ export const en = {
     invalidDescription: "This chat link no longer exists or has expired.",
     loading: "Loading conversation...",
     sendErrorFallback: "Could not send your message. Please try again.",
+    showMore: "Show more",
   },
   inbox: {
     title: "Conversations",
