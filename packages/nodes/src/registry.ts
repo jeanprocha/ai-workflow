@@ -8,6 +8,7 @@ import { httpRequestNode } from "./definitions/http-request.js";
 import { ifNode } from "./definitions/if.js";
 import { setVariablesNode } from "./definitions/set-variables.js";
 import { transformListNode } from "./definitions/transform-list.js";
+import { appendToListNode } from "./definitions/append-to-list.js";
 import { logNode } from "./definitions/log.js";
 import { switchNode } from "./definitions/switch.js";
 import { delayNode } from "./definitions/delay.js";
@@ -57,6 +58,7 @@ export const NODE_DEFINITIONS: readonly NodeDefinition<never>[] = [
   switchNode,
   setVariablesNode,
   transformListNode,
+  appendToListNode,
   delayNode,
   mergeNode,
   parallelNode,

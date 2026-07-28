@@ -216,6 +216,21 @@ test.describe("Editor — painel de configuracao", () => {
     await expect(panel.getByText("Log", { exact: true })).toBeVisible();
     await expect(panel.getByText("logic.log")).toBeVisible();
     await expect(panel.getByLabel("Mensagem")).toBeVisible();
+    // Id do node visivel no topo do painel — sem isso, a unica forma de
+    // saber qual id usar numa expressao `{{ $node.<id>... }}` era caçar
+    // numa execucao ja rodada (achado ao vivo, montando o fluxo de vendas).
+    const nodeIdButton = panel.getByTitle("Copiar id do node");
+    await expect(nodeIdButton).toHaveText("id: n2");
+
+    // O clique realmente copia (nao so mostra o texto) — pego real com o
+    // bug do crypto.randomUUID() em contexto inseguro (ver api-client.ts):
+    // o botao precisa ter fallback pra document.execCommand, nao so
+    // navigator.clipboard.writeText cru.
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await nodeIdButton.click();
+    await expect(page.getByText("Id do node copiado.")).toBeVisible();
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardText).toBe("n2");
 
     // Clique no pane vazio fecha.
     await page.locator(".react-flow__pane").click({ position: { x: 50, y: 50 } });
@@ -497,5 +512,62 @@ test.describe("Editor — node Switch", () => {
       expect(labelBox!.y).toBeGreaterThanOrEqual(cardBox!.y - 0.5);
       expect(labelBox!.y + labelBox!.height).toBeLessThanOrEqual(cardBox!.y + cardBox!.height + 0.5);
     }
+  });
+});
+
+test.describe("Editor — node If", () => {
+  test("subtitulo longo (condicao) nao sobrepoe os rotulos true/false", async ({
+    page,
+    context,
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "If Subtitulo Overflow");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, {
+      nodes: [
+        {
+          id: "n1",
+          type: "trigger.manual",
+          category: "trigger",
+          label: "Manual Trigger",
+          position: { x: 0, y: 0 },
+          config: {},
+        },
+        {
+          id: "n2",
+          type: "logic.if",
+          category: "logic",
+          label: "If",
+          position: { x: 320, y: 0 },
+          config: { left: "{{ $input.message }}", operator: "matches", right: "^\\d+$" },
+        },
+      ],
+      edges: [{ id: "e1", source: "n1", target: "n2" }],
+      viewport: { x: 0, y: 0, zoom: 1 },
+    });
+    await authenticateContext(context, await buildStorageState(request, tokens));
+
+    await page.goto(`/flows/${workflow.id}`);
+
+    const card = page.locator('[data-testid="rf__node-n2"]');
+    await expect(card).toBeVisible();
+    const subtitleLocator = card.locator("div.truncate.border-t");
+    const subtitleBox = await subtitleLocator.boundingBox();
+    const labelsBox = await card.locator("span.truncate.font-mono").first().boundingBox();
+    expect(subtitleBox).not.toBeNull();
+    expect(labelsBox).not.toBeNull();
+
+    // A CAIXA do subtitulo (com padding) continua ocupando a largura toda —
+    // `truncate` so corta o TEXTO dentro da area de conteudo, que e a caixa
+    // menos o padding-right. Verificar a borda da caixa nao provaria nada
+    // (padding nao muda o tamanho da caixa); o que importa e que a area de
+    // conteudo (onde o texto de fato pode desenhar antes do "...") termine
+    // antes dos rotulos comecarem.
+    const paddingRight = await subtitleLocator.evaluate((el) =>
+      parseFloat(getComputedStyle(el).paddingRight),
+    );
+    const contentRightEdge = subtitleBox!.x + subtitleBox!.width - paddingRight;
+    expect(contentRightEdge).toBeLessThanOrEqual(labelsBox!.x + 0.5);
   });
 });

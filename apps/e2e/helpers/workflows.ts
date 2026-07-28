@@ -388,6 +388,7 @@ export function chatFailingGraph(errorMessage: string) {
 export function transformListGraph(options: {
   echoUrl: string;
   items: unknown[];
+  offset?: number;
   limit: number;
   fields: Array<{ as: string; path: string }>;
 }) {
@@ -423,6 +424,7 @@ export function transformListGraph(options: {
         position: { x: 640, y: 0 },
         config: {
           source: "{{ $node.n2.body.body }}",
+          offset: options.offset ?? 0,
           limit: options.limit,
           fields: options.fields,
         },

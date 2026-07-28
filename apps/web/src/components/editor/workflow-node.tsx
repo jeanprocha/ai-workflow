@@ -146,7 +146,17 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) 
       </div>
 
       {subtitle && (
-        <div className="truncate border-t border-border px-3 py-1.5 font-mono text-xs text-muted-foreground">
+        <div
+          className={
+            "truncate border-t border-border px-3 py-1.5 font-mono text-xs text-muted-foreground " +
+            // Com mais de uma saida, os rotulos flutuam por cima (absolute,
+            // ver abaixo) do lado direito do card — sem essa margem, um
+            // subtitulo longo (ex.: condicao do node If) teria seu texto
+            // cortado bem embaixo dos rotulos, sobrepondo os dois de um
+            // jeito ilegivel em vez de so truncar antes.
+            (outputs.length > 1 ? "pr-20" : "")
+          }
+        >
           {subtitle}
         </div>
       )}

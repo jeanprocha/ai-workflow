@@ -103,7 +103,47 @@ Depois de montar, clique **"Salvar como predefinição"** no painel — próxima
 vez que precisar deste node (neste ou em outro fluxo), é só escolher a
 predefinição em vez de preencher tudo de novo.
 
-## 4. Node — criar pedido (`PUT /api/v1/pedido`)
+## 4. Interpretar a escolha do cliente e montar o carrinho
+
+Depois de mostrar a lista, o cliente responde de dois jeitos possíveis:
+**informa o código de um item**, ou **digita uma busca nova**. O fluxo
+validado (branch `escolhendo` de um node `Switch` chaveado em
+`{{ $vars.etapa }}`) é:
+
+1. **`If`** decidindo se a resposta é um código puro:
+   - Valor esquerdo: `{{ $node.<id-do-trigger-chat>.message }}`
+   - Operador: `matches`
+   - Valor direito: `^\d+$`
+2. **Branch `true` (é código)** → **`ai.extraction`**, comparando o código
+   contra a lista já enxuta (`resultadosBusca`, gravada no `Set Variables`
+   logo depois da busca):
+   - Texto: instrua explicitamente a IA a **comparar** o código com o campo
+     `id` de cada item — um texto vago tipo só colar a lista faz a IA
+     "desistir" e devolver tudo vazio, mesmo com o dado certo lá (ver
+     armadilha abaixo).
+   - Schema: todo campo precisa de `"description"` explicando o que ele é —
+     sem isso, mesmo com `"required"`, a IA tende a preencher o mínimo
+     aceitável em vez de raciocinar sobre os dados.
+   - Campos numéricos que vão aparecer em texto pro cliente (preço) devem
+     ser `"type": "string"` já formatados (`"580,00"`, com vírgula e 2
+     casas) — um `"type": "number"` perde zeros à direita na hora de virar
+     texto (`105.00` vira `105`).
+3. **Branch `false` (nova busca)** → reconecta direto no node HTTP Request
+   da busca (passo 3) — reaproveita o pipeline inteiro, sem duplicar nada.
+4. Confirmado o item (`encontrado == true`), grava `produtoEscolhidoId`/
+   `Nome`/`Preco` em `$vars` e pergunta a quantidade.
+5. Quantidade validada (`If` com `matches` + `^\d+$`) → node **`logic
+   .appendToList`** ("Adicionar à lista") acrescenta `{ id, nome, preco,
+   quantidade }` no `$vars.carrinho`:
+   - Lista atual: `{{ $vars.carrinho }}` (ausente na primeira vez conta
+     como lista vazia, não como erro)
+   - Item novo: JSON com os 4 campos acima
+6. Um `ai.classification` (categorias `["nova_busca", "finalizar"]`)
+   decide se o cliente quer buscar mais ou fechar o pedido — mais simples e
+   confiável que o `ai.extraction` do passo 2, porque é só rotular em 2
+   categorias fixas, não procurar dado dentro de uma lista.
+
+## 5. Node — criar pedido (`PUT /api/v1/pedido`)
 
 | Campo | Valor |
 |---|---|
@@ -139,7 +179,14 @@ Os campos `$vars.*` acima (produto escolhido, quantidade, valor) vêm do
 carrinho da conversa — normalmente escritos por um node `Set Variables` nos
 passos anteriores do fluxo de chat, não direto neste node.
 
-## 5. Armadilhas conhecidas
+**Antes de apontar pra URL real da Rein**, valide o payload inteiro (CPF +
+`$vars.carrinho`) apontando o node pro `/debug/echo` da própria API
+(`{{ API_URL }}/debug/echo`, só existe com `OBS_DEBUG_ENDPOINT=1`, padrão em
+dev) — ele devolve exatamente o corpo recebido, sem criar nada de verdade.
+Confirmado o formato certo, é só trocar a URL — o resto do node continua
+igual.
+
+## 6. Armadilhas conhecidas
 
 - **Testar a criação de pedido cria um pedido real** na Rein — combine
   cancelamento com o cliente/suporte antes de testar em produção.
@@ -154,11 +201,34 @@ passos anteriores do fluxo de chat, não direto neste node.
   contexto de negócio usado só no corpo do pedido; ficam na mesma Conexão
   por conveniência (evita repetir em cada node), mas nada os liga à
   assinatura HMAC em si.
+- **`{{ $input }}` só existe quando o node anterior repassa o input** —
+  `trigger.chat`, `logic.switch`, `logic.setVariables` e `chat.reply` fazem
+  isso; `logic.if`, `ai.extraction`, `ai.classification` e `ai.chat`
+  **não** (o output deles é o resultado da própria tarefa, não um
+  passthrough). Referenciar `{{ $input.message }}` logo depois de um desses
+  resolve pra vazio, em silêncio — dentro de um `ai.extraction` isso apareceu
+  como "não encontrei esse código" mesmo com o código certo na lista, porque
+  o texto mandado pra IA nunca tinha o código de verdade. Sempre que o node
+  anterior não for um dos quatro que repassam, referencie o valor direto
+  pelo id do node de origem (`{{ $node.<id-do-trigger-chat>.message }}`), não
+  por `$input`.
+- **Schema de saída estruturada (`ai.extraction`/`ai.classification`) sem
+  `description` em cada campo tende a devolver o mínimo aceitável** (string
+  vazia, `false`) em vez de realmente raciocinar sobre o texto — mesmo com
+  os dados certos disponíveis. Descreva cada campo explicitamente (o que é,
+  onde achar, que formato) e marque como `"required"` os campos que sempre
+  devem vir preenchidos.
 
-## 6. Fora de escopo (por enquanto)
+## 7. Fora de escopo (por enquanto)
 
 - Guard de idempotência (reenviar "finalizar pedido" não deveria criar um
-  segundo pedido) — depende do fluxo de carrinho estar montado; não existe
-  ainda nesta plataforma.
+  segundo pedido) — o carrinho (`$vars.carrinho`, montado via
+  `logic.appendToList`) já existe e funciona; falta só a trava contra
+  reenvio duplicado.
+- Validação de CPF/telefone — hoje aceita qualquer texto digitado, sem
+  checar formato nem dígito verificador.
+- Disparo real do "criar pedido" pra Rein — validado até aqui só simulado
+  via `/debug/echo` (ver seção 5); trocar a URL é o único passo que falta,
+  mas cada teste real cria um pedido de verdade (ver armadilha na seção 6).
 - Mapeamento automático da resposta de busca (papéis tipo `list`/`price`) —
   hoje é referência direta ao caminho JSON (`$node.<id>.body.data.items`).

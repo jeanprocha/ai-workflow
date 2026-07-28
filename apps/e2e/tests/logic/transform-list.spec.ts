@@ -67,6 +67,7 @@ test.describe("Node Transformar lista (logic.transformList)", () => {
       ],
       total: 37,
       shown: 2,
+      hasMore: true,
     });
   });
 
@@ -91,7 +92,45 @@ test.describe("Node Transformar lista (logic.transformList)", () => {
       await request.get(`${API_URL}/executions/${done.id}`, { headers })
     ).json();
 
-    expect(detail.outputPayload).toEqual({ items, total: 3, shown: 3 });
+    expect(detail.outputPayload).toEqual({ items, total: 3, shown: 3, hasMore: false });
+  });
+
+  test("offset pagina a lista (ex.: \"ver mais\") e hasMore reflete o que ainda sobra", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const headers = workspaceHeaders(tokens, workspaceId);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Transformar Lista Offset");
+
+    // 7 itens, paginas de 5: primeira leva 0-4 (sobra), segunda leva 5-6 (nao sobra mais nada).
+    const items = Array.from({ length: 7 }, (_, i) => produto(i));
+    await saveGraphViaApi(
+      request,
+      tokens,
+      workspaceId,
+      workflow.id,
+      transformListGraph({
+        echoUrl: ECHO_URL,
+        items,
+        offset: 5,
+        limit: 5,
+        fields: [{ as: "sku", path: "Produto.Sku" }],
+      }),
+    );
+
+    const execution = await runWorkflowViaApi(request, tokens, workspaceId, workflow.id);
+    const done = await waitForExecutionStatus(request, tokens, workspaceId, execution.id, "success");
+    const detail = await (
+      await request.get(`${API_URL}/executions/${done.id}`, { headers })
+    ).json();
+
+    expect(detail.outputPayload).toEqual({
+      items: [{ sku: "SKU-5" }, { sku: "SKU-6" }],
+      total: 7,
+      shown: 2,
+      hasMore: false,
+    });
   });
 
   test("origem que nao resolve pra lista falha com erro claro (nao devolve items vazio em silencio)", async ({

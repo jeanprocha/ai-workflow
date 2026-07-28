@@ -10,9 +10,17 @@ const fieldSchema = z.object({
 });
 
 const configSchema = z.object({
-  /** Expressao que resolve numa lista — ja chega resolvida aqui (ver engine.service.ts). */
-  source: z.unknown(),
-  /** 0 = sem limite, devolve a lista inteira (so reduz campos, se `fields` tiver algo). */
+  /**
+   * Expressao que resolve numa lista — ja chega resolvida aqui (ver
+   * engine.service.ts). `.optional()`: um `z.unknown()` sozinho, sem isso,
+   * rejeita a chave ausente/undefined direto no parse do worker (zod v4) —
+   * ANTES do execute() rodar, o que trocaria a mensagem custom abaixo
+   * ("Campo Origem nao resolveu...") pelo erro generico de validacao.
+   */
+  source: z.unknown().optional(),
+  /** A partir de qual item comecar — permite paginar (ex.: "ver mais" depois dos 5 primeiros). */
+  offset: z.number().int().min(0).default(0),
+  /** 0 = sem limite, devolve ate o fim da lista a partir do offset (so reduz campos, se `fields` tiver algo). */
   limit: z.number().int().min(0).default(0),
   /** Vazio mantem o item inteiro — so limita a quantidade. */
   fields: z.array(fieldSchema).default([]),
@@ -28,9 +36,9 @@ export const transformListNode: NodeDefinition<Config> = {
   icon: "ListFilter",
   outputs: ["default"],
   configSchema,
-  defaultConfig: { source: "", limit: 0, fields: [] },
+  defaultConfig: { source: "", offset: 0, limit: 0, fields: [] },
   execute: (ctx) => {
-    const { source, limit, fields } = ctx.config;
+    const { source, offset, limit, fields } = ctx.config;
 
     if (!Array.isArray(source)) {
       // O engano mais provavel aqui e apontar a Origem pro node/campo errado
@@ -43,14 +51,19 @@ export const transformListNode: NodeDefinition<Config> = {
     }
 
     const total = source.length;
-    const sliced = limit > 0 ? source.slice(0, limit) : source;
+    const sliced = source.slice(offset, limit > 0 ? offset + limit : undefined);
     const items =
       fields.length === 0
         ? sliced
         : sliced.map((item) =>
             Object.fromEntries(fields.map((field) => [field.as, getPath(item, field.path)])),
           );
+    // Deixa o node seguinte (ai.chat formatando a resposta, ou um logic.if)
+    // saber se ainda sobra item depois deste lote, sem ter que recalcular
+    // offset+shown vs total na mao em toda parte que precisa disso — o caso
+    // real que motivou isso foi paginar resultados de busca ("ver mais").
+    const hasMore = offset + items.length < total;
 
-    return { output: { items, total, shown: items.length } };
+    return { output: { items, total, shown: items.length, hasMore } };
   },
 };

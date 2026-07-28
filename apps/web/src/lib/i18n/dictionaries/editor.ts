@@ -49,6 +49,7 @@ export const pt = {
       leftValueHint: "Ex: {{ $node.n2.status }}",
       operator: "Operador",
       rightValue: "Valor direito",
+      rightValueMatchesHint: "Padrão de regex (ex: ^\\d+$ para \"só dígitos\").",
     },
     setVariables: {
       label: "Variáveis",
@@ -59,12 +60,20 @@ export const pt = {
     transformList: {
       source: "Origem",
       sourceHint: "Expressão que resolve numa lista, ex: {{ $node.n2.body.data.items }}",
+      offset: "Offset",
+      offsetHint: "A partir de qual item começar. Use com $vars pra paginar (ex: \"ver mais\").",
       limit: "Limite de itens",
-      limitHint: "0 = sem limite (mantém todos os itens).",
+      limitHint: "0 = sem limite (mantém todos os itens a partir do offset).",
       fieldsLabel: "Campos (vazio mantém o item inteiro)",
       asPlaceholder: "nome do campo de saída",
       pathPlaceholder: "caminho no item original (ex: Produto.Sku)",
       add: "Adicionar campo",
+    },
+    appendToList: {
+      source: "Lista atual",
+      sourceHint: "Ex: {{ $vars.carrinho }} — vazia/inexistente na primeira vez conta como lista vazia.",
+      item: "Item novo (JSON)",
+      itemHint: "Objeto a acrescentar no final da lista, ex: { \"id\": \"{{ $vars.produtoEscolhidoId }}\", \"quantidade\": \"{{ $vars.quantidade }}\" }",
     },
     delay: {
       duration: "Duração (ms)",
@@ -182,6 +191,14 @@ export const pt = {
     },
     /** aria-label do botao X que fecha o painel — so icone, sem texto. */
     closeAria: "Fechar painel de configuração",
+    /**
+     * Id do node, mostrado no topo do painel — sem isso a unica forma de
+     * descobrir o id pra usar em `{{ $node.<id>... }}` era caçar numa
+     * execucao ja rodada (achado ao vivo, montando o fluxo de vendas).
+     */
+    nodeIdCopyHint: "Copiar id do node",
+    nodeIdCopied: "Id do node copiado.",
+    nodeIdCopyFailed: "Não foi possível copiar — selecione o texto manualmente.",
     /** PresetBar — topo do painel, generico pra qualquer tipo de node. */
     presets: {
       applyLabel: "Aplicar predefinição",
@@ -307,6 +324,7 @@ export const en = {
       leftValueHint: "E.g.: {{ $node.n2.status }}",
       operator: "Operator",
       rightValue: "Right value",
+      rightValueMatchesHint: "Regex pattern (e.g.: ^\\d+$ for \"digits only\").",
     },
     setVariables: {
       label: "Variables",
@@ -317,12 +335,20 @@ export const en = {
     transformList: {
       source: "Source",
       sourceHint: "Expression that resolves to a list, e.g.: {{ $node.n2.body.data.items }}",
+      offset: "Offset",
+      offsetHint: "Which item to start from. Combine with $vars to paginate (e.g.: \"see more\").",
       limit: "Item limit",
-      limitHint: "0 = no limit (keeps all items).",
+      limitHint: "0 = no limit (keeps all items from the offset onward).",
       fieldsLabel: "Fields (empty keeps the whole item)",
       asPlaceholder: "output field name",
       pathPlaceholder: "path in the original item (e.g.: Produto.Sku)",
       add: "Add field",
+    },
+    appendToList: {
+      source: "Current list",
+      sourceHint: "E.g.: {{ $vars.cart }} — empty/missing the first time counts as an empty list.",
+      item: "New item (JSON)",
+      itemHint: "Object to append to the end of the list, e.g.: { \"id\": \"{{ $vars.chosenProductId }}\", \"quantity\": \"{{ $vars.quantity }}\" }",
     },
     delay: {
       duration: "Duration (ms)",
@@ -438,6 +464,9 @@ export const en = {
       interval: "Interval (ms)",
     },
     closeAria: "Close configuration panel",
+    nodeIdCopyHint: "Copy node id",
+    nodeIdCopied: "Node id copied.",
+    nodeIdCopyFailed: "Could not copy — select the text manually.",
     presets: {
       applyLabel: "Apply preset",
       applyPlaceholder: "None",

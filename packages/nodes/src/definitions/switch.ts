@@ -2,7 +2,10 @@ import { z } from "zod";
 import type { NodeDefinition } from "../types.js";
 
 const configSchema = z.object({
-  value: z.unknown(),
+  // `.optional()`: sem isso, um config salvo sem essa chave (grafo antigo,
+  // preset parcial) faria o zod v4 rejeitar a chave ausente direto no parse
+  // do worker — undefined aqui e legitimo (cai no branch "default").
+  value: z.unknown().optional(),
   cases: z.array(z.unknown()).max(4).default([]),
 });
 type Config = z.infer<typeof configSchema>;

@@ -1,12 +1,16 @@
 import { z } from "zod";
 import type { NodeDefinition } from "../types.js";
 
-const OPERATORS = ["==", "!=", ">", "<", ">=", "<=", "contains"] as const;
+const OPERATORS = ["==", "!=", ">", "<", ">=", "<=", "contains", "matches"] as const;
 
 const configSchema = z.object({
-  left: z.unknown(),
+  // `.optional()`: um config salvo sem essa chave (grafo antigo, preset
+  // parcial) faria o zod v4 rejeitar a chave ausente direto no parse do
+  // worker, mesmo sendo z.unknown() — antes do execute() decidir o que
+  // fazer com undefined (que aqui e um valor de comparacao legitimo).
+  left: z.unknown().optional(),
   operator: z.enum(OPERATORS).default("=="),
-  right: z.unknown(),
+  right: z.unknown().optional(),
 });
 type Config = z.infer<typeof configSchema>;
 
@@ -22,6 +26,20 @@ function evaluate(left: unknown, operator: (typeof OPERATORS)[number], right: un
   if (operator === "contains") {
     if (Array.isArray(left)) return left.includes(right);
     return String(left ?? "").includes(String(right ?? ""));
+  }
+
+  if (operator === "matches") {
+    // Ex.: detectar se a mensagem do cliente e um codigo de produto puro
+    // (`^\d+$`) antes de decidir entre busca por codigo ou por nome, sem
+    // precisar de uma chamada de IA so pra essa checagem deterministica.
+    const pattern = String(right ?? "");
+    let regex: RegExp;
+    try {
+      regex = new RegExp(pattern);
+    } catch {
+      throw new Error(`Padrao de regex invalido no campo "Valor direito": "${pattern}".`);
+    }
+    return regex.test(String(left ?? ""));
   }
 
   const a = toComparable(left);

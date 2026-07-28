@@ -1,6 +1,6 @@
 import { cloneElement, createElement, isValidElement, useId, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, X } from "lucide-react";
+import { Copy, Plus, Trash2, X } from "lucide-react";
 import type { NodeRetryPolicy } from "@workflow/shared";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CredentialSelect } from "@/components/credential-select";
+import { copyToClipboard } from "@/lib/clipboard";
 import { getCatalogEntry } from "@/lib/node-catalog";
 import { getNodeIcon } from "@/lib/node-icons";
 import { usePreviewCron } from "@/hooks/use-scheduler";
@@ -352,14 +353,17 @@ function IfFields({
           onChange={(event) => onChange({ ...config, operator: event.target.value })}
           className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm"
         >
-          {["==", "!=", ">", "<", ">=", "<=", "contains"].map((op) => (
+          {["==", "!=", ">", "<", ">=", "<=", "contains", "matches"].map((op) => (
             <option key={op} value={op}>
               {op}
             </option>
           ))}
         </select>
       </Field>
-      <Field label={t.ifNode.rightValue}>
+      <Field
+        label={t.ifNode.rightValue}
+        hint={config.operator === "matches" ? t.ifNode.rightValueMatchesHint : undefined}
+      >
         <Input
           value={String(config.right ?? "")}
           onChange={(event) => onChange({ ...config, right: event.target.value })}
@@ -448,6 +452,14 @@ function TransformListFields({
           onChange={(event) => onChange({ ...config, source: event.target.value })}
         />
       </Field>
+      <Field label={t.transformList.offset} hint={t.transformList.offsetHint}>
+        <Input
+          type="number"
+          min={0}
+          value={Number(config.offset ?? 0)}
+          onChange={(event) => onChange({ ...config, offset: Number(event.target.value) || 0 })}
+        />
+      </Field>
       <Field label={t.transformList.limit} hint={t.transformList.limitHint}>
         <Input
           type="number"
@@ -490,6 +502,52 @@ function TransformListFields({
             {t.transformList.add}
           </Button>
         </div>
+      </Field>
+    </>
+  );
+}
+
+function AppendToListFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const t = useDictionary().editor.configPanel;
+  // Item e um objeto arbitrario (ex.: { id, quantidade } de um item do
+  // carrinho) — mesmo padrao do corpo do node HTTP: texto local + erro de
+  // parse, so re-sincroniza quando o node muda (key={node.id} no painel).
+  const [itemText, setItemText] = useState(() => JSON.stringify(config.item ?? {}, null, 2));
+  const [itemError, setItemError] = useState<string | null>(null);
+
+  function handleItemChange(value: string) {
+    setItemText(value);
+    try {
+      const parsed: unknown = JSON.parse(value);
+      setItemError(null);
+      onChange({ ...config, item: parsed });
+    } catch {
+      setItemError(t.json.invalidError);
+    }
+  }
+
+  return (
+    <>
+      <Field label={t.appendToList.source} hint={t.appendToList.sourceHint}>
+        <Input
+          value={String(config.source ?? "")}
+          onChange={(event) => onChange({ ...config, source: event.target.value })}
+        />
+      </Field>
+      <Field label={t.appendToList.item} hint={t.appendToList.itemHint}>
+        <Textarea
+          value={itemText}
+          onChange={(event) => handleItemChange(event.target.value)}
+          rows={6}
+          className="font-mono text-xs"
+        />
+        {itemError && <p className="text-xs text-danger">{itemError}</p>}
       </Field>
     </>
   );
@@ -1161,6 +1219,33 @@ function PresetBar({
   );
 }
 
+/**
+ * Id do node, com botao de copiar — sem isso, a unica forma de saber qual
+ * id usar numa expressao `{{ $node.<id>... }}` era caçar numa execucao ja
+ * rodada (o painel nunca mostrava o id em lugar nenhum).
+ */
+function NodeIdBadge({ id }: { id: string }) {
+  const t = useDictionary().editor.configPanel;
+
+  async function copy() {
+    const ok = await copyToClipboard(id);
+    if (ok) toast.success(t.nodeIdCopied);
+    else toast.error(t.nodeIdCopyFailed);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => void copy()}
+      title={t.nodeIdCopyHint}
+      className="mt-0.5 flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
+    >
+      <span>id: {id}</span>
+      <Copy className="h-3 w-3" strokeWidth={1.5} />
+    </button>
+  );
+}
+
 export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: ConfigPanelProps) {
   const t = useDictionary().editor.configPanel;
   const entry = getCatalogEntry(node.data.nodeType);
@@ -1179,6 +1264,7 @@ export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: C
           <div>
             <p className="text-sm font-medium text-foreground">{node.data.label}</p>
             <p className="font-mono text-xs text-muted-foreground">{node.data.nodeType}</p>
+            <NodeIdBadge id={node.id} />
           </div>
         </div>
         <Button variant="ghost" size="icon-sm" aria-label={t.closeAria} onClick={onClose}>
@@ -1233,6 +1319,10 @@ export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: C
 
         {node.data.nodeType === "logic.transformList" && (
           <TransformListFields config={config} onChange={onChange} />
+        )}
+
+        {node.data.nodeType === "logic.appendToList" && (
+          <AppendToListFields config={config} onChange={onChange} />
         )}
 
         {node.data.nodeType === "logic.log" && (
