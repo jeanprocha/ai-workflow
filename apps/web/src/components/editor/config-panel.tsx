@@ -30,6 +30,8 @@ export interface ConfigPanelProps {
   retry?: NodeRetryPolicy;
   onChange: (config: Record<string, unknown>) => void;
   onRetryChange: (retry: NodeRetryPolicy | undefined) => void;
+  onError?: "fail" | "branch";
+  onOnErrorChange: (onError: "branch" | undefined) => void;
   onClose: () => void;
 }
 
@@ -1102,6 +1104,32 @@ function RetrySection({
   );
 }
 
+function ErrorPathSection({
+  onError,
+  onOnErrorChange,
+}: {
+  onError?: "fail" | "branch";
+  onOnErrorChange: (onError: "branch" | undefined) => void;
+}) {
+  const t = useDictionary().editor.configPanel;
+  const enabled = onError === "branch";
+
+  return (
+    <section className="space-y-2 rounded-md border border-border p-3">
+      <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(event) => onOnErrorChange(event.target.checked ? "branch" : undefined)}
+          className="h-4 w-4 rounded border-border-strong"
+        />
+        {t.errorPath.toggle}
+      </label>
+      {enabled && <p className="text-xs text-muted-foreground">{t.errorPath.description}</p>}
+    </section>
+  );
+}
+
 const JSON_FALLBACK_TYPES = new Set([
   "database.postgres",
   "database.mysql",
@@ -1246,7 +1274,15 @@ function NodeIdBadge({ id }: { id: string }) {
   );
 }
 
-export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: ConfigPanelProps) {
+export function ConfigPanel({
+  node,
+  retry,
+  onChange,
+  onRetryChange,
+  onError,
+  onOnErrorChange,
+  onClose,
+}: ConfigPanelProps) {
   const t = useDictionary().editor.configPanel;
   const entry = getCatalogEntry(node.data.nodeType);
   const config = node.data.config;
@@ -1374,7 +1410,10 @@ export function ConfigPanel({ node, retry, onChange, onRetryChange, onClose }: C
         )}
 
         {!isTriggerType(node.data.nodeType) && (
-          <RetrySection retry={retry} onRetryChange={onRetryChange} />
+          <>
+            <RetrySection retry={retry} onRetryChange={onRetryChange} />
+            <ErrorPathSection onError={onError} onOnErrorChange={onOnErrorChange} />
+          </>
         )}
       </div>
     </aside>

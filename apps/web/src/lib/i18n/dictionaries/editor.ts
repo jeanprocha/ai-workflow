@@ -189,6 +189,11 @@ export const pt = {
       attempts: "Tentativas",
       interval: "Intervalo (ms)",
     },
+    errorPath: {
+      toggle: "Caminho de erro",
+      description:
+        "Se este node falhar (após as tentativas), a execução segue pela saída vermelha em vez de parar — conecte-a a um node no canvas.",
+    },
     /** aria-label do botao X que fecha o painel — so icone, sem texto. */
     closeAria: "Fechar painel de configuração",
     /**
@@ -271,6 +276,7 @@ export const pt = {
   workflowNode: {
     pendingSave: "aguardando salvar...",
     connectionSubtitle: (credential: string) => `conexão: ${credential}`,
+    errorHandleLabel: "erro",
   },
 };
 
@@ -463,6 +469,11 @@ export const en = {
       attempts: "Attempts",
       interval: "Interval (ms)",
     },
+    errorPath: {
+      toggle: "Error path",
+      description:
+        "If this node fails (after retries), execution follows the red output instead of stopping — connect it to a node on the canvas.",
+    },
     closeAria: "Close configuration panel",
     nodeIdCopyHint: "Copy node id",
     nodeIdCopied: "Node id copied.",
@@ -535,5 +546,6 @@ export const en = {
   workflowNode: {
     pendingSave: "waiting to save...",
     connectionSubtitle: (credential: string) => `connection: ${credential}`,
+    errorHandleLabel: "error",
   },
 } satisfies typeof pt;

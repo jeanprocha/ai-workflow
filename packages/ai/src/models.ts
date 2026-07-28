@@ -16,17 +16,21 @@ export interface ModelInfo {
 }
 
 /**
- * Precos ilustrativos (ordem de grandeza real, mas sujeitos a mudar).
+ * Precos e janelas de contexto conferidos contra a documentacao oficial de
+ * cada provider em 2026-07-28 (Anthropic platform.claude.com/docs/pricing,
+ * OpenAI developers.openai.com/api/docs/pricing, Google
+ * ai.google.dev/gemini-api/docs/pricing). Precos mudam com o tempo —
+ * reconferir na fonte oficial ao atualizar, nao estimar por memoria.
  * Usado para contabilizar custo por execucao e para o AI Cost Optimizer (Fase 11).
  */
 export const MODEL_REGISTRY: readonly ModelInfo[] = [
   {
-    id: "claude-opus-4-8",
+    id: "claude-opus-5",
     provider: "anthropic",
-    label: "Claude Opus 4.8",
-    contextWindow: 200_000,
-    inputPricePerMillion: 15,
-    outputPricePerMillion: 75,
+    label: "Claude Opus 5",
+    contextWindow: 1_000_000,
+    inputPricePerMillion: 5,
+    outputPricePerMillion: 25,
     vision: true,
     tier: "flagship",
   },
@@ -34,7 +38,7 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     id: "claude-sonnet-5",
     provider: "anthropic",
     label: "Claude Sonnet 5",
-    contextWindow: 200_000,
+    contextWindow: 1_000_000,
     inputPricePerMillion: 3,
     outputPricePerMillion: 15,
     vision: true,
@@ -45,8 +49,8 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     provider: "anthropic",
     label: "Claude Haiku 4.5",
     contextWindow: 200_000,
-    inputPricePerMillion: 0.8,
-    outputPricePerMillion: 4,
+    inputPricePerMillion: 1,
+    outputPricePerMillion: 5,
     vision: true,
     tier: "economy",
   },
@@ -55,8 +59,8 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     provider: "openai",
     label: "GPT-5",
     contextWindow: 128_000,
-    inputPricePerMillion: 5,
-    outputPricePerMillion: 15,
+    inputPricePerMillion: 1.25,
+    outputPricePerMillion: 10,
     vision: true,
     tier: "flagship",
   },
@@ -65,8 +69,8 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     provider: "openai",
     label: "GPT-5 Mini",
     contextWindow: 128_000,
-    inputPricePerMillion: 0.6,
-    outputPricePerMillion: 2.4,
+    inputPricePerMillion: 0.25,
+    outputPricePerMillion: 2,
     vision: true,
     tier: "economy",
   },
@@ -74,9 +78,11 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     id: "gemini-2.5-pro",
     provider: "gemini",
     label: "Gemini 2.5 Pro",
+    // Preco oficial escala pra $2.50/$15 acima de 200k tokens de prompt;
+    // modelamos so a faixa <=200k (a mais comum) por simplicidade.
     contextWindow: 1_000_000,
     inputPricePerMillion: 1.25,
-    outputPricePerMillion: 5,
+    outputPricePerMillion: 10,
     vision: true,
     tier: "flagship",
   },
@@ -85,8 +91,8 @@ export const MODEL_REGISTRY: readonly ModelInfo[] = [
     provider: "gemini",
     label: "Gemini 2.5 Flash",
     contextWindow: 1_000_000,
-    inputPricePerMillion: 0.15,
-    outputPricePerMillion: 0.6,
+    inputPricePerMillion: 0.3,
+    outputPricePerMillion: 2.5,
     vision: true,
     tier: "economy",
   },

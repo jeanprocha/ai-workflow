@@ -22,7 +22,8 @@ function nodesEqual(a: WorkflowNode, b: WorkflowNode): boolean {
     a.type === b.type &&
     a.label === b.label &&
     JSON.stringify(a.config) === JSON.stringify(b.config) &&
-    JSON.stringify(a.retry) === JSON.stringify(b.retry)
+    JSON.stringify(a.retry) === JSON.stringify(b.retry) &&
+    (a.onError ?? "fail") === (b.onError ?? "fail")
   );
 }
 

@@ -571,3 +571,91 @@ test.describe("Editor — node If", () => {
     expect(contentRightEdge).toBeLessThanOrEqual(labelsBox!.x + 0.5);
   });
 });
+
+test.describe("Editor — caminho de erro", () => {
+  test("toggle habilita a saida vermelha id=error; salvar/recarregar persiste", async ({
+    page,
+    context,
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Caminho de Erro Toggle");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, TWO_NODE_GRAPH);
+    await authenticateContext(context, await buildStorageState(request, tokens));
+
+    await page.goto(`/flows/${workflow.id}`);
+    await page.locator('[data-testid="rf__node-n2"]').click();
+
+    const panel = page.locator("aside").last();
+    const toggle = panel.getByLabel("Caminho de erro");
+    const errorHandle = page.locator('[data-testid="rf__node-n2"] [data-handleid="error"]');
+    await expect(errorHandle).toHaveCount(0);
+
+    await toggle.check();
+    await expect(errorHandle).toHaveCount(1);
+    await saveAndWait(page);
+
+    await page.reload();
+    await expect(page.locator('[data-testid="rf__node-n2"] [data-handleid="error"]')).toHaveCount(1);
+    await page.locator('[data-testid="rf__node-n2"]').click();
+    await expect(page.locator("aside").last().getByLabel("Caminho de erro")).toBeChecked();
+  });
+
+  test("node trigger nao mostra o toggle de caminho de erro", async ({ page, context, request }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Caminho de Erro Trigger");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, TWO_NODE_GRAPH);
+    await authenticateContext(context, await buildStorageState(request, tokens));
+
+    await page.goto(`/flows/${workflow.id}`);
+    await page.locator('[data-testid="rf__node-n1"]').click();
+
+    await expect(page.locator("aside").last().getByLabel("Caminho de erro")).toHaveCount(0);
+  });
+
+  test("desabilitar o toggle com a edge de erro conectada remove a edge", async ({
+    page,
+    context,
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Caminho de Erro Desabilitar");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, {
+      nodes: [
+        TWO_NODE_GRAPH.nodes[0],
+        { ...TWO_NODE_GRAPH.nodes[1], onError: "branch" },
+        {
+          id: "n3",
+          type: "logic.log",
+          category: "logic",
+          label: "Log erro",
+          position: { x: 320, y: 200 },
+          config: { message: "erro" },
+        },
+      ],
+      edges: [
+        ...TWO_NODE_GRAPH.edges,
+        { id: "e2", source: "n2", target: "n3", sourceHandle: "error" },
+      ],
+      viewport: { x: 0, y: 0, zoom: 1 },
+    });
+    await authenticateContext(context, await buildStorageState(request, tokens));
+
+    await page.goto(`/flows/${workflow.id}`);
+    await expect(page.locator('[data-testid="rf__node-n2"] [data-handleid="error"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="rf__edge-e2"]')).toHaveCount(1);
+
+    await page.locator('[data-testid="rf__node-n2"]').click();
+    const panel = page.locator("aside").last();
+    await expect(panel.getByLabel("Caminho de erro")).toBeChecked();
+    await panel.getByLabel("Caminho de erro").uncheck();
+    await expect(page.locator('[data-testid="rf__node-n2"] [data-handleid="error"]')).toHaveCount(0);
+    await saveAndWait(page);
+
+    await page.reload();
+    await expect(page.locator('[data-testid="rf__edge-e2"]')).toHaveCount(0);
+  });
+});

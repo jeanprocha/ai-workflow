@@ -24,6 +24,7 @@ export type WorkflowNodeData = {
   category: NodeCategory;
   config: Record<string, unknown>;
   retry?: NodeRetryPolicy;
+  onError?: "fail" | "branch";
   status?: NodeRunStatus;
 };
 
@@ -80,9 +81,16 @@ function StatusDot({ status, runningAriaLabel }: { status?: NodeRunStatus; runni
 }
 
 function outputHandleColor(output: string): string {
+  if (output === "error") return "!bg-danger";
   if (output === "true") return "!bg-success";
   if (output === "false" || output === "default") return "!bg-border-strong";
   return "!bg-primary";
+}
+
+interface OutputHandleSpec {
+  id?: string;
+  label: string | null;
+  colorClass: string;
 }
 
 /**
@@ -107,12 +115,35 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) 
   const isTrigger = data.category === "trigger";
   const outputs = entry?.outputs ?? ["default"];
   const subtitle = subtitleFor(data.nodeType, data.config, t);
+  const errorEnabled = data.onError === "branch" && !isTrigger;
+
+  // Handle "default" (saida unica, sem id — a onica forma de nao quebrar
+  // edges existentes com sourceHandle undefined) nao ganha rotulo; nodes com
+  // mais de uma saida (If/Switch) sempre tiveram rotulo. O caminho de erro,
+  // quando habilitado, entra como uma saida extra id="error" no fim da
+  // lista — sem tocar nos ids das saidas originais.
+  const handleSpecs: OutputHandleSpec[] =
+    outputs.length > 1
+      ? outputs.map((output) => ({
+          id: output,
+          label: outputLabel(data.nodeType, output, data.config),
+          colorClass: outputHandleColor(output),
+        }))
+      : [{ id: undefined, label: null, colorClass: "!bg-border-strong" }];
+  if (errorEnabled) {
+    handleSpecs.push({
+      id: "error",
+      label: t.errorHandleLabel,
+      colorClass: outputHandleColor("error"),
+    });
+  }
+  const showHandleLabels = handleSpecs.length > 1;
   // Os rotulos de saida ficam num container `absolute inset-y-1.5` que cobre
   // quase a altura inteira do card (ver abaixo) — sem altura minima
   // proporcional ao numero deles, um card so com header (~36px, sem
   // subtitulo) nao cabe os ~16px por rotulo que 4-5 saidas precisam, e o
   // texto vaza por baixo da borda.
-  const minHeight = outputs.length > 1 ? outputs.length * 18 + 16 : undefined;
+  const minHeight = showHandleLabels ? handleSpecs.length * 18 + 16 : undefined;
 
   return (
     <div
@@ -154,40 +185,40 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) 
             // subtitulo longo (ex.: condicao do node If) teria seu texto
             // cortado bem embaixo dos rotulos, sobrepondo os dois de um
             // jeito ilegivel em vez de so truncar antes.
-            (outputs.length > 1 ? "pr-20" : "")
+            (showHandleLabels ? "pr-20" : "")
           }
         >
           {subtitle}
         </div>
       )}
 
-      {outputs.length <= 1 ? (
+      {!showHandleLabels ? (
         <Handle type="source" position={Position.Right} className="!bg-border-strong" />
       ) : (
         <>
-          {outputs.map((output, index) => (
+          {handleSpecs.map((spec, index) => (
             <Handle
-              key={output}
+              key={spec.id ?? "default"}
               type="source"
               position={Position.Right}
-              id={output}
-              style={{ top: `${((index + 1) / (outputs.length + 1)) * 100}%` }}
-              className={outputHandleColor(output)}
+              id={spec.id}
+              style={{ top: `${((index + 1) / (handleSpecs.length + 1)) * 100}%` }}
+              className={spec.colorClass}
             />
           ))}
           <div className="pointer-events-none absolute inset-y-1.5 right-2.5 flex max-w-[64px] flex-col justify-between">
-            {outputs.map((output) => {
-              const label = outputLabel(data.nodeType, output, data.config);
-              return (
-                <span
-                  key={output}
-                  title={label}
-                  className="truncate font-mono text-xs leading-none text-muted-foreground"
-                >
-                  {label}
-                </span>
-              );
-            })}
+            {handleSpecs.map(
+              (spec) =>
+                spec.label !== null && (
+                  <span
+                    key={spec.id ?? "default"}
+                    title={spec.label}
+                    className="truncate font-mono text-xs leading-none text-muted-foreground"
+                  >
+                    {spec.label}
+                  </span>
+                ),
+            )}
           </div>
         </>
       )}

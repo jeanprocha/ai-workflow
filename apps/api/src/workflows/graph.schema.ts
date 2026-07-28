@@ -25,6 +25,7 @@ const workflowNodeSchema = z.object({
   position: z.object({ x: z.number(), y: z.number() }),
   config: z.record(z.string(), z.unknown()),
   retry: nodeRetryPolicySchema.optional(),
+  onError: z.enum(['fail', 'branch']).optional(),
 });
 
 const workflowEdgeSchema = z.object({

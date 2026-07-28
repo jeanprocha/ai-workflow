@@ -235,6 +235,10 @@ export class EngineService {
         );
 
         let waveFailed = false;
+        // Nodes cuja falha foi roteada pelo caminho de erro (onError:'branch'
+        // com edge "error" conectada) em vez de derrubar a execucao — ver
+        // comentario abaixo do loop de roteamento.
+        const handledFailures = new Set<string>();
         for (const result of results) {
           if (result.ok) {
             nodeOutputs[result.nodeId] = result.output;
@@ -245,41 +249,73 @@ export class EngineService {
               costUsdTotal += result.usage.costUsd;
             }
           } else {
-            waveFailed = true;
-            failureError = result.error ?? 'Erro desconhecido.';
+            const failedNode = nodesById.get(result.nodeId);
+            const hasErrorEdge = (outgoing.get(result.nodeId) ?? []).some(
+              (edge) => edge.sourceHandle === 'error',
+            );
+            if (
+              failedNode?.onError === 'branch' &&
+              failedNode.category !== 'trigger' &&
+              hasErrorEdge
+            ) {
+              // Falha tratada: o ExecutionStep ja foi gravado como failed
+              // (observabilidade) — aqui so evitamos propagar a falha pro
+              // overallStatus, e o output vira o payload de erro roteado
+              // pela edge "error" no loop abaixo. onError:'branch' SEM edge
+              // "error" conectada cai no fail-fast normal (nunca engolir
+              // erro em silencio).
+              handledFailures.add(result.nodeId);
+              nodeOutputs[result.nodeId] = {
+                error: result.error ?? 'Erro desconhecido.',
+              };
+            } else {
+              waveFailed = true;
+              failureError = result.error ?? 'Erro desconhecido.';
+            }
           }
         }
 
         if (waveFailed) {
           // Fail-fast (v1): uma falha em qualquer node da onda para a execucao
           // inteira, mesmo que branches irmas independentes tivessem sucesso.
-          // Replay parcial a partir do node falho fica para a Fase 6.
+          // Replay parcial a partir do node falho fica para a Fase 6; replay
+          // tambem nao restaura o output de falhas tratadas por caminho de
+          // erro (limitacao conhecida — steps failed nao sao reaproveitados).
           overallStatus = 'failed';
           break;
         }
 
         const nextWave = new Map<string, unknown>();
         for (const result of results) {
-          if (!result.ok) continue;
+          const isHandledFailure = handledFailures.has(result.nodeId);
+          if (!result.ok && !isHandledFailure) continue;
+          const outputForRouting = isHandledFailure
+            ? nodeOutputs[result.nodeId]
+            : result.output;
           for (const edge of outgoing.get(result.nodeId) ?? []) {
-            if (
+            if (isHandledFailure) {
+              // Falha tratada roteia so pela edge "error" — as edges normais
+              // (sem handle ou com outro handle) nunca disparam na falha.
+              if (edge.sourceHandle !== 'error') continue;
+            } else if (
               edge.sourceHandle &&
               !(result.branches ?? []).includes(edge.sourceHandle)
-            )
+            ) {
               continue;
+            }
             if (executed.has(edge.target)) continue;
 
             const targetNode = nodesById.get(edge.target);
             if (targetNode?.type === 'logic.merge') {
               const buffer = mergeBuffers.get(edge.target) ?? [];
-              buffer.push(result.output);
+              buffer.push(outputForRouting);
               mergeBuffers.set(edge.target, buffer);
               const required = incomingCount.get(edge.target) ?? 1;
               if (buffer.length >= required) {
                 nextWave.set(edge.target, buffer.slice());
               }
             } else {
-              nextWave.set(edge.target, result.output);
+              nextWave.set(edge.target, outputForRouting);
             }
           }
         }

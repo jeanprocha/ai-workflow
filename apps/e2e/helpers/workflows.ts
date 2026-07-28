@@ -438,6 +438,116 @@ export function transformListGraph(options: {
   };
 }
 
+/**
+ * trigger.manual -> api.httpRequest (falha deterministica contra porta
+ * discard por padrao, ou sucesso se `url` apontar pro /debug/echo) -> dois
+ * logic.log: "normal" (edge sem handle, n3) e "erro" (edge
+ * sourceHandle:"error", n4). Usado pra testar o caminho de erro
+ * (onError:'branch') da engine.
+ */
+export function errorBranchGraph(
+  options: {
+    onError?: "branch";
+    url?: string;
+    wireErrorEdge?: boolean;
+  } = {},
+) {
+  const edges: Array<{ id: string; source: string; target: string; sourceHandle?: string }> = [
+    { id: "e1", source: "n1", target: "n2" },
+    { id: "e2", source: "n2", target: "n3" },
+  ];
+  if (options.wireErrorEdge ?? true) {
+    edges.push({ id: "e3", source: "n2", target: "n4", sourceHandle: "error" });
+  }
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.manual",
+        category: "trigger",
+        label: "Manual Trigger",
+        position: { x: 0, y: 0 },
+        config: {},
+      },
+      {
+        id: "n2",
+        type: "api.httpRequest",
+        category: "api",
+        label: "HTTP Request",
+        position: { x: 320, y: 0 },
+        config: {
+          method: "GET",
+          url: options.url ?? "http://127.0.0.1:9",
+          headers: {},
+          timeoutMs: 3000,
+        },
+        ...(options.onError ? { onError: options.onError } : {}),
+      },
+      {
+        id: "n3",
+        type: "logic.log",
+        category: "logic",
+        label: "Log",
+        position: { x: 640, y: -80 },
+        config: { message: "caminho normal" },
+      },
+      {
+        id: "n4",
+        type: "logic.log",
+        category: "logic",
+        label: "Log",
+        position: { x: 640, y: 80 },
+        config: { message: "tratado: {{ $input.error }}" },
+      },
+    ],
+    edges,
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
+/**
+ * trigger.chat -> api.httpRequest (falha, onError:'branch') -> chat.reply no
+ * caminho de erro. Prova que uma falha tratada NAO injeta a errorMessage do
+ * trigger e AINDA assim persiste o estado da conversa (execucao termina
+ * success).
+ */
+export function chatErrorBranchGraph(errorMessage: string) {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.chat",
+        category: "trigger",
+        label: "Chat",
+        position: { x: 0, y: 0 },
+        config: { chatToken: "", inboxToken: "", welcomeMessage: "", errorMessage },
+      },
+      {
+        id: "n2",
+        type: "api.httpRequest",
+        category: "api",
+        label: "HTTP Request",
+        position: { x: 320, y: 0 },
+        config: { method: "GET", url: "http://127.0.0.1:9", headers: {}, timeoutMs: 3000 },
+        onError: "branch",
+      },
+      {
+        id: "n3",
+        type: "chat.reply",
+        category: "communication",
+        label: "Responder no chat",
+        position: { x: 640, y: 0 },
+        config: { message: "Tive um problema, mas contornei." },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", target: "n2" },
+      { id: "e2", source: "n2", target: "n3", sourceHandle: "error" },
+    ],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
 export function httpRequestGraph(nodeConfig: Record<string, unknown>) {
   return {
     nodes: [

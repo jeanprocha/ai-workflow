@@ -46,6 +46,7 @@ function graphToFlow(graph: WorkflowGraph): { nodes: WorkflowFlowNode[]; edges: 
         category: node.category,
         config: node.config,
         retry: node.retry,
+        onError: node.onError,
       },
     })),
     edges: graph.edges.map((edge) => ({
@@ -73,6 +74,7 @@ function flowToGraph(
       position: node.position,
       config: node.data.config,
       retry: node.data.retry,
+      onError: node.data.onError,
     })),
     edges: edges.map((edge) => ({
       id: edge.id,
@@ -251,6 +253,24 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
     );
   }
 
+  function updateSelectedNodeOnError(onError: "branch" | undefined) {
+    markDirty();
+    setNodes((current) =>
+      current.map((node) =>
+        node.id === selectedNodeId ? { ...node, data: { ...node.data, onError } } : node,
+      ),
+    );
+    // Desabilitar sem remover a edge deixaria uma edge "error" pendurada sem
+    // handle correspondente no node (invisivel no canvas, mas ainda salva).
+    if (!onError) {
+      setEdges((current) =>
+        current.filter(
+          (edge) => !(edge.source === selectedNodeId && edge.sourceHandle === "error"),
+        ),
+      );
+    }
+  }
+
   const nodesWithStatus = nodes.map((node) => ({
     ...node,
     data: { ...node.data, status: nodeStatuses[node.id] },
@@ -315,6 +335,8 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
             retry={selectedNode.data.retry}
             onChange={updateSelectedNodeConfig}
             onRetryChange={updateSelectedNodeRetry}
+            onError={selectedNode.data.onError}
+            onOnErrorChange={updateSelectedNodeOnError}
             onClose={() => setSelectedNodeId(null)}
           />
         )}

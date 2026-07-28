@@ -318,4 +318,43 @@ test.describe("Agents (via UI)", () => {
     await expect(answer).toBeVisible({ timeout: 60_000 });
     await expect(answer).not.toBeEmpty();
   });
+
+  /**
+   * Regressao do C1 (docs/produto/base-evolucao.md): Gemini nao enviava nem
+   * lia tool calls, entao um agente com a tool calculator nunca conseguia
+   * usa-la — falhava em silencio, sem erro. Exige E2E_GEMINI_KEY.
+   * Rodar sob demanda com: playwright test --grep @ai
+   */
+  test("@ai agente Gemini usa a tool calculator", async ({ page, context, request }) => {
+    test.setTimeout(90_000);
+    const apiKey = process.env.E2E_GEMINI_KEY;
+    test.skip(!apiKey, "E2E_GEMINI_KEY nao definida — teste de IA real pulado.");
+
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    await createCredentialViaApi(request, tokens, workspaceId, {
+      provider: "gemini",
+      name: "gemini-e2e",
+      value: apiKey!,
+    });
+    await createAgentViaApi(request, tokens, workspaceId, {
+      name: "Agente Gemini",
+      systemPrompt: "Use sempre a tool calculator para contas, mesmo simples.",
+      provider: "gemini",
+      model: "gemini-2.5-flash",
+      credential: "gemini-e2e",
+      tools: ["calculator"],
+    });
+    await authenticateContext(context, await buildStorageState(request, tokens));
+    await page.goto("/agents");
+
+    await agentCard(page, "Agente Gemini").getByRole("button", { name: "Testar" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Mensagem para o agente").fill("Quanto e 123456 vezes 789?");
+    await dialog.getByRole("button", { name: "Enviar" }).click();
+
+    const answer = dialog.locator("div.bg-muted");
+    await expect(answer).toBeVisible({ timeout: 60_000 });
+    await expect(answer).toContainText("97406784");
+  });
 });

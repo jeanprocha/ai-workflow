@@ -21,6 +21,12 @@ export interface WorkflowNode {
   config: Record<string, unknown>;
   /** Retry cross-cutting: aplicado pela engine, independente do tipo do node. */
   retry?: NodeRetryPolicy;
+  /**
+   * Caminho de erro cross-cutting: se "branch" e houver edge de saida com
+   * sourceHandle "error", uma falha do node (apos retries) roteia por essa
+   * edge em vez de derrubar a execucao. Ausente/"fail" = fail-fast (v1).
+   */
+  onError?: "fail" | "branch";
 }
 
 export interface WorkflowEdge {

@@ -42,6 +42,32 @@ pnpm --filter @workflow/e2e report         # abre o ultimo relatorio HTML
 `pnpm test:e2e` **não** entra no `pnpm test` (Turborepo) nem no CI — precisa
 de Postgres/Redis/API/Web reais rodando, então é sempre um comando explícito.
 
+### Rodando via SSH (Linux acessado a partir de outra máquina)
+
+Se você acessa esta máquina Linux por SSH (ex.: de um Windows na mesma rede)
+e por isso `apps/web/.env` tem `NEXT_PUBLIC_API_URL` apontando para o IP de
+LAN da máquina (ex.: `http://192.168.1.100:3333`) em vez de `localhost` — é
+assim que o browser do lado de fora enxerga o dev server —, o Playwright
+rodando **dentro** do Linux pode travar tentando resolver `localhost` (visto
+na prática: trava indefinidamente em `APIRequestContext.post()`, mesmo com
+`curl`/`fetch` nativo do Node respondendo instantâneo no mesmo host/porta —
+uma peculiaridade do resolvedor de rede interno do Playwright, não do
+servidor). `127.0.0.1` funciona, mas nesse cenário o mais simples é apontar
+os testes para o mesmo IP de LAN que o browser real já usa — evita qualquer
+divergência entre o que os helpers de API chamam e o que a UI carrega:
+
+```bash
+E2E_API_URL=http://192.168.1.100:3333 \
+E2E_BASE_URL=http://192.168.1.100:3000 \
+pnpm --filter @workflow/e2e exec playwright test
+```
+
+Troque `192.168.1.100` pelo IP real da máquina (mesmo valor do
+`NEXT_PUBLIC_API_URL` em `apps/web/.env`). **Não** edite esse `.env` nem
+reinicie os dev servers para "consertar" isso — eles já estão configurados
+do jeito certo para o uso real (acesso pelo browser via LAN); o ajuste é
+sempre nas variáveis de ambiente da chamada do Playwright, nunca no app.
+
 ## Convenções da suíte
 
 - **Sem seed de usuário/dados** — cada teste que precisa de conta cria a sua

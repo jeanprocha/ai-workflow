@@ -143,7 +143,7 @@ ${relevantLogs || '(nenhum)'}
 Diga a causa provavel do erro em uma frase curta, e ate 3 sugestoes de correcao, cada uma de um tipo:
 - "retry": aumentar/adicionar tentativas com backoff (preencha attempts e backoffMs).
 - "timeout": aumentar o timeout do node, so faz sentido se o erro parecer ser de tempo esgotado (preencha timeoutMs).
-- "fallback": indicar que o fluxo deveria ter um caminho alternativo se este node falhar (nao preencha attempts/backoffMs/timeoutMs — hoje isso exige edicao manual do grafo).`;
+- "fallback": ativar um caminho de erro pra este node (nao preencha attempts/backoffMs/timeoutMs) — na descricao, avise que apos aplicar o usuario ainda precisa conectar a nova saida de erro do node, no editor, a um node que trate a falha (ex.: notificar, tentar outra abordagem).`;
 
     const result = await provider.chat({
       apiKey,
@@ -177,7 +177,8 @@ Diga a causa provavel do erro em uma frase curta, e ate 3 sugestoes de correcao,
         : undefined,
       aplicavel:
         suggestion.tipo === 'retry' ||
-        (suggestion.tipo === 'timeout' && timeoutKey !== null),
+        (suggestion.tipo === 'timeout' && timeoutKey !== null) ||
+        (suggestion.tipo === 'fallback' && node.category !== 'trigger'),
     }));
 
     const suggestionRow = await this.suggestions.create({
@@ -306,6 +307,10 @@ function applyPatchToNode(
     const key = findTimeoutKey(node.config);
     if (!key || suggestion.timeoutMs === undefined) return node;
     return { ...node, config: { ...node.config, [key]: suggestion.timeoutMs } };
+  }
+  if (suggestion.tipo === 'fallback') {
+    if (node.category === 'trigger') return node;
+    return { ...node, onError: 'branch' };
   }
   return node;
 }
