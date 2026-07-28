@@ -1,70 +1,127 @@
-# Deploy no Railway (API + Worker) — Fase 10
+# Deploy no Railway (API + Worker)
 
-Config preparada, nada provisionado ainda (ver ADR-008). Este guia e o passo a
-passo para quando voce conectar a conta Railway.
+Ambiente **provisionado e no ar**. O frontend roda no Vercel (ver
+`docs/deploy/vercel.md`).
+
+| | |
+|---|---|
+| Projeto | `ai-workflow` (`713c8fcf-f54c-47b6-9c0a-2895dc0c84dc`) |
+| Ambiente | `production` (`9d3a89a5-9899-4b0a-bbcc-993a9b00f955`) |
+| Servicos | `api`, `worker` |
+| Databases | Postgres (`postgres-volume`), Redis (`redis-volume`) |
+| URL da API | `https://api-production-cb36.up.railway.app` |
 
 ## Visao geral
 
-Uma unica imagem Docker (`apps/api/Dockerfile`), **dois servicos** no Railway
-apontando pro mesmo repo/imagem, cada um com um Start Command diferente:
+Uma unica imagem Docker (`apps/api/Dockerfile`, apontada pelo `railway.json`
+na raiz), **dois servicos** com Start Commands diferentes:
 
 | Servico  | Start Command                     | HTTP? | Healthcheck |
 |----------|------------------------------------|-------|-------------|
 | `api`    | `node dist/src/main.js` (padrao)   | Sim (porta `$PORT`, default 3333) | `GET /health` |
-| `worker` | `node dist/src/worker.main.js`     | Nao (`createApplicationContext`, sem listener) | Nenhum (ou "Restart on crash" apenas) |
+| `worker` | `node dist/src/worker.main.js`     | Nao (`createApplicationContext`, sem listener) | Nenhum ("Restart on crash" apenas) |
 
-Mais Postgres (`pgvector/pgvector:pg16` — usar o plugin Postgres do Railway ou
-um serviço com essa imagem) e Redis (plugin Redis do Railway).
+Por que uma imagem so: ver ADR-008 (`docs/adr/008-worker-separado.md`).
 
-## Passo a passo
+## Deploy
 
-1. **Criar o projeto** no Railway a partir deste repo (branch `main`).
-2. **Adicionar Postgres e Redis** (plugins do Railway, ou servicos com as
-   imagens do `docker-compose.dev.yml`). Copiar as connection strings.
-3. **Servico `api`** (criado automaticamente ao conectar o repo):
-   - Settings → Build → Dockerfile Path: `apps/api/Dockerfile` (ja e o default
-     via `railway.json` na raiz).
-   - Settings → Deploy → Start Command: deixar o padrao (`node dist/src/main.js`).
-   - Variables: `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `SECRETS_ENCRYPTION_KEY`
-     (nomes exatos de `apps/api/.env`), demais chaves de API de IA/integracoes.
-   - Uma migracao (`prisma migrate deploy`) deve rodar antes do primeiro boot —
-     via um "Release Command" no servico `api` (Settings → Deploy → Release
-     Command: `pnpm --filter @workflow/api exec prisma migrate deploy`). Rodar
-     so no `api`, nunca no `worker` (evita duas migracoes concorrentes).
-4. **Servico `worker`** (New Service → mesmo repo, mesma branch):
-   - Settings → Build → Dockerfile Path: `apps/api/Dockerfile` (mesma imagem).
-   - Settings → Deploy → Start Command: `node dist/src/worker.main.js`
-     (sobrescreve o padrao do `railway.json`).
-   - Settings → Deploy → Healthcheck Path: deixar vazio/desabilitado — o
-     worker nao serve HTTP.
-   - Variables: as mesmas do `api` (`DATABASE_URL`, `REDIS_URL`, chaves de IA/
-     integracoes) — sem Release Command (a migracao ja roda no `api`).
-   - Opcional: concorrencia por fila via env (`EXECUTIONS_CONCURRENCY`,
-     `INGESTION_CONCURRENCY`, `MCP_HEALTH_CONCURRENCY`, `SCHEDULES_CONCURRENCY`)
-     e limites do sandbox (`NODE_SANDBOX_TIMEOUT_MS`, `NODE_SANDBOX_MEMORY_MB`).
-5. **Escalar horizontalmente**: aumentar o numero de instancias do servico
-   `worker` no Railway (Settings → Deploy → Replicas, ou via autoscaling se
-   disponivel no plano) conforme a profundidade da fila. Acompanhar
-   `GET /health/queues` (servido pelo `api`) para decidir quando escalar —
-   `waiting`/`oldestWaitingMs` altos e persistentes indicam fila represada.
+Nao ha repo git conectado — o deploy e feito por upload direto da pasta local
+com a CLI, a partir da **raiz do monorepo**:
 
-## Variaveis de ambiente relevantes (Fase 10)
+```bash
+railway up --service api --detach
+```
+
+```bash
+railway up --service worker --detach
+```
+
+Acompanhar ate terminar (`BUILDING` → `SUCCESS`):
+
+```bash
+railway deployment list --service api
+```
+
+O `--detach` e importante em uso automatizado: sem ele a CLI fica streamando
+log de build e nunca retorna.
+
+### Migracoes
+
+O servico `api` tem um **Release Command** configurado
+(`pnpm --filter @workflow/api exec prisma migrate deploy`) que roda a cada
+deploy, antes do boot. Nao ha passo manual: subir o `api` ja aplica as
+migracoes pendentes. Confirmado no deploy de 2026-07-28 ("16 migrations found",
+6 aplicadas, "All migrations have been successfully applied").
+
+O `worker` **nao** tem Release Command de proposito — duas migracoes
+concorrentes na mesma base dariam corrida.
+
+### Verificacao pos-deploy
+
+```bash
+curl -s https://api-production-cb36.up.railway.app/health
+```
+
+Deve responder `{"status":"ok",...}` com `checks.postgres.ok` e
+`checks.redis.ok` em `true`. Para o worker (que nao serve HTTP), conferir no
+log a linha `Worker iniciado — consumindo filas: executions, ingestion,
+mcp-health, schedules`:
+
+```bash
+railway logs --service worker --deployment --lines 60
+```
+
+## Acessar o Postgres de producao
+
+O host (`postgres.railway.internal`) so resolve **dentro** da rede do Railway —
+`psql` direto da maquina local da "conexao recusada". Nao e preciso criar
+proxy TCP publico: a CLI tunela por SSH.
+
+Pre-requisito, uma vez por maquina:
+
+```bash
+railway ssh keys add -k ~/.ssh/id_ed25519.pub -n ai-workflow-deploy
+```
+
+Depois, shell interativo (ou receber SQL por stdin):
+
+```bash
+railway connect Postgres --ssh
+```
+
+Para apontar um cliente externo (TablePlus, DBeaver) sem abrir client:
+
+```bash
+railway connect Postgres --tunnel-only
+```
+
+## Variaveis de ambiente
+
+Nomes conferem com `apps/api/.env`. Ja setadas no servico `api`:
+`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `SECRETS_ENCRYPTION_KEY`.
+
+> `SECRETS_ENCRYPTION_KEY` de producao e **diferente** da de dev (ADR-007).
+> Isso significa que o `credentials.encrypted_data` **nao e portavel** entre
+> ambientes: copiar a linha crua de dev pra producao gera um blob que nao
+> descriptografa. Credencial migrada tem que ser recriada pela UI
+> (Settings → Conexoes) no ambiente destino, com o mesmo **nome** — os nodes
+> referenciam credencial por nome, nao por id.
+
+Ajuste fino de fila e sandbox (opcionais, valem pro `worker`):
 
 | Variavel | Default | Efeito |
 |---|---|---|
-| `EXECUTIONS_CONCURRENCY` | 5 | Execucoes de workflow processadas em paralelo por instancia de worker |
-| `INGESTION_CONCURRENCY` | 2 | Documentos de knowledge base processados em paralelo |
+| `EXECUTIONS_CONCURRENCY` | 5 | Execucoes de workflow em paralelo por instancia |
+| `INGESTION_CONCURRENCY` | 2 | Documentos de knowledge base em paralelo |
 | `MCP_HEALTH_CONCURRENCY` | 1 | Health checks MCP em paralelo |
-| `SCHEDULES_CONCURRENCY` | 5 | Disparos de cron processados em paralelo |
-| `NODE_SANDBOX_TIMEOUT_MS` | 30000 | Timeout duro por node (worker.terminate()) |
-| `NODE_SANDBOX_MEMORY_MB` | 256 | Limite de heap por node (worker_threads resourceLimits) |
-| `ORPHAN_EXECUTION_THRESHOLD_MS` | 600000 (10min) | Ha quanto tempo uma execucao "running" e considerada orfa no boot do worker |
-| `AI_RATE_LIMIT_<PROVIDER>_RPM` | 60 (600 p/ ollama) | Limite de requisicoes/minuto por provider de IA, compartilhado entre todos os workers via Redis |
+| `SCHEDULES_CONCURRENCY` | 5 | Disparos de cron em paralelo |
+| `NODE_SANDBOX_TIMEOUT_MS` | 30000 | Timeout duro por node (`worker.terminate()`) |
+| `NODE_SANDBOX_MEMORY_MB` | 256 | Limite de heap por node (`resourceLimits`) |
+| `ORPHAN_EXECUTION_THRESHOLD_MS` | 600000 | Idade pra considerar orfa uma execucao "running" no boot |
+| `AI_RATE_LIMIT_<PROVIDER>_RPM` | 60 (600 p/ ollama) | Req/min por provider de IA, compartilhado entre workers via Redis |
 
-## Por que uma imagem so, dois servicos
+## Escalar
 
-Ver ADR-008 (`docs/adr/008-worker-separado.md`): o worker roda o mesmo
-codebase do `@workflow/api`, com um entrypoint proprio
-(`apps/api/src/worker.main.ts`) que sobe so os consumidores de fila, sem HTTP.
-Isso evita duplicar dependencias/build entre dois pacotes e mantem o deploy
-de fato independente (matar o `worker` nao derruba o `api`, e vice-versa).
+Aumentar replicas do `worker` (Settings → Deploy → Replicas) conforme a
+profundidade da fila. `GET /health/queues` (servido pelo `api`) mostra
+`waiting`/`oldestWaitingMs` — altos e persistentes indicam fila represada.
