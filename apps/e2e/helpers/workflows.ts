@@ -548,6 +548,162 @@ export function chatErrorBranchGraph(errorMessage: string) {
   };
 }
 
+/**
+ * trigger.manual -> logic.setVariables (cliente=acme) -> logic.log
+ * interpolando "{{ $vars.cliente }}" dentro de texto. Usado pra provar que o
+ * replay parcial a partir de n3 reconstitui $vars — a expressao PRECISA
+ * estar interpolada (nao sozinha): logic.log usa `config.message ||
+ * ctx.input` como fallback, entao `{{ $vars.cliente }}` sozinho quando
+ * resolve pra undefined cairia nesse fallback e mascararia o bug.
+ */
+export function varsReplayGraph() {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.manual",
+        category: "trigger",
+        label: "Manual Trigger",
+        position: { x: 0, y: 0 },
+        config: {},
+      },
+      {
+        id: "n2",
+        type: "logic.setVariables",
+        category: "logic",
+        label: "Set Variables",
+        position: { x: 320, y: 0 },
+        config: { assignments: [{ key: "cliente", value: "acme" }] },
+      },
+      {
+        id: "n3",
+        type: "logic.log",
+        category: "logic",
+        label: "Log",
+        position: { x: 640, y: 0 },
+        config: { message: "cliente={{ $vars.cliente }}" },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", target: "n2" },
+      { id: "e2", source: "n2", target: "n3" },
+    ],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
+/**
+ * trigger.manual -> setVariables{a:1} -> setVariables{a:2,b:x} -> log. Prova
+ * que o merge de varsPatch no replay parcial respeita a ordem de execucao
+ * (o "a" da segunda onda vence o da primeira), nao so a uniao das chaves.
+ */
+export function varsOverrideGraph() {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.manual",
+        category: "trigger",
+        label: "Manual Trigger",
+        position: { x: 0, y: 0 },
+        config: {},
+      },
+      {
+        id: "n2",
+        type: "logic.setVariables",
+        category: "logic",
+        label: "Set Variables",
+        position: { x: 320, y: 0 },
+        config: { assignments: [{ key: "a", value: "1" }] },
+      },
+      {
+        id: "n3",
+        type: "logic.setVariables",
+        category: "logic",
+        label: "Set Variables",
+        position: { x: 640, y: 0 },
+        config: {
+          assignments: [
+            { key: "a", value: "2" },
+            { key: "b", value: "x" },
+          ],
+        },
+      },
+      {
+        id: "n4",
+        type: "logic.log",
+        category: "logic",
+        label: "Log",
+        position: { x: 960, y: 0 },
+        config: { message: "a={{ $vars.a }};b={{ $vars.b }}" },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", target: "n2" },
+      { id: "e2", source: "n2", target: "n3" },
+      { id: "e3", source: "n3", target: "n4" },
+    ],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
+/**
+ * trigger.manual -> setVariables{cliente:acme} -> api.httpRequest (falha
+ * deterministica, onError:'branch') -> logic.log na edge "error". Prova que
+ * uma variavel definida ANTES de um node com falha tratada sobrevive ao
+ * replay parcial a partir do caminho de erro (espelha errorBranchGraph).
+ */
+export function varsErrorBranchReplayGraph() {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.manual",
+        category: "trigger",
+        label: "Manual Trigger",
+        position: { x: 0, y: 0 },
+        config: {},
+      },
+      {
+        id: "n2",
+        type: "logic.setVariables",
+        category: "logic",
+        label: "Set Variables",
+        position: { x: 320, y: 0 },
+        config: { assignments: [{ key: "cliente", value: "acme" }] },
+      },
+      {
+        id: "n3",
+        type: "api.httpRequest",
+        category: "api",
+        label: "HTTP Request",
+        position: { x: 640, y: 0 },
+        config: {
+          method: "GET",
+          url: "http://127.0.0.1:9",
+          headers: {},
+          timeoutMs: 3000,
+        },
+        onError: "branch",
+      },
+      {
+        id: "n4",
+        type: "logic.log",
+        category: "logic",
+        label: "Log",
+        position: { x: 960, y: 0 },
+        config: { message: "tratado {{ $vars.cliente }}" },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", target: "n2" },
+      { id: "e2", source: "n2", target: "n3" },
+      { id: "e3", source: "n3", target: "n4", sourceHandle: "error" },
+    ],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
 export function httpRequestGraph(nodeConfig: Record<string, unknown>) {
   return {
     nodes: [

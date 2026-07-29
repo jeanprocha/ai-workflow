@@ -40,6 +40,7 @@ export interface ExecutionStep {
   startedAt: string;
   finishedAt: string | null;
   attempt: number;
+  varsPatch: unknown;
 }
 
 export type LogLevel = "debug" | "info" | "warn" | "error";

@@ -254,6 +254,13 @@ model ExecutionStep {
   costUsd     Float?          @map("cost_usd")
   /** Heap usado pelo processo do worker logo apos o node terminar, em MB. */
   memoryMb    Float?          @map("memory_mb")
+  /**
+   * Patch de $vars produzido por este step (hoje so logic.setVariables) —
+   * NULL em todo step que nao mexe em variavel. Existe pro replay parcial
+   * reconstituir o $vars acumulado antes do ponto de replay; sem isso, os
+   * ancestrais reaproveitados devolvem output mas nao variavel.
+   */
+  varsPatch   Json?           @map("vars_patch")
   startedAt   DateTime        @default(now()) @map("started_at")
   finishedAt  DateTime?       @map("finished_at")
   attempt     Int             @default(1)

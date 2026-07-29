@@ -8,6 +8,9 @@ import {
   waitForExecutionStatus,
   MINIMAL_GRAPH,
   TWO_NODE_GRAPH,
+  varsReplayGraph,
+  varsOverrideGraph,
+  varsErrorBranchReplayGraph,
 } from "../../helpers/workflows";
 
 /**
@@ -197,6 +200,103 @@ test.describe("Executions (API)", () => {
       data: { replayFromNodeId: "n2" },
     });
     expect(wrongFieldName.status()).toBe(400);
+  });
+
+  test("replay parcial reconstitui $vars definidas antes do ponto de replay", async ({ request }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const headers = workspaceHeaders(tokens, workspaceId);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Fluxo API Replay Vars");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, varsReplayGraph());
+
+    const execution = await runWorkflowViaApi(request, tokens, workspaceId, workflow.id);
+    const original = await waitForExecutionStatus(request, tokens, workspaceId, execution.id, "success");
+    const originalDetail = await (
+      await request.get(`${API_URL}/executions/${original.id}`, { headers })
+    ).json();
+    const setVarsStep = originalDetail.steps.find((s: { nodeId: string }) => s.nodeId === "n2");
+    expect(setVarsStep.varsPatch).toEqual({ cliente: "acme" });
+    expect(originalDetail.outputPayload).toBe("cliente=acme");
+
+    const replayResponse = await request.post(`${API_URL}/executions/${original.id}/replay`, {
+      headers,
+      data: { fromNodeId: "n3" },
+    });
+    expect(replayResponse.ok()).toBe(true);
+    const replay = (await replayResponse.json()) as { id: string };
+    const done = await waitForExecutionStatus(request, tokens, workspaceId, replay.id, "success");
+    const detail = await (await request.get(`${API_URL}/executions/${done.id}`, { headers })).json();
+
+    // So n3 roda de novo — n1/n2 sao reaproveitados da execucao original.
+    expect(detail.steps.map((s: { nodeId: string }) => s.nodeId)).toEqual(["n3"]);
+    // Sem a reconstituicao de $vars, isso viria "cliente=" (vazio, sem erro).
+    expect(detail.outputPayload).toBe("cliente=acme");
+  });
+
+  test("replay parcial: variavel definida por ultimo (onda mais recente) vence no merge", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const headers = workspaceHeaders(tokens, workspaceId);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Fluxo API Replay Vars Ordem");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, varsOverrideGraph());
+
+    const execution = await runWorkflowViaApi(request, tokens, workspaceId, workflow.id);
+    const original = await waitForExecutionStatus(request, tokens, workspaceId, execution.id, "success");
+
+    const replayResponse = await request.post(`${API_URL}/executions/${original.id}/replay`, {
+      headers,
+      data: { fromNodeId: "n4" },
+    });
+    const replay = (await replayResponse.json()) as { id: string };
+    const done = await waitForExecutionStatus(request, tokens, workspaceId, replay.id, "success");
+    const detail = await (await request.get(`${API_URL}/executions/${done.id}`, { headers })).json();
+
+    expect(detail.outputPayload).toBe("a=2;b=x");
+  });
+
+  test("replay parcial a partir do caminho de erro preserva a variavel do upstream", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const headers = workspaceHeaders(tokens, workspaceId);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Fluxo API Replay Vars Erro");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, varsErrorBranchReplayGraph());
+
+    const execution = await runWorkflowViaApi(request, tokens, workspaceId, workflow.id);
+    // n3 (http) falha e e tratado por onError:'branch' — a execucao termina success.
+    const original = await waitForExecutionStatus(request, tokens, workspaceId, execution.id, "success");
+
+    // O output do step failed de n3 nao e reaproveitado — input explicito
+    // simula o payload de erro que a engine roteia pela edge "error".
+    const replayResponse = await request.post(`${API_URL}/executions/${original.id}/replay`, {
+      headers,
+      data: { fromNodeId: "n4", input: { error: "boom" } },
+    });
+    expect(replayResponse.ok()).toBe(true);
+    const replay = (await replayResponse.json()) as { id: string };
+    const done = await waitForExecutionStatus(request, tokens, workspaceId, replay.id, "success");
+    const detail = await (await request.get(`${API_URL}/executions/${done.id}`, { headers })).json();
+
+    expect(detail.outputPayload).toBe("tratado acme");
+  });
+
+  test("replay parcial num fluxo sem setVariables: steps trazem varsPatch nulo", async ({ request }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const headers = workspaceHeaders(tokens, workspaceId);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Fluxo API Replay Sem Vars");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, TWO_NODE_GRAPH);
+
+    const execution = await runWorkflowViaApi(request, tokens, workspaceId, workflow.id);
+    const done = await waitForExecutionStatus(request, tokens, workspaceId, execution.id, "success");
+    const detail = await (await request.get(`${API_URL}/executions/${done.id}`, { headers })).json();
+
+    for (const step of detail.steps) {
+      expect(step.varsPatch).toBeNull();
+    }
   });
 
   test("isolamento por workspace: execucao de A da 404 pra B em GET/retry/replay/stream; lista de B vem vazia", async ({

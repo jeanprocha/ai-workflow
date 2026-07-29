@@ -33,6 +33,20 @@ function toJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
+/**
+ * Json do banco -> patch de $vars. Guarda contra array/escalar: o merge com
+ * spread silenciosamente viraria chaves numericas em $vars se a coluna
+ * tivesse lixo (nunca deveria, mas so gravamos objetos em varsPatch — ver
+ * recordStep).
+ */
+function asVarsPatch(
+  value: Prisma.JsonValue | null,
+): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value
+    : null;
+}
+
 const VALID_LOG_LEVELS: readonly LogLevel[] = [
   'debug',
   'info',
@@ -174,9 +188,16 @@ export class EngineService {
       const mergeBuffers = new Map<string, unknown[]>();
 
       // Partial replay: nodes upstream do node de partida nao sao re-executados —
-      // seus outputs sao reaproveitados da execucao original (persistidos em
-      // ExecutionStep). Variaveis (logic.setVariables) acumuladas antes do ponto
-      // de replay nao sao reconstituidas (limitacao conhecida da v1).
+      // seus outputs E o $vars acumulado sao reaproveitados da execucao
+      // original (persistidos em ExecutionStep). O merge de varsPatch segue a
+      // ordem de started_at (aproxima a ordem real de execucao entre ondas;
+      // duas logic.setVariables na MESMA onda escrevendo a mesma chave ja
+      // eram nao-deterministicas na execucao original via Promise.all, entao
+      // o replay nao piora nada ali). Nodes com status 'failed' (inclusive
+      // falha tratada por caminho de erro, onError:'branch') nunca entram
+      // aqui — nao tem varsPatch por definicao (o execute() nao retornou) e
+      // seu output tambem nao e reaproveitado. Replay de um replay so enxerga
+      // o pai imediato (parentExecutionId), nao a cadeia inteira.
       if (options?.replayFromNodeId && execution.parentExecutionId) {
         const ancestors = this.computeAncestors(
           options.replayFromNodeId,
@@ -188,10 +209,20 @@ export class EngineService {
             status: 'success',
             nodeId: { in: [...ancestors] },
           },
+          select: {
+            nodeId: true,
+            output: true,
+            varsPatch: true,
+            startedAt: true,
+            id: true,
+          },
+          orderBy: [{ startedAt: 'asc' }, { id: 'asc' }],
         });
         for (const step of parentSteps) {
           nodeOutputs[step.nodeId] = step.output;
           executed.add(step.nodeId);
+          const patch = asVarsPatch(step.varsPatch);
+          if (patch) vars = { ...vars, ...patch };
         }
       }
 
@@ -572,6 +603,7 @@ export class EngineService {
           durationMs,
           attempt,
           usage: result.usage,
+          varsPatch: result.varsPatch,
         });
         this.events.emit({
           type: 'step.completed',
@@ -690,6 +722,7 @@ export class EngineService {
     durationMs: number;
     attempt: number;
     usage?: NodeUsage;
+    varsPatch?: Record<string, unknown>;
   }) {
     const {
       executionId,
@@ -701,6 +734,7 @@ export class EngineService {
       durationMs,
       attempt,
       usage,
+      varsPatch,
     } = params;
     await this.prisma.executionStep.create({
       data: {
@@ -718,6 +752,7 @@ export class EngineService {
         model: usage?.model,
         costUsd: usage?.costUsd,
         memoryMb: process.memoryUsage().heapUsed / (1024 * 1024),
+        varsPatch: varsPatch === undefined ? undefined : toJson(varsPatch),
         startedAt: new Date(Date.now() - durationMs),
         finishedAt: new Date(),
       },

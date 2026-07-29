@@ -75,14 +75,14 @@ não têm). O gap não é de arquitetura, é de **completude e maturidade**.
 
 ### 3.1 CORRIGIR — coisas que existem mas estão quebradas/enganosas
 
-| # | Item | Evidência |
-|---|---|---|
-| C1 | **Tool calling silenciosamente ausente em Gemini e Ollama** — agente configurado com esses providers recebe as tools mas nunca consegue chamá-las, sem erro nem aviso | `packages/ai/src/providers/gemini.ts:58`, `ollama.ts:52` (`toolCalls: []` hardcoded) |
-| C2 | **Catálogo de modelos/preços fictício** alimentando custo real (`execution.cost_usd`) e as recomendações do Cost Optimizer | `packages/ai/src/models.ts` |
-| C3 | **AI Debugger sugere `fallback` que não pode ser aplicado** — engine é fail-fast, não tem mecanismo de fallback | `debugger.service.ts:61-65` |
-| C4 | **Replay parcial perde `$vars`** acumuladas antes do ponto de replay | `engine.service.ts:176-179` |
-| C5 | **`GET /templates` sem WorkspaceGuard** (menor, mas é inconsistência de auth) | `templates.controller.ts` |
-| C6 | **`docker/` vazia** contradizendo o README; **sem `vercel.json`** — config do deploy web vive fora do repo | raiz do repo |
+| # | Item | Evidência | Status |
+|---|---|---|---|
+| C1 | **Tool calling silenciosamente ausente em Gemini e Ollama** — agente configurado com esses providers recebe as tools mas nunca consegue chamá-las, sem erro nem aviso | `packages/ai/src/providers/gemini.ts:58`, `ollama.ts:52` (`toolCalls: []` hardcoded) | ✅ Corrigido (`e2a3fcb`) |
+| C2 | **Catálogo de modelos/preços fictício** alimentando custo real (`execution.cost_usd`) e as recomendações do Cost Optimizer | `packages/ai/src/models.ts` | ✅ Corrigido (`e2a3fcb`) |
+| C3 | **AI Debugger sugere `fallback` que não pode ser aplicado** — engine é fail-fast, não tem mecanismo de fallback | `debugger.service.ts:61-65` | ✅ Corrigido (`e2a3fcb`) — node ganhou `onError:'branch'` |
+| C4 | **Replay parcial perde `$vars`** acumuladas antes do ponto de replay | `engine.service.ts:176-179` | ✅ Corrigido — `varsPatch` persistido por step e reconstituído no replay parcial. Limitação nova, documentada no código: para execuções de chat, `conversationId`/`state` do replay parcial só ficam corretos se o node de partida ainda carregar o payload do chat (verdade logo após o trigger; falso abaixo de um node como `ai.extraction`, que retorna resultado próprio) |
+| C5 | **`GET /templates` sem WorkspaceGuard** (menor, mas é inconsistência de auth) | `templates.controller.ts` | Pendente |
+| C6 | **`docker/` vazia** contradizendo o README; **sem `vercel.json`** — config do deploy web vive fora do repo | raiz do repo | Pendente |
 
 ### 3.2 COMPLETAR — features que o mercado trata como básicas e não temos
 
