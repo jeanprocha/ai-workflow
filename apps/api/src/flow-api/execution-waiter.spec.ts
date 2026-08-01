@@ -1,3 +1,10 @@
+// execution-waiter.ts importa TERMINAL_EXECUTION_STATUSES de @workflow/shared
+// em runtime (H2-06) — dist ESM puro, incompativel com o ts-jest do api
+// rodando em CJS. Mesma familia de mock que engine.service.spec.ts.
+jest.mock('@workflow/shared', () => ({
+  TERMINAL_EXECUTION_STATUSES: ['success', 'failed', 'canceled'],
+}));
+
 import { ExecutionWaiter, clampTimeoutMs } from './execution-waiter';
 
 function terminal(overrides: Partial<Record<string, unknown>> = {}) {
@@ -90,6 +97,24 @@ describe('ExecutionWaiter', () => {
 
     expect(result).toBeNull();
     expect(findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it('H2-06: waiting_approval nao e terminal — estoura o timeout em vez de "terminar" a pausa', async () => {
+    const findUnique = jest
+      .fn()
+      .mockResolvedValue(
+        terminal({ status: 'waiting_approval', outputPayload: null }),
+      );
+    const waiter = buildWaiter(findUnique);
+
+    const promise = waiter.wait('exec-1', 500, () => false);
+    await jest.advanceTimersByTimeAsync(2_000);
+    const result = await promise;
+
+    // Continuou consultando ate o timeout (nao devolveu no 1o poll como
+    // "terminal") — o controller e quem decide 202 vs 200 a partir disto.
+    expect(result?.status).toBe('waiting_approval');
+    expect(findUnique.mock.calls.length).toBeGreaterThan(1);
   });
 
   it('hasCapacity nao vaza: volta a true depois que o wait termina', async () => {

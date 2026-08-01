@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
+import { EXECUTION_PHASE, type ExecutionStatus } from '@workflow/shared';
 import { ExecutionsService } from '../executions/executions.service';
 import { Public } from '../auth/decorators/public.decorator';
 import { FlowApiKeyGuard } from './guards/flow-api-key.guard';
@@ -38,7 +39,14 @@ function envelope(execution: ExecutionEnvelopeSource) {
   };
 }
 
-const PENDING_STATUSES = new Set(['queued', 'running']);
+// H2-06: "nao terminal" (derivado de EXECUTION_PHASE), nao mais uma
+// allowlist manual de ['queued', 'running'] — essa allowlist desacoplada da
+// de execution-waiter.ts era exatamente o bug do H2-04: uma execucao
+// waiting_approval nao caia nem em "terminal" nem em "pending", e o invoke
+// sincrono devolvia HTTP 200 com output:null pra uma execucao so pausada.
+function isTerminal(status: string): boolean {
+  return EXECUTION_PHASE[status as ExecutionStatus] === 'terminal';
+}
 
 /**
  * Endpoint publico de fluxo publicado como API (H2-04). @Public() na classe
@@ -101,7 +109,7 @@ export class FlowApiController {
       () => aborted,
     );
 
-    if (!result || PENDING_STATUSES.has(result.status)) {
+    if (!result || !isTerminal(result.status)) {
       res.status(HttpStatus.ACCEPTED);
       return { ...envelope(result ?? execution), resultUrl };
     }

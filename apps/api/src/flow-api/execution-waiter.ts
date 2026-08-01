@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { TERMINAL_EXECUTION_STATUSES } from '@workflow/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
 const MAX_TIMEOUT_MS = 60_000;
@@ -13,7 +14,12 @@ const DEFAULT_TIMEOUT_MS = Number(
  */
 const MAX_SYNC_WAITERS = Number(process.env.FLOW_API_MAX_SYNC_WAITERS ?? 200);
 
-const TERMINAL_STATUSES = new Set(['success', 'failed', 'canceled']);
+// H2-06: derivado de EXECUTION_PHASE (@workflow/shared) — antes era uma
+// allowlist manual desacoplada da de flow-api.controller.ts, e um status
+// novo (ex.: waiting_approval) caia no vao entre as duas: o waiter nunca o
+// via como terminal (certo), mas o controller tambem nao o via como
+// "pending", e devolvia 200 com output:null pra uma execucao so pausada.
+const TERMINAL_STATUSES = new Set<string>(TERMINAL_EXECUTION_STATUSES);
 
 export function clampTimeoutMs(raw: string | undefined): number {
   const parsed = Number(raw);
