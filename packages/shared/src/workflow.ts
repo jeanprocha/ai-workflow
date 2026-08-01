@@ -9,6 +9,8 @@ export interface Workflow {
   description: string | null;
   status: WorkflowStatus;
   currentVersionId: string | null;
+  /** H2-05: fluxo disparado quando ESTE fluxo falha. */
+  errorWorkflowId: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -90,6 +90,11 @@ export const STATIC_TRANSLATIONS: Record<string, string> = {
   'Limite de requisicoes desta chave excedido. Tente novamente em instantes.':
     'This key has exceeded its request limit. Please try again shortly.',
   'Chave de API nao encontrada.': 'API key not found.',
+  // H2-05 — continue-on-error / error workflow.
+  'Um fluxo nao pode ser o proprio fluxo de tratamento de erro.':
+    'A flow cannot be its own error-handling flow.',
+  'Fluxo de tratamento de erro nao encontrado neste workspace.':
+    'Error-handling flow not found in this workspace.',
 };
 
 /** Mensagens com valor interpolado (nome, id, erro concatenado) — regex + template. */

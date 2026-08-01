@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { WorkflowGraph } from '@workflow/shared';
+import { ERROR_HANDLE, type WorkflowGraph } from '@workflow/shared';
 import { getCatalogEntry } from '@workflow/nodes/catalog';
 
 const nodeCategorySchema = z.enum([
@@ -25,7 +25,7 @@ const workflowNodeSchema = z.object({
   position: z.object({ x: z.number(), y: z.number() }),
   config: z.record(z.string(), z.unknown()),
   retry: nodeRetryPolicySchema.optional(),
-  onError: z.enum(['fail', 'branch']).optional(),
+  onError: z.enum(['fail', 'branch', 'continue']).optional(),
 });
 
 const workflowEdgeSchema = z.object({
@@ -52,7 +52,7 @@ export const workflowGraphShape = z.object({
  */
 export const workflowGraphSchema = workflowGraphShape.superRefine(
   (graph, ctx) => {
-    const nodeIds = new Set(graph.nodes.map((node) => node.id));
+    const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
 
     graph.nodes.forEach((node, index) => {
       if (!getCatalogEntry(node.type)) {
@@ -65,19 +65,35 @@ export const workflowGraphSchema = workflowGraphShape.superRefine(
     });
 
     graph.edges.forEach((edge, index) => {
-      if (!nodeIds.has(edge.source)) {
+      if (!nodesById.has(edge.source)) {
         ctx.addIssue({
           code: 'custom',
           message: `Edge referencia um node de origem inexistente: "${edge.source}".`,
           path: ['edges', index, 'source'],
         });
       }
-      if (!nodeIds.has(edge.target)) {
+      if (!nodesById.has(edge.target)) {
         ctx.addIssue({
           code: 'custom',
           message: `Edge referencia um node de destino inexistente: "${edge.target}".`,
           path: ['edges', index, 'target'],
         });
+      }
+      // Edge de caminho de erro sem o node de origem ter onError:'branch'
+      // habilitado nunca dispara na engine (roteamento e por handledFailures,
+      // ver engine.service.ts) — vira dead code silencioso no grafo. O
+      // editor limpa essa edge sozinho ao desabilitar o toggle
+      // (flow-editor.tsx); isso aqui pega quem monta o grafo por outro
+      // caminho (copilot, autocomplete, template, import).
+      if (edge.sourceHandle === ERROR_HANDLE) {
+        const source = nodesById.get(edge.source);
+        if (source && source.onError !== 'branch') {
+          ctx.addIssue({
+            code: 'custom',
+            message: `Edge de caminho de erro sem "Caminho de erro" habilitado no node de origem "${edge.source}".`,
+            path: ['edges', index, 'sourceHandle'],
+          });
+        }
       }
     });
   },

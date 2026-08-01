@@ -70,7 +70,16 @@ test.describe("Caminho de erro (onError: branch)", () => {
     const tokens = await registerViaApi(request, buildTestUser());
     const workspaceId = await fetchWorkspaceId(request, tokens);
     const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Caminho de Erro - Fail Fast");
-    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, errorBranchGraph());
+    // Sem onError:"branch" no node de origem, uma edge sourceHandle:"error"
+    // conectada e orfa (H2-05: graph.schema.ts agora rejeita isso no save) —
+    // este teste e sobre fail-fast SEM tratamento algum, entao nem desenha a edge.
+    await saveGraphViaApi(
+      request,
+      tokens,
+      workspaceId,
+      workflow.id,
+      errorBranchGraph({ wireErrorEdge: false }),
+    );
 
     const execution = await runWorkflowViaApi(request, tokens, workspaceId, workflow.id);
     const done = await waitForExecutionStatus(request, tokens, workspaceId, execution.id, "failed");
@@ -125,5 +134,31 @@ test.describe("Caminho de erro (onError: branch)", () => {
 
     const messages = await waitForChatMessageCount(request, saved.chatToken, conversation.conversationId, 2);
     expect(messages[1]).toMatchObject({ role: "bot", content: "Tive um problema, mas contornei." });
+  });
+
+  test("H2-05: edge sourceHandle 'error' sem onError:'branch' no node de origem e rejeitada no save (400)", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const headers = workspaceHeaders(tokens, workspaceId);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Edge de erro orfa");
+
+    // n2 NAO tem onError:'branch' (default de errorBranchGraph) mas a edge
+    // "error" e wireada (wireErrorEdge default true) — orfa: nunca dispara na
+    // engine, vira dead code silencioso sem esta validacao.
+    const graph = errorBranchGraph();
+
+    const response = await request.put(`${API_URL}/workflows/${workflow.id}/graph`, {
+      headers,
+      data: { graph },
+    });
+
+    expect(response.status()).toBe(400);
+    const body = await response.json();
+    expect(body.message).toBe("Grafo invalido.");
+    expect(
+      body.issues.some((issue: { path: unknown[] }) => issue.path.includes("sourceHandle")),
+    ).toBe(true);
   });
 });

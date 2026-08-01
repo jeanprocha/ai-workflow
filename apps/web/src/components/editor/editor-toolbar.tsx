@@ -18,6 +18,7 @@ import { ApiError } from "@/lib/api-client";
 import { useDictionary } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { VersionHistoryDialog } from "./version-history-dialog";
+import { FlowSettingsDialog } from "./flow-settings-dialog";
 import { CopilotDialog } from "./copilot-dialog";
 
 export interface EditorToolbarProps {
@@ -105,6 +106,7 @@ export function EditorToolbar({
         {currentVersionId && (
           <VersionHistoryDialog workflowId={workflowId} currentVersionId={currentVersionId} />
         )}
+        <FlowSettingsDialog workflowId={workflowId} />
         <Button onClick={() => setRunOpen(true)}>
           <Play className="h-4 w-4" strokeWidth={1.5} />
           {t.run}

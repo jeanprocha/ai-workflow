@@ -134,6 +134,27 @@ export class WorkflowsService {
 
   async update(workspaceId: string, id: string, dto: UpdateWorkflowDto) {
     const workflow = await this.findOne(workspaceId, id);
+
+    // H2-05: so valida quando um novo ponteiro NAO-null e enviado — `null`
+    // (limpar) e `undefined` (campo nao tocado neste PATCH) nao passam por
+    // aqui. `!= null` cobre os dois de proposito (loose equality).
+    if (dto.errorWorkflowId != null) {
+      if (dto.errorWorkflowId === id) {
+        throw new BadRequestException(
+          'Um fluxo nao pode ser o proprio fluxo de tratamento de erro.',
+        );
+      }
+      const handler = await this.prisma.workflow.findFirst({
+        where: { id: dto.errorWorkflowId, workspaceId },
+        select: { id: true },
+      });
+      if (!handler) {
+        throw new NotFoundException(
+          'Fluxo de tratamento de erro nao encontrado neste workspace.',
+        );
+      }
+    }
+
     const updated = await this.prisma.workflow.update({
       where: { id },
       data: dto,

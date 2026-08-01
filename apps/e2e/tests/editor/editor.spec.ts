@@ -651,11 +651,70 @@ test.describe("Editor — caminho de erro", () => {
     await page.locator('[data-testid="rf__node-n2"]').click();
     const panel = page.locator("aside").last();
     await expect(panel.getByLabel("Caminho de erro")).toBeChecked();
-    await panel.getByLabel("Caminho de erro").uncheck();
+    // H2-05: onError virou radio de 3 estados (Parar o fluxo/Caminho de
+    // erro/Continuar com o erro) — um radio nao se "desmarca" sozinho
+    // (.uncheck() nao existe pra radio), troca pra outra opcao do grupo.
+    await panel.getByLabel("Parar o fluxo").check();
     await expect(page.locator('[data-testid="rf__node-n2"] [data-handleid="error"]')).toHaveCount(0);
     await saveAndWait(page);
 
     await page.reload();
     await expect(page.locator('[data-testid="rf__edge-e2"]')).toHaveCount(0);
+  });
+
+  test("continuar com o erro: nao mostra a saida vermelha (nao usa edge dedicada)", async ({
+    page,
+    context,
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Caminho de Erro Continuar");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, TWO_NODE_GRAPH);
+    await authenticateContext(context, await buildStorageState(request, tokens));
+
+    await page.goto(`/flows/${workflow.id}`);
+    await page.locator('[data-testid="rf__node-n2"]').click();
+
+    const panel = page.locator("aside").last();
+    const errorHandle = page.locator('[data-testid="rf__node-n2"] [data-handleid="error"]');
+    await panel.getByLabel("Continuar com o erro").check();
+    await expect(errorHandle).toHaveCount(0);
+    await saveAndWait(page);
+
+    await page.reload();
+    await page.locator('[data-testid="rf__node-n2"]').click();
+    await expect(page.locator("aside").last().getByLabel("Continuar com o erro")).toBeChecked();
+    await expect(page.locator('[data-testid="rf__node-n2"] [data-handleid="error"]')).toHaveCount(0);
+  });
+});
+
+test.describe("Editor — configurações do fluxo (error workflow, H2-05)", () => {
+  test("escolher um error workflow no dialog de Configurações persiste apos reload", async ({
+    page,
+    context,
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const handler = await createWorkflowViaApi(request, tokens, workspaceId, "Tratador (dialog)");
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Fluxo com configuracoes");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, TWO_NODE_GRAPH);
+    await authenticateContext(context, await buildStorageState(request, tokens));
+
+    await page.goto(`/flows/${workflow.id}`);
+    await page.getByRole("button", { name: "Configurações" }).click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("heading", { name: "Configurações do fluxo" })).toBeVisible();
+    await dialog.getByLabel("Fluxo de tratamento de erro").selectOption({ label: handler.name });
+    await dialog.getByRole("button", { name: "Salvar" }).click();
+    await expect(page.getByText("Configurações salvas.")).toBeVisible();
+
+    await page.reload();
+    await page.getByRole("button", { name: "Configurações" }).click();
+    await expect(
+      page.getByRole("dialog").getByLabel("Fluxo de tratamento de erro"),
+    ).toHaveValue(handler.id);
   });
 });

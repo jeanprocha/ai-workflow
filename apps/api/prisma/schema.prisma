@@ -121,18 +121,23 @@ model Workflow {
   /** Sincronizados a cada save do grafo: tokens do node trigger.chat, se houver. */
   chatToken         String?        @unique @map("chat_token")
   inboxToken        String?        @unique @map("inbox_token")
+  /** H2-05: fluxo disparado quando ESTE fluxo falha. onDelete:SetNull — apagar o tratador so degrada pra "sem error workflow", nunca bloqueia. */
+  errorWorkflowId   String?        @map("error_workflow_id")
   createdAt         DateTime       @default(now()) @map("created_at")
   updatedAt         DateTime       @updatedAt @map("updated_at")
 
-  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  versions       WorkflowVersion[] @relation("WorkflowVersions")
-  currentVersion WorkflowVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])
-  executions     Execution[]
-  aiSuggestions  AiSuggestion[]
-  conversations  Conversation[]
-  apiKeys        WorkflowApiKey[]
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  versions         WorkflowVersion[] @relation("WorkflowVersions")
+  currentVersion   WorkflowVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  executions       Execution[]
+  aiSuggestions    AiSuggestion[]
+  conversations    Conversation[]
+  apiKeys          WorkflowApiKey[]
+  errorWorkflow    Workflow?         @relation("ErrorWorkflow", fields: [errorWorkflowId], references: [id], onDelete: SetNull)
+  errorWorkflowFor Workflow[]        @relation("ErrorWorkflow")
 
   @@index([workspaceId])
+  @@index([errorWorkflowId])
   @@map("workflows")
 }
 

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExecutionEventsService } from '../execution-events/execution-events.service';
+import { ErrorWorkflowService } from '../executions/error-workflow.service';
 
 const ORPHAN_THRESHOLD_MS = Number(
   process.env.ORPHAN_EXECUTION_THRESHOLD_MS ?? 10 * 60_000,
@@ -30,6 +31,7 @@ export class OrphanRecoveryService implements OnApplicationBootstrap {
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: ExecutionEventsService,
+    private readonly errorWorkflows: ErrorWorkflowService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -60,6 +62,9 @@ export class OrphanRecoveryService implements OnApplicationBootstrap {
         executionId: orphan.id,
         status: 'failed',
       });
+      // H2-05: worker morto tambem e uma falha real do fluxo — sem isso, uma
+      // execucao orfa nunca disparava o tratador (nem o alerting, de resto).
+      void this.errorWorkflows.dispatchForFailedExecution(orphan.id);
     }
   }
 }

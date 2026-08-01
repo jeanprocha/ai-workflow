@@ -142,6 +142,29 @@ export class ExecutionsService {
     return execution;
   }
 
+  /**
+   * Dispara o error workflow de um fluxo que falhou (H2-05). So o
+   * ErrorWorkflowService chama — o workflow tratador ja foi resolvido e
+   * validado la (status, versao). `triggerType: 'event'` e o que impede o
+   * proprio tratador de disparar um error workflow de novo se ELE falhar
+   * (guarda anti-recursao em ErrorWorkflowService.dispatchForFailedExecution).
+   */
+  async triggerErrorWorkflow(
+    workflowId: string,
+    versionId: string | null,
+    inputPayload: unknown,
+    opts: { parentExecutionId: string; traceId: string },
+  ) {
+    return this.createAndEnqueue({
+      workflowId,
+      versionId,
+      triggerType: 'event',
+      inputPayload,
+      parentExecutionId: opts.parentExecutionId,
+      traceId: opts.traceId,
+    });
+  }
+
   private async createAndEnqueue(params: {
     workflowId: string;
     versionId: string | null;
