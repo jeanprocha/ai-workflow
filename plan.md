@@ -38,7 +38,7 @@ ai-workflow/
 │   ├── nodes/        # Definições e runtimes dos nodes (registry plugável)
 │   ├── ai/           # Abstração de providers (OpenAI, Claude, Gemini, Ollama) + MCP client
 │   └── ui/           # Design system (shadcn/ui customizado, tokens, componentes)
-├── docker/           # docker-compose (Postgres, Redis, Ollama), Dockerfiles
+├── docker-compose.dev.yml  # Postgres, Redis, Ollama (dev local)
 ├── .github/          # CI/CD (GitHub Actions)
 └── docs/             # spec.md, plan.md, ADRs
 ```

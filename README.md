@@ -37,14 +37,14 @@ pnpm --filter @workflow/api prisma:migrate
 ```
 apps/
   web/       Next.js — frontend
-  api/       NestJS — API + workers
+  api/       NestJS — API + workers (Dockerfile de produção em apps/api/Dockerfile)
 packages/
   shared/    Tipos compartilhados (Workflow, Node, Execution...)
   nodes/     Registry de nodes do workflow engine
   ai/        Abstração de providers de IA + MCP client
   ui/        Design system
-docker/      Dockerfiles de produção
 docs/adr/    Registro de decisões arquiteturais
+docs/deploy/ Deploy em produção (Railway + Vercel)
 ```
 
 ## Scripts

@@ -1,6 +1,7 @@
 # Base de Evolução do Produto — estado atual, mercado e gaps
 
-Data: 2026-07-28. Este documento cruza três levantamentos feitos no mesmo dia:
+Data: 2026-07-28 (atualizado 2026-07-30: discovery aprofundado do H2 — ver
+[`discovery-h2.md`](discovery-h2.md)). Este documento cruza três levantamentos feitos no mesmo dia:
 inventário completo do código (o que existe de fato), cobertura de testes, e
 pesquisa de mercado (n8n/Make/Zapier, Dify/Flowise/Langflow, requisitos
 enterprise e o mercado brasileiro de atendimento). É a base para traçar os
@@ -81,8 +82,8 @@ não têm). O gap não é de arquitetura, é de **completude e maturidade**.
 | C2 | **Catálogo de modelos/preços fictício** alimentando custo real (`execution.cost_usd`) e as recomendações do Cost Optimizer | `packages/ai/src/models.ts` | ✅ Corrigido (`e2a3fcb`) |
 | C3 | **AI Debugger sugere `fallback` que não pode ser aplicado** — engine é fail-fast, não tem mecanismo de fallback | `debugger.service.ts:61-65` | ✅ Corrigido (`e2a3fcb`) — node ganhou `onError:'branch'` |
 | C4 | **Replay parcial perde `$vars`** acumuladas antes do ponto de replay | `engine.service.ts:176-179` | ✅ Corrigido — `varsPatch` persistido por step e reconstituído no replay parcial. Limitação nova, documentada no código: para execuções de chat, `conversationId`/`state` do replay parcial só ficam corretos se o node de partida ainda carregar o payload do chat (verdade logo após o trigger; falso abaixo de um node como `ai.extraction`, que retorna resultado próprio) |
-| C5 | **`GET /templates` sem WorkspaceGuard** (menor, mas é inconsistência de auth) | `templates.controller.ts` | Pendente |
-| C6 | **`docker/` vazia** contradizendo o README; **sem `vercel.json`** — config do deploy web vive fora do repo | raiz do repo | Pendente |
+| C5 | **`GET /templates` sem WorkspaceGuard** (menor, mas é inconsistência de auth) | `templates.controller.ts` | ✅ Corrigido — não era vulnerabilidade (JWT global já protegia; `Template` não tem `workspace_id`), mas a exceção só vivia num comentário de teste. `WorkspaceGuard` aplicado ao controller e decisão registrada no ADR-006 |
+| C6 | **`docker/` vazia** contradizendo o README; **sem `vercel.json`** — config do deploy web vive fora do repo | raiz do repo | ✅ Corrigido — `docker/` era rastro da Fase 0 nunca populado (Dockerfile real é `apps/api/Dockerfile` desde a Fase 10, em produção via Railway); pasta removida e README/plan.md corrigidos. `apps/web/vercel.json` mínimo criado (fixa `framework`); Root Directory e env vars continuam fora do repo por não serem versionáveis, documentado em `docs/deploy/vercel.md` |
 
 ### 3.2 COMPLETAR — features que o mercado trata como básicas e não temos
 
@@ -92,10 +93,15 @@ Em ordem de impacto para o posicionamento (WhatsApp/PME primeiro):
    e documentado em `docs/integracoes/whatsapp.md`. O ponto de extensão
    existe (`conversation.channel`, comentado na engine); falta o trigger, o
    webhook e o envio pela Graph API. É o gap nº 1 para o mercado brasileiro.
-2. **Error handling configurável na engine** — continue-on-error por node,
-   caminho de erro (error branch/workflow) e fallback entre nodes. Destrava
-   também C3. Fail-fast como única política é limitação real frente a
-   n8n/Make.
+2. **Error handling configurável na engine** — *parcialmente entregue*
+   (constatado no discovery de 2026-07-30): caminho de erro genérico por
+   node (`onError:'branch'` + edge `error`, saído da correção C3) e retry
+   com backoff por node já existem ponta a ponta (engine + UI + testes).
+   Falta: continue-on-error (exige terceiro estado de execução), error
+   workflow e fallback declarativo (inclusive entre providers de IA), além
+   de endurecer o `logic.merge` alimentado por edge de erro (deadlock
+   silencioso → execução `success` incompleta). Ver
+   [`discovery-h2.md`](discovery-h2.md) §2.
 3. **Node de código (JS)** — rodar código do usuário no sandbox que já
    existe (worker_thread com timeout/heap limit já resolvem o isolamento).
    Toda concorrente tem; é a válvula de escape universal.
@@ -167,15 +173,24 @@ Em ordem de impacto para o posicionamento (WhatsApp/PME primeiro):
 
 ## 5. Sequência sugerida (3 horizontes)
 
-**H1 — Confiável e vendável (agora):**
-correções C1-C6 · hardening mínimo (rate limit, helmet, reset de senha,
-Sentry) · testes unitários de engine/expressões/crypto · e2e no CI ·
-alerting de falhas. *Critério: dá pra colocar cliente pagante sem sustos.*
+**H1 — Confiável e vendável ✅ concluído (2026-07-30):**
+correções C1-C6 ✅ · hardening HTTP ✅ (rate limit, helmet, CORS) · testes
+unitários de engine/expressões/crypto ✅ (59 testes) · e2e smoke no CI ✅ ·
+Sentry ✅ · reset de senha ✅ · alerting de falhas ✅.
+*Critério: dá pra colocar cliente pagante sem sustos.*
+Plano faseado com checklist completo (incluindo pendências que ficam pro
+usuário — configurar Sentry/env vars reais em produção, acompanhar o
+primeiro run do `e2e-smoke` no GitHub Actions): [`plano-h1.md`](plano-h1.md).
 
 **H2 — Competitivo no caso de uso âncora (em seguida):**
 WhatsApp Cloud API como canal · error handling configurável · node de código
 · aprovação humana · publicar fluxo como API · templates CRUD. *Critério: o
 "Vendas via Chat" vira produto replicável para qualquer PME brasileira.*
+Discovery aprofundado dos seis temas (2026-07-30), com mapa "já existe /
+falta construir", bugs encontrados de passagem e ordem sugerida de execução:
+[`discovery-h2.md`](discovery-h2.md). Item 1 da ordem (correções baratas de
+passagem) especificado em
+[`spec-h2-01-correcoes-passagem.md`](spec-h2-01-correcoes-passagem.md).
 
 **H3 — Pronto para equipe e escala:**
 sub-workflows · OAuth nas integrações · RBAC + audit · RAG hybrid search +
