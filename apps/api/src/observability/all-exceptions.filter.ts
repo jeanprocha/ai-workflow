@@ -5,10 +5,28 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 import type { Request, Response } from 'express';
 import { Logger } from 'nestjs-pino';
 import { translateHttpExceptionBody } from '../i18n/lang.filter';
 import { getContext } from './request-context';
+
+/**
+ * H1.4: mesmo criterio de "e bug, nao uso esperado da API" que ja decide o
+ * nivel de log (error vs warn) logo abaixo — sem SENTRY_DSN configurada,
+ * Sentry.captureException e no-op (ver instrument.ts).
+ */
+function reportToSentry(exception: unknown) {
+  const ctx = getContext();
+  Sentry.captureException(exception, {
+    tags: {
+      requestId: ctx?.requestId,
+      workspaceId: ctx?.workspaceId,
+      userId: ctx?.userId,
+      executionId: ctx?.executionId,
+    },
+  });
+}
 
 /**
  * Unico filtro global de excecoes (registrado em main.ts via
@@ -50,6 +68,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           { err: exception, ctx: getContext(), statusCode: status },
           `${route} -> ${status}`,
         );
+        reportToSentry(exception);
       } else {
         this.logger.warn(
           { ctx: getContext(), statusCode: status },
@@ -65,6 +84,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       { err: exception, ctx: getContext() },
       `Unhandled exception on ${route}`,
     );
+    reportToSentry(exception);
 
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

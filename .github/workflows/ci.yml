@@ -34,3 +34,115 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  e2e-smoke:
+    runs-on: ubuntu-latest
+    # Job independente do "build" (roda em paralelo) — precisa do proprio
+    # ambiente completo de pe (Postgres/Redis reais, api+worker+web
+    # buildados e rodando), diferente do "build" que so builda/lint/typecheck.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: workflow
+          POSTGRES_PASSWORD: workflow
+          POSTGRES_DB: workflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://workflow:workflow@localhost:5432/workflow
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: e2e-smoke-ci-secret
+      SECRETS_ENCRYPTION_KEY: e2e-smoke-ci-secret-32-bytes-min-ok
+      OBS_DEBUG_ENDPOINT: "1"
+      NEXT_PUBLIC_API_URL: http://localhost:3333
+      E2E_API_URL: http://localhost:3333
+      E2E_BASE_URL: http://localhost:3000
+      # Sem NODE_ENV=production de proposito: mantem os limites do
+      # ThrottlerGuard (H1.1) no default folgado de nao-producao, pra nao
+      # rate-limitar os proprios testes (login/registro em sequencia).
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm --filter @workflow/api exec prisma generate
+
+      - name: Build
+        run: pnpm build
+
+      - name: Install Playwright browsers
+        working-directory: apps/e2e
+        run: npx playwright install chromium --with-deps
+
+      - name: Run database migrations
+        run: pnpm --filter @workflow/api exec prisma migrate deploy
+
+      - name: Seed database (templates)
+        run: pnpm --filter @workflow/api exec prisma db seed
+
+      - name: Start API
+        working-directory: apps/api
+        env:
+          PORT: "3333"
+        run: nohup node dist/src/main.js > /tmp/api.log 2>&1 &
+
+      - name: Start worker
+        working-directory: apps/api
+        env:
+          WORKER_PORT: "3334"
+        run: nohup node dist/src/worker.main.js > /tmp/worker.log 2>&1 &
+
+      - name: Start web
+        working-directory: apps/web
+        run: nohup pnpm start > /tmp/web.log 2>&1 &
+
+      - name: Esperar API e web ficarem prontos
+        run: |
+          timeout 60 bash -c 'until curl -sf http://localhost:3333/health >/dev/null; do sleep 1; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:3000/login >/dev/null; do sleep 1; done'
+
+      - name: Rodar subconjunto smoke do E2E
+        working-directory: apps/e2e
+        run: npx playwright test --grep @smoke
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/e2e/playwright-report/
+          retention-days: 7
+
+      - name: Upload logs dos servidores
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: /tmp/*.log
+          retention-days: 7

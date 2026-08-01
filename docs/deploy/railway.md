@@ -120,6 +120,86 @@ Ajuste fino de fila e sandbox (opcionais, valem pro `worker`):
 | `ORPHAN_EXECUTION_THRESHOLD_MS` | 600000 | Idade pra considerar orfa uma execucao "running" no boot |
 | `AI_RATE_LIMIT_<PROVIDER>_RPM` | 60 (600 p/ ollama) | Req/min por provider de IA, compartilhado entre workers via Redis |
 
+### Hardening HTTP (H1.1)
+
+So valem pro servico `api` (unico com HTTP publico — o `worker` nao serve
+requisicoes de fora, ver `startWorkerHttpServer` que so expoe health/metrics
+internos):
+
+| Variavel | Default | Efeito |
+|---|---|---|
+| `CORS_ORIGINS` | *(nao setada)* | Lista de origins permitidas, separadas por virgula (ex.: `https://web-xxx.vercel.app`). **Sem essa env, o CORS fica aberto** (`origin: true`) com um aviso no log de boot — configurar antes do proximo deploy pra travar de fato. |
+| `THROTTLE_LIMIT` | 100 (2000 fora de producao) | Requests/janela por IP, limite global (`ThrottlerGuard`) |
+| `THROTTLE_TTL_MS` | 60000 | Janela do rate limit, em ms |
+| `THROTTLE_AUTH_LIMIT` | 5 (1000 fora de producao) | Requests/janela por IP, so pra `/auth/login`, `/auth/register`, `/auth/refresh` |
+
+`trust proxy` e `helmet` nao tem env — sempre ativos (o Railway ja fica atras
+de proxy, entao `req.ip` so reflete o IP real do cliente com `trust proxy`
+habilitado; sem isso todo tráfego apareceria com o mesmo IP do proxy pro
+rate limiter).
+
+### Sentry (H1.4)
+
+Valem pros dois servicos (`api` e `worker` — cada um reporta pro Sentry
+independente, ambos usam o mesmo projeto). **Sem `SENTRY_DSN`, o SDK fica
+desabilitado** (`Sentry.init` vira no-op) — nada e enviado, nenhum erro de
+boot.
+
+| Variavel | Default | Efeito |
+|---|---|---|
+| `SENTRY_DSN` | *(nao setada = desabilitado)* | DSN do projeto Sentry |
+| `SENTRY_ENVIRONMENT` | `NODE_ENV` ou `development` | Tag `environment` nos eventos |
+| `SENTRY_RELEASE` | *(nao setada)* | Tag `release` — sugestao: SHA do deploy |
+| `SENTRY_TRACES_SAMPLE_RATE` | 0.1 | Fracao de requests com tracing de performance |
+
+Captura: 5xx e erros nao-HTTP em `AllExceptionsFilter` (api); falha de
+execucao de workflow no ponto unico de finalizacao do engine (worker).
+Tags de correlacao: `requestId`, `workspaceId`, `userId`, `executionId`
+(api); `executionId`, `workflowId`, `workspaceId`, `triggerType` (worker).
+
+### Email de sistema + reset de senha (H1.5)
+
+Vale pros dois servicos: `api` (reset de senha) e `worker` (alerts de falha,
+H1.6 — ver secao seguinte, usa o mesmo `MailerModule`). **Sem `SMTP_HOST`, o
+`MailerService` fica em modo no-op** (loga um aviso e nao envia nada) — nao
+quebra o boot em nenhum dos dois.
+
+| Variavel | Default | Efeito |
+|---|---|---|
+| `SMTP_HOST` | *(nao setada = desabilitado)* | Host do servidor SMTP |
+| `SMTP_PORT` | 1025 (porta do Mailpit em dev) | Porta do SMTP |
+| `SMTP_SECURE` | `false` | `true` pra TLS implicito (porta 465 tipicamente) |
+| `SMTP_USER` / `SMTP_PASS` | *(nao setadas)* | Auth do SMTP — se o provider nao exigir (ex.: Mailpit local), deixar vazias |
+| `EMAIL_FROM` | `no-reply@workflow.local` | Remetente dos emails de sistema |
+| `WEB_URL` | `http://localhost:3000` | Base do link de reset (`{WEB_URL}/reset-password?token=...`) e da URL de execucao nos alertas — em producao, a URL do Vercel |
+
+Em dev local, o Mailpit (`docker-compose.dev.yml`) captura tudo — UI em
+`http://localhost:8025`, sem precisar de provedor externo. Em producao,
+qualquer SMTP (Resend, SES, Gmail com senha de app etc.) funciona — e
+transporte generico via `nodemailer`, sem SDK proprietario.
+
+### Alerting de falhas de execucao (H1.6)
+
+So o servico `worker` (e quem finaliza execucoes). Config por workspace via
+`GET`/`PUT /workspaces/alert-settings` (UI em Settings → Alertas); sem
+nenhuma configuracao salva, o default e email habilitado + sem webhook.
+
+| Variavel | Default | Efeito |
+|---|---|---|
+| `ALERT_THROTTLE_MINUTES` | 10 | Anti-spam: no maximo 1 alerta por workflow nesta janela, mesmo com varias falhas seguidas |
+
+Canais: email (`MailerModule`, ver secao acima — precisa de `SMTP_HOST`) pra
+todos os membros do workspace, e/ou `POST` JSON pra um webhook generico
+(compativel com Slack/Discord/Teams via webhook de entrada). Um alerta
+falhando (SMTP fora do ar, webhook offline) nunca derruba a execucao —
+`AlertsService.notifyExecutionFailed` engole o proprio erro.
+
+Reset de senha: token bruto (32 bytes) so existe no link enviado; o banco
+guarda so o hash (sha256), com TTL de 30min e uso unico. **Limitacao
+conhecida**: refresh tokens sao JWT stateless — um reset de senha NAO
+invalida sessoes (refresh tokens) ja emitidas antes dele. Revogacao de
+sessao fica pro RBAC (H3).
+
 ## Escalar
 
 Aumentar replicas do `worker` (Settings → Deploy → Replicas) conforme a

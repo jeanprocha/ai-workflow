@@ -7,4 +7,3 @@ coverage
 *.tsbuildinfo
 .git
 .pnpm-store
-docker

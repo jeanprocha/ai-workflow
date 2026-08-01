@@ -4,6 +4,12 @@
  * defesa de seguranca, e uma protecao contra flood acidental (um cliente
  * bugado em loop). Cada instancia da API tem seu proprio contador; nao
  * coordena entre processos.
+ *
+ * Camada especifica de dominio, NAO substituida pelo ThrottlerGuard global
+ * (H1.1, app.module.ts): o global e generico (protege a API inteira contra
+ * flood/DoS, limite largo por IP); este e mais apertado (30/min) e devolve
+ * mensagem de erro voltada ao visitante do chat. As duas rodam empilhadas —
+ * decisao deliberada, nao esquecimento.
  */
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 30;

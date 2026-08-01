@@ -2,7 +2,7 @@ import { test, expect } from "../../helpers/fixtures";
 import { buildTestUser, registerViaApi } from "../../helpers/auth";
 
 test.describe("Registro (via UI)", () => {
-  test("happy path: cria conta e cai no dashboard com sessao valida", async ({ page }) => {
+  test("happy path: cria conta e cai no dashboard com sessao valida @smoke", async ({ page }) => {
     const user = buildTestUser();
 
     await page.goto("/register");

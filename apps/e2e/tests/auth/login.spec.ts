@@ -2,7 +2,7 @@ import { test, expect } from "../../helpers/fixtures";
 import { buildTestUser, registerViaApi } from "../../helpers/auth";
 
 test.describe("Login (via UI)", () => {
-  test("happy path: entra e cai no dashboard", async ({ page, request }) => {
+  test("happy path: entra e cai no dashboard @smoke", async ({ page, request }) => {
     const user = buildTestUser();
     await registerViaApi(request, user);
 

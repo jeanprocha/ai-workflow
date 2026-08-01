@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { useDictionary } from "@/lib/i18n";
 import { ApiError } from "@/lib/errors";
 import { reportClientError } from "@/lib/telemetry";
@@ -43,6 +44,9 @@ export default function GlobalError({
       stack: error.stack,
       requestId: error instanceof ApiError ? error.requestId : undefined,
     });
+    // H1.4: canal complementar ao /telemetry/client-errors acima — sem
+    // NEXT_PUBLIC_SENTRY_DSN configurada, Sentry.captureException e no-op.
+    Sentry.captureException(error);
   }, [error]);
 
   const retry = unstable_retry ?? reset;

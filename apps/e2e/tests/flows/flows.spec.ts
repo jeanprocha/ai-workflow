@@ -197,7 +197,7 @@ test.describe("Flows (via UI)", () => {
 });
 
 test.describe("Flows via API", () => {
-  test("POST /workflows cria draft com versao 1 e grafo vazio", async ({
+  test("POST /workflows cria draft com versao 1 e grafo vazio @smoke", async ({
     request,
   }) => {
     const tokens = await registerViaApi(request, buildTestUser());
