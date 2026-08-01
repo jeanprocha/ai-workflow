@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const AUTH_ROUTES = ["/login", "/register"];
+const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"];
 // "/chat" e "/inbox" sao publicos mas NAO sao rotas de auth — um usuario
 // logado acessando um link de chat/inbox nao deve ser chutado pro dashboard
 // (o que aconteceria se entrassem em AUTH_ROUTES, ver o bloco isAuthRoute abaixo).

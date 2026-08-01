@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -6,13 +7,16 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { randomBytes, createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailerService } from '../mailer/mailer.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL = '7d';
 const SALT_ROUNDS = 12;
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 
 export interface TokenPair {
   accessToken: string;
@@ -24,6 +28,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly mailer: MailerService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -90,6 +95,83 @@ export class AuthService {
       throw new NotFoundException('Usuario nao encontrado.');
     }
     return { id: user.id, email: user.email, name: user.name };
+  }
+
+  /**
+   * H1.5: sempre resolve, exista ou nao o email — nao vaza pro cliente qual
+   * conta existe. Token bruto so vive no link enviado; o banco guarda so o
+   * hash (sha256), pra um dump nunca dar reset de senha de graca.
+   */
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) return;
+
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+
+    await this.prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+      },
+    });
+
+    const resetUrl = `${this.webUrl}/reset-password?token=${rawToken}`;
+    await this.mailer.send({
+      to: user.email,
+      subject: 'Redefinir sua senha',
+      html:
+        `<p>Ola, ${user.name}.</p>` +
+        `<p>Clique no link abaixo para redefinir sua senha (valido por 30 minutos):</p>` +
+        `<p><a href="${resetUrl}">${resetUrl}</a></p>` +
+        `<p>Se voce nao pediu isso, ignore este email.</p>`,
+      text: `Redefina sua senha em: ${resetUrl} (valido por 30 minutos)`,
+    });
+  }
+
+  /**
+   * Token de uso unico: alem de marcar ESTE token como usado, invalida os
+   * demais tokens ainda validos do mesmo usuario (pedir reset 2x e so o
+   * segundo link deveria funcionar). Refresh tokens (JWT stateless) NAO sao
+   * revogados por um reset de senha — limitacao conhecida, documentada em
+   * docs/deploy/railway.md; revogacao de sessao fica pro RBAC (H3).
+   */
+  async resetPassword(rawToken: string, newPassword: string): Promise<void> {
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+      throw new BadRequestException('Token invalido ou expirado.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    const now = new Date();
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash },
+      }),
+      this.prisma.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { usedAt: now },
+      }),
+      this.prisma.passwordResetToken.updateMany({
+        where: {
+          userId: resetToken.userId,
+          usedAt: null,
+          id: { not: resetToken.id },
+        },
+        data: { usedAt: now },
+      }),
+    ]);
+  }
+
+  private get webUrl(): string {
+    return process.env.WEB_URL ?? 'http://localhost:3000';
   }
 
   private get refreshSecret(): string {

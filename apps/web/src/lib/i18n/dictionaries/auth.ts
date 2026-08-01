@@ -8,6 +8,7 @@ export const pt = {
     submitting: "Entrando...",
     noAccount: "Não tem conta?",
     createAccount: "Criar conta",
+    forgotPasswordLink: "Esqueceu a senha?",
     genericError: "Não foi possível entrar.",
   },
   register: {
@@ -23,6 +24,33 @@ export const pt = {
     signIn: "Entrar",
     genericError: "Não foi possível criar a conta.",
   },
+  forgotPassword: {
+    heading: "Esqueceu sua senha?",
+    subheading: "Informe seu e-mail e enviaremos um link para redefinir sua senha.",
+    emailLabel: "E-mail",
+    submit: "Enviar link",
+    submitting: "Enviando...",
+    successTitle: "Verifique seu e-mail",
+    successDescription:
+      "Se existir uma conta com esse e-mail, você receberá um link para redefinir sua senha em instantes.",
+    backToLogin: "Voltar para o login",
+    genericError: "Não foi possível enviar o link.",
+  },
+  resetPassword: {
+    heading: "Redefinir senha",
+    subheading: "Escolha uma nova senha para sua conta.",
+    passwordLabel: "Nova senha",
+    passwordHint: "Mínimo de 8 caracteres.",
+    submit: "Redefinir senha",
+    submitting: "Redefinindo...",
+    successTitle: "Senha redefinida",
+    successDescription: "Sua senha foi alterada. Você já pode entrar com a nova senha.",
+    goToLogin: "Ir para o login",
+    invalidTokenTitle: "Link inválido ou expirado",
+    invalidTokenDescription: "Solicite um novo link de redefinição de senha.",
+    requestNewLink: "Solicitar novo link",
+    genericError: "Não foi possível redefinir a senha.",
+  },
 };
 
 export const en = {
@@ -35,6 +63,7 @@ export const en = {
     submitting: "Signing in...",
     noAccount: "Don't have an account?",
     createAccount: "Create account",
+    forgotPasswordLink: "Forgot your password?",
     genericError: "Could not sign in.",
   },
   register: {
@@ -49,5 +78,32 @@ export const en = {
     hasAccount: "Already have an account?",
     signIn: "Sign in",
     genericError: "Could not create the account.",
+  },
+  forgotPassword: {
+    heading: "Forgot your password?",
+    subheading: "Enter your email and we'll send you a link to reset your password.",
+    emailLabel: "Email",
+    submit: "Send link",
+    submitting: "Sending...",
+    successTitle: "Check your email",
+    successDescription:
+      "If an account exists with that email, you'll receive a password reset link shortly.",
+    backToLogin: "Back to sign in",
+    genericError: "Could not send the link.",
+  },
+  resetPassword: {
+    heading: "Reset password",
+    subheading: "Choose a new password for your account.",
+    passwordLabel: "New password",
+    passwordHint: "Minimum 8 characters.",
+    submit: "Reset password",
+    submitting: "Resetting...",
+    successTitle: "Password reset",
+    successDescription: "Your password has been changed. You can now sign in with the new password.",
+    goToLogin: "Go to sign in",
+    invalidTokenTitle: "Invalid or expired link",
+    invalidTokenDescription: "Request a new password reset link.",
+    requestNewLink: "Request new link",
+    genericError: "Could not reset the password.",
   },
 } satisfies typeof pt;

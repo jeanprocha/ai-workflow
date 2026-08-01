@@ -31,6 +31,16 @@ services:
       timeout: 5s
       retries: 10
 
+  # SMTP local (H1.5): captura todo email enviado pela API (reset de senha,
+  # alertas de falha) sem sair pra internet. UI + API HTTP em :8025 (o E2E
+  # le o email por ali); SMTP em :1025, sem auth (MailerModule usa direto).
+  mailpit:
+    image: axllent/mailpit:v1.20
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   # Opcionais (Fase 8 de observabilidade) — nao sobem com `docker compose up`
   # normal, so com `docker compose --profile observability up -d`. Fazem
   # scrape da API (:3333) e do worker (:3334) rodando LOCALMENTE (fora do

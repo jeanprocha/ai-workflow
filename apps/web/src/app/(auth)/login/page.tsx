@@ -54,7 +54,12 @@ function LoginForm() {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="password">{t.auth.login.passwordLabel}</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">{t.auth.login.passwordLabel}</Label>
+          <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground hover:underline">
+            {t.auth.login.forgotPasswordLink}
+          </Link>
+        </div>
         <Input
           id="password"
           type="password"

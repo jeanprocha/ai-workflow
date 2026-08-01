@@ -20,10 +20,31 @@ model User {
   passwordHash String   @map("password_hash")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  memberships      WorkspaceMember[]
-  createdVersions  WorkflowVersion[]
+  memberships         WorkspaceMember[]
+  createdVersions     WorkflowVersion[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
+}
+
+/**
+ * Reset de senha (H1.5): token bruto (32 bytes aleatorios) so existe no link
+ * enviado por email — aqui so o hash (sha256), pra um dump do banco nunca
+ * dar reset de senha de graca em ninguem. TTL curto (~30min, aplicado no
+ * service, nao no schema) + single-use (usedAt).
+ */
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 enum WorkspaceRole {
