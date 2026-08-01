@@ -1,20 +1,25 @@
 import { test, expect } from "../../helpers/fixtures";
 import type { Locator, Page } from "@playwright/test";
 import {
+  API_URL,
   buildTestUser,
   registerViaApi,
   buildStorageState,
   authenticateContext,
 } from "../../helpers/auth";
-import { fetchWorkspaceId } from "../../helpers/settings";
+import { fetchWorkspaceId, workspaceHeaders } from "../../helpers/settings";
 import {
   createWorkflowViaApi,
   saveGraphViaApi,
   runWorkflowViaApi,
   waitForExecutionStatus,
+  setWorkflowStatusViaApi,
+  updateWorkflowViaApi,
   TWO_NODE_GRAPH,
   FAILING_GRAPH,
   DELAY_GRAPH,
+  continueOnErrorGraph,
+  errorHandlerGraph,
 } from "../../helpers/workflows";
 
 /**
@@ -46,7 +51,7 @@ function logsContainer(page: Page): Locator {
 }
 
 test.describe("Executions (detalhe)", () => {
-  test("execucao com sucesso mostra header, metricas, timeline e logs", async ({
+  test("execucao com sucesso mostra header, metricas, timeline e logs @smoke", async ({
     page,
     context,
     request,
@@ -222,5 +227,70 @@ test.describe("Executions (detalhe)", () => {
 
     await dialog.getByRole("button", { name: "Cancelar" }).click();
     await expect(dialog).not.toBeVisible();
+  });
+
+  test("H2-05: execucao com falha tratada (continue) mostra os dois badges e o banner de aviso", async ({
+    page,
+    context,
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const workflow = await createWorkflowViaApi(request, tokens, workspaceId, "Fluxo Falha Tratada");
+    await saveGraphViaApi(request, tokens, workspaceId, workflow.id, continueOnErrorGraph());
+    const execution = await runWorkflowViaApi(request, tokens, workspaceId, workflow.id);
+    const done = await waitForExecutionStatus(request, tokens, workspaceId, execution.id, "success");
+
+    await authenticateContext(context, await buildStorageState(request, tokens));
+    await page.goto(`/executions/${done.id}`);
+
+    await expect(statusBadge(page, "Fluxo Falha Tratada")).toContainText("Sucesso");
+    await expect(page.getByText("Falha tratada", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(/pelo menos um node que falhou, mas o fluxo tratou o erro/),
+    ).toBeVisible();
+  });
+
+  test("H2-05: execucao disparada por error workflow mostra o link 'disparado pelo tratamento de erro'", async ({
+    page,
+    context,
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+
+    const handler = await createWorkflowViaApi(request, tokens, workspaceId, "Tratador Detalhe UI");
+    await saveGraphViaApi(request, tokens, workspaceId, handler.id, errorHandlerGraph());
+    await setWorkflowStatusViaApi(request, tokens, workspaceId, handler.id, "active");
+
+    const origin = await createWorkflowViaApi(request, tokens, workspaceId, "Origem Detalhe UI");
+    await saveGraphViaApi(request, tokens, workspaceId, origin.id, FAILING_GRAPH);
+    await updateWorkflowViaApi(request, tokens, workspaceId, origin.id, { errorWorkflowId: handler.id });
+
+    const execution = await runWorkflowViaApi(request, tokens, workspaceId, origin.id);
+    const originDone = await waitForExecutionStatus(request, tokens, workspaceId, execution.id, "failed");
+
+    let handlerExecutionId: string | undefined;
+    const deadline = Date.now() + 15_000;
+    while (Date.now() < deadline) {
+      const list = await request.get(`${API_URL}/executions?workflowId=${handler.id}`, {
+        headers: workspaceHeaders(tokens, workspaceId),
+      });
+      const body = await list.json();
+      if (body.total > 0) {
+        handlerExecutionId = body.items[0].id;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    if (!handlerExecutionId) throw new Error("Error workflow nao disparou a tempo.");
+    await waitForExecutionStatus(request, tokens, workspaceId, handlerExecutionId, "success");
+
+    await authenticateContext(context, await buildStorageState(request, tokens));
+    await page.goto(`/executions/${handlerExecutionId}`);
+
+    const provenanceLink = page.getByRole("link", { name: "outra execução" });
+    await expect(provenanceLink).toHaveAttribute("href", `/executions/${originDone.id}`);
+    await expect(page.getByText("Disparado pelo tratamento de erro de")).toBeVisible();
   });
 });

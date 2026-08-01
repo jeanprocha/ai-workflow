@@ -314,6 +314,20 @@ export default function ExecutionDetailPage({
     ...dedupedLiveLogs,
   ];
 
+  // H2-05: um step failed nao significa mais "a execucao quebrou" — pode ter
+  // sido tratado (onError:'branch'/'continue') e o fluxo seguiu. So conta
+  // como "falha tratada" se aquele node NUNCA teve sucesso em nenhuma
+  // tentativa (retry bem-sucedido grava um step failed E um success pro
+  // mesmo nodeId — esse caso e so retry normal, nao falha tratada).
+  const succeededNodeIds = new Set(
+    execution.steps.filter((step) => step.status === "success").map((step) => step.nodeId),
+  );
+  const hasHandledFailure =
+    execution.status === "success" &&
+    execution.steps.some(
+      (step) => step.status === "failed" && !succeededNodeIds.has(step.nodeId),
+    );
+
   return (
     <div className="space-y-6">
       <div>
@@ -329,6 +343,9 @@ export default function ExecutionDetailPage({
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-semibold text-foreground">{execution.workflow.name}</h1>
             <StatusBadge status={toBadgeStatus(execution.status)} labels={t.common.executionStatus} />
+            {hasHandledFailure && (
+              <StatusBadge status="handled" labels={t.common.executionStatus} />
+            )}
           </div>
           {execution.status === "failed" && (
             <div className="flex gap-2">
@@ -368,18 +385,43 @@ export default function ExecutionDetailPage({
         </div>
       </div>
 
-      {(execution.parentExecutionId || execution.replayFromNodeId) && (
+      {execution.triggerType === "event" && execution.parentExecutionId ? (
         <p className="text-xs text-muted-foreground">
-          {t.executions.detail.replayPrefix}
-          {execution.replayFromNodeId
-            ? t.executions.detail.replayPartial(execution.replayFromNodeId)
-            : t.executions.detail.replayFull}
-          {t.executions.detail.replayConnector}
+          {t.executions.detail.errorWorkflowPrefix}
           <Link href={`/executions/${execution.parentExecutionId}`} className="underline">
-            {t.executions.detail.replayOfLink}
+            {t.executions.detail.errorWorkflowLink}
           </Link>
           .
         </p>
+      ) : (
+        (execution.parentExecutionId || execution.replayFromNodeId) && (
+          <p className="text-xs text-muted-foreground">
+            {t.executions.detail.replayPrefix}
+            {execution.replayFromNodeId
+              ? t.executions.detail.replayPartial(execution.replayFromNodeId)
+              : t.executions.detail.replayFull}
+            {t.executions.detail.replayConnector}
+            <Link href={`/executions/${execution.parentExecutionId}`} className="underline">
+              {t.executions.detail.replayOfLink}
+            </Link>
+            .
+          </p>
+        )
+      )}
+
+      {hasHandledFailure && (
+        <div className="rounded-lg border border-warning/30 bg-warning-subtle p-3">
+          <p className="text-xs text-warning">{t.executions.detail.handledBanner}</p>
+        </div>
+      )}
+
+      {execution.status === "waiting_approval" && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning-subtle p-3">
+          <p className="text-xs text-warning">{t.executions.detail.waitingApprovalBanner}</p>
+          <Link href="/approvals" className="shrink-0 text-xs text-warning underline">
+            {t.executions.detail.waitingApprovalLink}
+          </Link>
+        </div>
       )}
 
       {execution.error && (
@@ -412,9 +454,14 @@ export default function ExecutionDetailPage({
                   {!!step.tokens && <span>{t.executions.detail.tokensSuffix(step.tokens)}</span>}
                   {!!step.costUsd && <span>{formatUsd(step.costUsd, locale, 4)}</span>}
                   {!!step.memoryMb && <span>{formatMegabytes(step.memoryMb, locale)}</span>}
-                  <Button size="sm" variant="ghost" onClick={() => setReplayStep(step)}>
-                    {t.executions.detail.replayFromHere}
-                  </Button>
+                  {/* H2-06: um step waiting_approval nao "aconteceu" ainda —
+                      e a pendencia ATUAL, nao um ponto do passado pra
+                      reiniciar a partir dele. */}
+                  {step.status !== "waiting_approval" && (
+                    <Button size="sm" variant="ghost" onClick={() => setReplayStep(step)}>
+                      {t.executions.detail.replayFromHere}
+                    </Button>
+                  )}
                 </div>
               </div>
 

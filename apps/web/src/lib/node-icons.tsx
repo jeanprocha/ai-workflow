@@ -10,6 +10,11 @@ import {
   MessageSquare,
   ListFilter,
   ListPlus,
+  Code,
+  Braces,
+  Reply,
+  ShieldAlert,
+  UserCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,6 +30,11 @@ const ICONS: Record<string, LucideIcon> = {
   MessageSquare,
   ListFilter,
   ListPlus,
+  Code,
+  Braces,
+  Reply,
+  ShieldAlert,
+  UserCheck,
 };
 
 export function getNodeIcon(name: string): LucideIcon {

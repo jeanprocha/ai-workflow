@@ -1,7 +1,14 @@
-import { Check, X, Circle, RotateCw } from "lucide-react";
+import { Check, X, Circle, RotateCw, ShieldAlert, Hourglass } from "lucide-react";
 import { Pulse } from "./pulse";
 
-export type ExecutionStatus = "running" | "success" | "failed" | "queued" | "retry";
+export type ExecutionStatus =
+  | "running"
+  | "success"
+  | "failed"
+  | "queued"
+  | "retry"
+  | "handled"
+  | "waiting_approval";
 
 export type StatusBadgeLabels = Record<ExecutionStatus, string>;
 
@@ -12,6 +19,11 @@ const DEFAULT_LABELS: StatusBadgeLabels = {
   failed: "Falhou",
   queued: "Na fila",
   retry: "Retentando",
+  // "handled" e derivado no app (H2-05: step failed dentro de execucao
+  // success) — nunca vem do backend como status de execucao de verdade.
+  handled: "Falha tratada",
+  // "waiting_approval" (H2-06) e status real de execucao/step, persistido.
+  waiting_approval: "Aguardando aprovação",
 };
 
 const STYLES: Record<ExecutionStatus, string> = {
@@ -20,6 +32,8 @@ const STYLES: Record<ExecutionStatus, string> = {
   failed: "bg-danger-subtle text-danger",
   queued: "bg-muted text-queued",
   retry: "bg-warning-subtle text-warning",
+  handled: "bg-warning-subtle text-warning",
+  waiting_approval: "bg-warning-subtle text-warning",
 };
 
 function StatusIcon({ status }: { status: ExecutionStatus }) {
@@ -34,6 +48,10 @@ function StatusIcon({ status }: { status: ExecutionStatus }) {
       return <RotateCw className="h-3 w-3" strokeWidth={2.5} />;
     case "queued":
       return <Circle className="h-3 w-3" strokeWidth={2.5} />;
+    case "handled":
+      return <ShieldAlert className="h-3 w-3" strokeWidth={2.5} />;
+    case "waiting_approval":
+      return <Hourglass className="h-3 w-3" strokeWidth={2.5} />;
   }
 }
 

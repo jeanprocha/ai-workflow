@@ -16,6 +16,7 @@ import * as templates from "./dictionaries/templates";
 import * as nodeCatalog from "./dictionaries/node-catalog";
 import * as errors from "./dictionaries/errors";
 import * as chat from "./dictionaries/chat";
+import * as approvals from "./dictionaries/approvals";
 
 /**
  * Cada dominio (pagina/area) mora no seu proprio arquivo em ./dictionaries,
@@ -43,6 +44,7 @@ export const pt = {
   nodeCatalog: nodeCatalog.pt,
   errors: errors.pt,
   chat: chat.pt,
+  approvals: approvals.pt,
 };
 
 export const en = {
@@ -64,6 +66,7 @@ export const en = {
   nodeCatalog: nodeCatalog.en,
   errors: errors.en,
   chat: chat.en,
+  approvals: approvals.en,
 } satisfies typeof pt;
 
 export type Dictionary = typeof pt;

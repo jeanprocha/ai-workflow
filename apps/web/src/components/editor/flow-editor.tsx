@@ -19,7 +19,7 @@ import {
 } from "@xyflow/react";
 import { nanoid } from "nanoid";
 import { toast } from "sonner";
-import type { NodeRetryPolicy, WorkflowGraph } from "@workflow/shared";
+import { ERROR_HANDLE, type NodeRetryPolicy, type WorkflowGraph } from "@workflow/shared";
 import { NODE_TYPES, type WorkflowFlowNode } from "./workflow-node";
 import { EDGE_TYPES } from "./pulse-edge";
 import { NodePalette } from "./node-palette";
@@ -253,19 +253,20 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
     );
   }
 
-  function updateSelectedNodeOnError(onError: "branch" | undefined) {
+  function updateSelectedNodeOnError(onError: "branch" | "continue" | undefined) {
     markDirty();
     setNodes((current) =>
       current.map((node) =>
         node.id === selectedNodeId ? { ...node, data: { ...node.data, onError } } : node,
       ),
     );
-    // Desabilitar sem remover a edge deixaria uma edge "error" pendurada sem
-    // handle correspondente no node (invisivel no canvas, mas ainda salva).
-    if (!onError) {
+    // Desabilitar (ou trocar pra "continue") sem remover a edge deixaria uma
+    // edge "error" pendurada sem handle correspondente no node (invisivel no
+    // canvas, mas ainda salva — e agora rejeitada no save, ver graph.schema.ts).
+    if (onError !== "branch") {
       setEdges((current) =>
         current.filter(
-          (edge) => !(edge.source === selectedNodeId && edge.sourceHandle === "error"),
+          (edge) => !(edge.source === selectedNodeId && edge.sourceHandle === ERROR_HANDLE),
         ),
       );
     }
@@ -331,6 +332,7 @@ function FlowEditorInner({ workflowId }: { workflowId: string }) {
         {selectedNode && (
           <ConfigPanel
             key={selectedNode.id}
+            workflowId={workflowId}
             node={selectedNode}
             retry={selectedNode.data.retry}
             onChange={updateSelectedNodeConfig}

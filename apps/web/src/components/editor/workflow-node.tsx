@@ -1,7 +1,7 @@
 import { createElement, memo } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import { Check, X } from "lucide-react";
-import type { NodeCategory, NodeRetryPolicy } from "@workflow/shared";
+import { ERROR_HANDLE, type NodeCategory, type NodeRetryPolicy } from "@workflow/shared";
 import { Pulse } from "@workflow/ui";
 import { getNodeIcon } from "@/lib/node-icons";
 import { getCatalogEntry } from "@/lib/node-catalog";
@@ -24,7 +24,7 @@ export type WorkflowNodeData = {
   category: NodeCategory;
   config: Record<string, unknown>;
   retry?: NodeRetryPolicy;
-  onError?: "fail" | "branch";
+  onError?: "fail" | "branch" | "continue";
   status?: NodeRunStatus;
 };
 
@@ -54,6 +54,8 @@ function subtitleFor(
       return typeof config.message === "string" && config.message ? config.message : null;
     case "logic.delay":
       return `${String(config.ms ?? 1000)}ms`;
+    case "logic.code":
+      return `${String(config.timeoutMs ?? 5000)}ms`;
     case "api.graphql":
       return typeof config.url === "string" && config.url ? config.url : null;
     default:
@@ -81,7 +83,7 @@ function StatusDot({ status, runningAriaLabel }: { status?: NodeRunStatus; runni
 }
 
 function outputHandleColor(output: string): string {
-  if (output === "error") return "!bg-danger";
+  if (output === ERROR_HANDLE) return "!bg-danger";
   if (output === "true") return "!bg-success";
   if (output === "false" || output === "default") return "!bg-border-strong";
   return "!bg-primary";
@@ -132,9 +134,9 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) 
       : [{ id: undefined, label: null, colorClass: "!bg-border-strong" }];
   if (errorEnabled) {
     handleSpecs.push({
-      id: "error",
+      id: ERROR_HANDLE,
       label: t.errorHandleLabel,
-      colorClass: outputHandleColor("error"),
+      colorClass: outputHandleColor(ERROR_HANDLE),
     });
   }
   const showHandleLabels = handleSpecs.length > 1;

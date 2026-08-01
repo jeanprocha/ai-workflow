@@ -23,7 +23,14 @@ import { useDictionary, useLocale } from "@/lib/i18n";
 import { formatDuration, formatUsd } from "@/lib/format";
 import { RelativeTime } from "@/components/relative-time";
 
-const STATUS_OPTIONS = ["queued", "running", "success", "failed", "canceled"];
+const STATUS_OPTIONS = [
+  "queued",
+  "running",
+  "waiting_approval",
+  "success",
+  "failed",
+  "canceled",
+];
 
 function toBadgeStatus(status: string): ExecutionStatus {
   return status === "canceled" ? "failed" : (status as ExecutionStatus);

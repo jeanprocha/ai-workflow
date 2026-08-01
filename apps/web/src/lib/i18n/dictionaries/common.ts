@@ -27,6 +27,8 @@ export const pt = {
     failed: "Falhou",
     queued: "Na fila",
     retry: "Retentando",
+    handled: "Falha tratada",
+    waiting_approval: "Aguardando aprovação",
   },
   liveExecutionAriaLabel: "Em execução",
 };
@@ -59,6 +61,8 @@ export const en = {
     failed: "Failed",
     queued: "Queued",
     retry: "Retrying",
+    handled: "Handled failure",
+    waiting_approval: "Awaiting approval",
   },
   liveExecutionAriaLabel: "Running",
 } satisfies typeof pt;

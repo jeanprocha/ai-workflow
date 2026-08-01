@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Workflow, WorkflowGraph, WorkflowVersion } from "@workflow/shared";
+import type { ExecutionStatus, Workflow, WorkflowGraph, WorkflowVersion } from "@workflow/shared";
 import { apiFetch } from "@/lib/api-client";
 
 const WORKFLOWS_KEY = ["workflows"];
@@ -10,7 +10,7 @@ export interface WorkflowWithVersion extends Workflow {
 
 export interface ExecutionSummary {
   id: string;
-  status: "queued" | "running" | "success" | "failed" | "canceled";
+  status: ExecutionStatus;
 }
 
 export function useWorkflows() {
@@ -64,8 +64,15 @@ export function useCreateWorkflow() {
 export function useUpdateWorkflow() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...input }: { id: string; name?: string; status?: string }) =>
-      apiFetch<Workflow>(`/workflows/${id}`, { method: "PATCH", body: input }),
+    mutationFn: ({
+      id,
+      ...input
+    }: {
+      id: string;
+      name?: string;
+      status?: string;
+      errorWorkflowId?: string | null;
+    }) => apiFetch<Workflow>(`/workflows/${id}`, { method: "PATCH", body: input }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: WORKFLOWS_KEY }),
   });
 }

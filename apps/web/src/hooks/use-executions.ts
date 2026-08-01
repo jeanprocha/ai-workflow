@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ExecutionStatus } from "@workflow/shared";
 import { apiFetch } from "@/lib/api-client";
 
-export type ExecutionStatusValue = "queued" | "running" | "success" | "failed" | "canceled";
+export type ExecutionStatusValue = ExecutionStatus;
 
 export interface ExecutionListItem {
   id: string;
@@ -28,7 +29,7 @@ export interface ExecutionStep {
   executionId: string;
   nodeId: string;
   nodeType: string;
-  status: "success" | "failed";
+  status: "success" | "failed" | "waiting_approval";
   input: unknown;
   output: unknown;
   error: string | null;
@@ -113,7 +114,12 @@ export function useExecution(id: string | null) {
     enabled: !!id,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      return status === "queued" || status === "running" ? 2000 : false;
+      // H2-06: waiting_approval tambem poll — a decisao pode chegar por
+      // outro caminho (link do e-mail, /approvals), e esta pagina precisa
+      // perceber a retomada sem depender de um refresh manual.
+      return status === "queued" || status === "running" || status === "waiting_approval"
+        ? 2000
+        : false;
     },
   });
 }

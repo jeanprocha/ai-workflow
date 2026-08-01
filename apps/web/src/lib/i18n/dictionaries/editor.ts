@@ -77,6 +77,15 @@ export const pt = {
     },
     delay: {
       duration: "Duração (ms)",
+      durationHint:
+        "Até 5 min (300000). A espera segura um dos 5 slots de execução simultânea do worker — evite delays longos em fluxos de alto volume.",
+    },
+    code: {
+      codeLabel: "Código",
+      codeHint:
+        "JavaScript com return. Globals disponíveis: $input, $vars, console, JSON, Math, Date, URL, TextEncoder/TextDecoder, atob/btoa. Sem rede (fetch), sem require/process. $vars acumula — apagar uma chave não é propagado.",
+      timeoutLabel: "Timeout (ms)",
+      timeoutHint: "Até 30s. Loop travado é interrompido com essa mensagem de erro.",
     },
     cron: {
       presetsLabel: "Presets",
@@ -144,6 +153,20 @@ export const pt = {
       credentialHint: "Nome da conexão (webhook URL) do Teams.",
       message: "Mensagem",
     },
+    approvalHuman: {
+      title: "Título da aprovação",
+      titleHint: "Aparece no e-mail e na fila de aprovações.",
+      credentialHint: "Nome da conexão SMTP do workspace — o próprio node envia o e-mail.",
+      recipients: "Destinatários",
+      recipientsHint: "E-mails separados por vírgula.",
+      message: "Mensagem",
+      messageHint: "Opcional — some no corpo do e-mail, antes do link de decisão.",
+      timeoutHours: "Prazo (horas)",
+      timeoutHoursHint: "De 1 a 720 horas (30 dias).",
+      onTimeout: "Ao expirar o prazo",
+      onTimeoutApprove: "Aprovar automaticamente",
+      onTimeoutReject: "Rejeitar automaticamente",
+    },
     switchNode: {
       value: "Valor",
       valueHint: "Ex: {{ $input.tipo }}",
@@ -165,6 +188,43 @@ export const pt = {
     webhook: {
       label: "URL do webhook",
       pendingSave: "salve o fluxo para gerar a URL",
+      copyUrlAria: "Copiar URL do webhook",
+      urlCopied: "URL copiada.",
+      urlCopyFailed: "Não foi possível copiar — selecione o texto manualmente.",
+      publishApi: {
+        sectionTitle: "Publicar como API",
+        sectionHint:
+          "Gere uma chave para chamar este fluxo de fora (ex.: embutido no seu site) e receber a resposta na mesma chamada.",
+        saveWarning: "Salvar o fluxo altera a API publicada na hora.",
+        loadError: "Não foi possível carregar as chaves.",
+        emptyState: "Nenhuma chave criada ainda.",
+        keyMasked: (lastFour: string) => `wfk_••••${lastFour}`,
+        neverUsed: "nunca usada",
+        lastUsedAt: (when: string) => `usada em ${when}`,
+        revokedBadge: "revogada",
+        revokeButton: "Revogar",
+        revokeConfirmTitle: "Revogar esta chave?",
+        revokeConfirmDescription:
+          "Qualquer chamada que use esta chave passa a receber 401 imediatamente. Isso não pode ser desfeito.",
+        revokedToast: "Chave revogada.",
+        revokeErrorFallback: "Não foi possível revogar a chave.",
+        createButton: "Nova chave",
+        createDialogTitle: "Nova chave de API",
+        nameLabel: "Nome",
+        namePlaceholder: "Ex.: Site da Rein",
+        createErrorFallback: "Não foi possível criar a chave.",
+        createdDialogTitle: "Chave criada",
+        createdWarning: "Copie agora — a chave completa não será mostrada de novo.",
+        keyLabel: "Chave",
+        endpointLabel: "Endpoint",
+        curlLabel: "curl",
+        copyKeyAria: "Copiar chave",
+        copyCurlAria: "Copiar comando curl",
+        keyCopied: "Chave copiada.",
+        curlCopied: "Comando copiado.",
+        copyFailed: "Não foi possível copiar — selecione o texto manualmente.",
+        doneButton: "Concluir",
+      },
     },
     chatTrigger: {
       welcomeMessage: "Mensagem de boas-vindas",
@@ -190,9 +250,14 @@ export const pt = {
       interval: "Intervalo (ms)",
     },
     errorPath: {
-      toggle: "Caminho de erro",
-      description:
-        "Se este node falhar (após as tentativas), a execução segue pela saída vermelha em vez de parar — conecte-a a um node no canvas.",
+      legend: "Se este node falhar (após as tentativas)",
+      fail: "Parar o fluxo",
+      branch: "Caminho de erro",
+      continue: "Continuar com o erro",
+      branchDescription:
+        "A execução segue pela saída vermelha em vez de parar — conecte-a a um node no canvas.",
+      continueDescription:
+        "A execução segue pelo caminho normal, como se este node tivesse tido sucesso — o node seguinte recebe { error } no lugar do output.",
     },
     /** aria-label do botao X que fecha o painel — so icone, sem texto. */
     closeAria: "Fechar painel de configuração",
@@ -249,6 +314,17 @@ export const pt = {
     runErrorFallback: "Não foi possível executar o fluxo.",
     /** aria-label do botao voltar — so icone, sem texto. */
     backAria: "Voltar para Fluxos",
+    settings: {
+      button: "Configurações",
+      title: "Configurações do fluxo",
+      errorWorkflowLabel: "Fluxo de tratamento de erro",
+      errorWorkflowHint:
+        "Disparado automaticamente quando este fluxo falhar (qualquer causa: manual, webhook, chat, API). Recebe workflowId/executionId/error/failedNodeId no input.",
+      none: "Nenhum",
+      save: "Salvar",
+      savedToast: "Configurações salvas.",
+      saveErrorFallback: "Não foi possível salvar as configurações.",
+    },
   },
   copilot: {
     title: "Copilot",
@@ -358,6 +434,15 @@ export const en = {
     },
     delay: {
       duration: "Duration (ms)",
+      durationHint:
+        "Up to 5 min (300000). The wait holds one of the worker's 5 concurrent execution slots — avoid long delays in high-volume flows.",
+    },
+    code: {
+      codeLabel: "Code",
+      codeHint:
+        "JavaScript with return. Available globals: $input, $vars, console, JSON, Math, Date, URL, TextEncoder/TextDecoder, atob/btoa. No network (fetch), no require/process. $vars accumulates — deleting a key isn't propagated.",
+      timeoutLabel: "Timeout (ms)",
+      timeoutHint: "Up to 30s. A stuck loop is interrupted with this error message.",
     },
     cron: {
       presetsLabel: "Presets",
@@ -424,6 +509,20 @@ export const en = {
       credentialHint: "Teams connection name (webhook URL).",
       message: "Message",
     },
+    approvalHuman: {
+      title: "Approval title",
+      titleHint: "Shown in the email and in the approvals queue.",
+      credentialHint: "Workspace SMTP connection name — the node itself sends the email.",
+      recipients: "Recipients",
+      recipientsHint: "Comma-separated emails.",
+      message: "Message",
+      messageHint: "Optional — appears in the email body, before the decision link.",
+      timeoutHours: "Timeout (hours)",
+      timeoutHoursHint: "1 to 720 hours (30 days).",
+      onTimeout: "On timeout",
+      onTimeoutApprove: "Auto-approve",
+      onTimeoutReject: "Auto-reject",
+    },
     switchNode: {
       value: "Value",
       valueHint: "E.g.: {{ $input.tipo }}",
@@ -445,6 +544,43 @@ export const en = {
     webhook: {
       label: "Webhook URL",
       pendingSave: "save the flow to generate the URL",
+      copyUrlAria: "Copy webhook URL",
+      urlCopied: "URL copied.",
+      urlCopyFailed: "Could not copy — select the text manually.",
+      publishApi: {
+        sectionTitle: "Publish as API",
+        sectionHint:
+          "Generate a key to call this flow from outside (e.g. embedded on your site) and get the response in the same call.",
+        saveWarning: "Saving the flow changes the published API immediately.",
+        loadError: "Could not load the keys.",
+        emptyState: "No keys created yet.",
+        keyMasked: (lastFour: string) => `wfk_••••${lastFour}`,
+        neverUsed: "never used",
+        lastUsedAt: (when: string) => `used ${when}`,
+        revokedBadge: "revoked",
+        revokeButton: "Revoke",
+        revokeConfirmTitle: "Revoke this key?",
+        revokeConfirmDescription:
+          "Any call using this key will start receiving 401 immediately. This cannot be undone.",
+        revokedToast: "Key revoked.",
+        revokeErrorFallback: "Could not revoke the key.",
+        createButton: "New key",
+        createDialogTitle: "New API key",
+        nameLabel: "Name",
+        namePlaceholder: "E.g.: Rein's website",
+        createErrorFallback: "Could not create the key.",
+        createdDialogTitle: "Key created",
+        createdWarning: "Copy it now — the full key won't be shown again.",
+        keyLabel: "Key",
+        endpointLabel: "Endpoint",
+        curlLabel: "curl",
+        copyKeyAria: "Copy key",
+        copyCurlAria: "Copy curl command",
+        keyCopied: "Key copied.",
+        curlCopied: "Command copied.",
+        copyFailed: "Could not copy — select the text manually.",
+        doneButton: "Done",
+      },
     },
     chatTrigger: {
       welcomeMessage: "Welcome message",
@@ -470,9 +606,14 @@ export const en = {
       interval: "Interval (ms)",
     },
     errorPath: {
-      toggle: "Error path",
-      description:
-        "If this node fails (after retries), execution follows the red output instead of stopping — connect it to a node on the canvas.",
+      legend: "If this node fails (after retries)",
+      fail: "Stop the flow",
+      branch: "Error path",
+      continue: "Continue with the error",
+      branchDescription:
+        "Execution follows the red output instead of stopping — connect it to a node on the canvas.",
+      continueDescription:
+        "Execution follows the normal path, as if this node had succeeded — the next node receives { error } instead of the output.",
     },
     closeAria: "Close configuration panel",
     nodeIdCopyHint: "Copy node id",
@@ -521,6 +662,17 @@ export const en = {
     runStartedToast: "Run started.",
     runErrorFallback: "Could not run the flow.",
     backAria: "Back to Flows",
+    settings: {
+      button: "Settings",
+      title: "Flow settings",
+      errorWorkflowLabel: "Error-handling flow",
+      errorWorkflowHint:
+        "Triggered automatically when this flow fails (any cause: manual, webhook, chat, API). Receives workflowId/executionId/error/failedNodeId in the input.",
+      none: "None",
+      save: "Save",
+      savedToast: "Settings saved.",
+      saveErrorFallback: "Could not save the settings.",
+    },
   },
   copilot: {
     title: "Copilot",

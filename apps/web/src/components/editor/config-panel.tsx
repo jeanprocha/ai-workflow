@@ -13,12 +13,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CredentialSelect } from "@/components/credential-select";
 import { copyToClipboard } from "@/lib/clipboard";
 import { getCatalogEntry } from "@/lib/node-catalog";
 import { getNodeIcon } from "@/lib/node-icons";
 import { usePreviewCron } from "@/hooks/use-scheduler";
 import { useCreateNodePreset, useNodePresets } from "@/hooks/use-node-presets";
+import {
+  useCreateFlowApiKey,
+  useFlowApiKeys,
+  useRevokeFlowApiKey,
+} from "@/hooks/use-flow-api-keys";
 import { ApiError } from "@/lib/api-client";
 import { errorMessage } from "@/lib/errors";
 import { useDictionary, useLocale } from "@/lib/i18n";
@@ -26,12 +41,13 @@ import { formatDateTime } from "@/lib/format";
 import type { WorkflowFlowNode } from "./workflow-node";
 
 export interface ConfigPanelProps {
+  workflowId: string;
   node: WorkflowFlowNode;
   retry?: NodeRetryPolicy;
   onChange: (config: Record<string, unknown>) => void;
   onRetryChange: (retry: NodeRetryPolicy | undefined) => void;
-  onError?: "fail" | "branch";
-  onOnErrorChange: (onError: "branch" | undefined) => void;
+  onError?: "fail" | "branch" | "continue";
+  onOnErrorChange: (onError: "branch" | "continue" | undefined) => void;
   onClose: () => void;
 }
 
@@ -564,13 +580,43 @@ function DelayFields({
 }) {
   const t = useDictionary().editor.configPanel;
   return (
-    <Field label={t.delay.duration}>
+    <Field label={t.delay.duration} hint={t.delay.durationHint}>
       <Input
         type="number"
         value={(config.ms as number) ?? 1000}
         onChange={(event) => onChange({ ...config, ms: Number(event.target.value) })}
       />
     </Field>
+  );
+}
+
+function CodeFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const t = useDictionary().editor.configPanel;
+  return (
+    <>
+      <Field label={t.code.codeLabel} hint={t.code.codeHint}>
+        <Textarea
+          value={(config.code as string) ?? ""}
+          onChange={(event) => onChange({ ...config, code: event.target.value })}
+          rows={14}
+          className="font-mono text-xs"
+          spellCheck={false}
+        />
+      </Field>
+      <Field label={t.code.timeoutLabel} hint={t.code.timeoutHint}>
+        <Input
+          type="number"
+          value={(config.timeoutMs as number) ?? 5000}
+          onChange={(event) => onChange({ ...config, timeoutMs: Number(event.target.value) })}
+        />
+      </Field>
+    </>
   );
 }
 
@@ -903,6 +949,63 @@ function TeamsFields({
   );
 }
 
+function ApprovalHumanFields({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const t = useDictionary().editor.configPanel;
+  return (
+    <>
+      <TextField
+        config={config}
+        onChange={onChange}
+        field="title"
+        label={t.approvalHuman.title}
+        hint={t.approvalHuman.titleHint}
+      />
+      <CredentialField config={config} onChange={onChange} hint={t.approvalHuman.credentialHint} />
+      <TextField
+        config={config}
+        onChange={onChange}
+        field="recipients"
+        label={t.approvalHuman.recipients}
+        hint={t.approvalHuman.recipientsHint}
+      />
+      <Field label={t.approvalHuman.message} hint={t.approvalHuman.messageHint}>
+        <Textarea
+          rows={3}
+          value={String(config.message ?? "")}
+          onChange={(event) => onChange({ ...config, message: event.target.value })}
+        />
+      </Field>
+      <Field label={t.approvalHuman.timeoutHours} hint={t.approvalHuman.timeoutHoursHint}>
+        <Input
+          type="number"
+          min={1}
+          max={720}
+          value={(config.timeoutHours as number) ?? 24}
+          onChange={(event) =>
+            onChange({ ...config, timeoutHours: Number(event.target.value) })
+          }
+        />
+      </Field>
+      <Field label={t.approvalHuman.onTimeout}>
+        <select
+          value={(config.onTimeout as string) ?? "reject"}
+          onChange={(event) => onChange({ ...config, onTimeout: event.target.value })}
+          className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm"
+        >
+          <option value="reject">{t.approvalHuman.onTimeoutReject}</option>
+          <option value="approve">{t.approvalHuman.onTimeoutApprove}</option>
+        </select>
+      </Field>
+    </>
+  );
+}
+
 function SwitchFields({
   config,
   onChange,
@@ -1108,24 +1211,46 @@ function ErrorPathSection({
   onError,
   onOnErrorChange,
 }: {
-  onError?: "fail" | "branch";
-  onOnErrorChange: (onError: "branch" | undefined) => void;
+  onError?: "fail" | "branch" | "continue";
+  onOnErrorChange: (onError: "branch" | "continue" | undefined) => void;
 }) {
   const t = useDictionary().editor.configPanel;
-  const enabled = onError === "branch";
+  const value = onError ?? "fail";
+
+  const options = [
+    { value: "fail" as const, label: t.errorPath.fail },
+    { value: "branch" as const, label: t.errorPath.branch },
+    { value: "continue" as const, label: t.errorPath.continue },
+  ];
 
   return (
     <section className="space-y-2 rounded-md border border-border p-3">
-      <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-        <input
-          type="checkbox"
-          checked={enabled}
-          onChange={(event) => onOnErrorChange(event.target.checked ? "branch" : undefined)}
-          className="h-4 w-4 rounded border-border-strong"
-        />
-        {t.errorPath.toggle}
-      </label>
-      {enabled && <p className="text-xs text-muted-foreground">{t.errorPath.description}</p>}
+      <p className="text-sm font-medium text-foreground">{t.errorPath.legend}</p>
+      <div className="space-y-1.5">
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className="flex items-center gap-2 text-sm text-foreground"
+          >
+            <input
+              type="radio"
+              name="error-path"
+              checked={value === option.value}
+              onChange={() =>
+                onOnErrorChange(option.value === "fail" ? undefined : option.value)
+              }
+              className="h-4 w-4 border-border-strong"
+            />
+            {option.label}
+          </label>
+        ))}
+      </div>
+      {value === "branch" && (
+        <p className="text-xs text-muted-foreground">{t.errorPath.branchDescription}</p>
+      )}
+      {value === "continue" && (
+        <p className="text-xs text-muted-foreground">{t.errorPath.continueDescription}</p>
+      )}
     </section>
   );
 }
@@ -1274,7 +1399,252 @@ function NodeIdBadge({ id }: { id: string }) {
   );
 }
 
+/**
+ * Gestao de chaves de API do fluxo (H2-04) — vive no painel do trigger.webhook
+ * (nao ha UI nova no editor). A chave bruta so existe uma vez, na resposta do
+ * create: fica em useState local, nunca no cache do react-query (a lista
+ * cacheada so tem `lastFour`), e some ao fechar o dialog de criacao.
+ */
+function PublishAsApiSection({ workflowId }: { workflowId: string }) {
+  const dict = useDictionary();
+  const t = dict.editor.configPanel.webhook.publishApi;
+  const locale = useLocale();
+  const { data: keys, isLoading, isError } = useFlowApiKeys(workflowId, true);
+  const createKey = useCreateFlowApiKey(workflowId);
+  const revokeKey = useRevokeFlowApiKey(workflowId);
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [createdKey, setCreatedKey] = useState<{ key: string } | null>(null);
+  const [revokeId, setRevokeId] = useState<string | null>(null);
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333";
+  const endpoint = `${apiUrl}/v1/flows/${workflowId}/invoke`;
+
+  async function copy(text: string, okMessage: string) {
+    const ok = await copyToClipboard(text);
+    if (ok) toast.success(okMessage);
+    else toast.error(t.copyFailed);
+  }
+
+  async function onCreate() {
+    if (!name.trim()) return;
+    try {
+      const created = await createKey.mutateAsync(name.trim());
+      setCreatedKey({ key: created.key });
+      setName("");
+      setCreateOpen(false);
+    } catch (error) {
+      toast.error(errorMessage(error, t.createErrorFallback));
+    }
+  }
+
+  async function onRevoke() {
+    if (!revokeId) return;
+    try {
+      await revokeKey.mutateAsync(revokeId);
+      toast.success(t.revokedToast);
+    } catch (error) {
+      toast.error(errorMessage(error, t.revokeErrorFallback));
+    } finally {
+      setRevokeId(null);
+    }
+  }
+
+  const curlCommand = createdKey
+    ? `curl -X POST ${endpoint} -H "Authorization: Bearer ${createdKey.key}" -H "Content-Type: application/json" -d '{}'`
+    : "";
+
+  return (
+    <section className="space-y-2 rounded-md border border-border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-foreground">{t.sectionTitle}</p>
+        <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+          {t.createButton}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">{t.sectionHint}</p>
+      <p className="text-xs font-medium text-warning">{t.saveWarning}</p>
+
+      {isLoading && <p className="text-xs text-muted-foreground">{dict.common.loading}</p>}
+      {isError && <p className="text-xs text-danger">{t.loadError}</p>}
+      {!isLoading && !isError && (keys?.length ?? 0) === 0 && (
+        <p className="text-xs text-muted-foreground">{t.emptyState}</p>
+      )}
+      {!isLoading && keys && keys.length > 0 && (
+        <ul className="space-y-1.5">
+          {keys.map((key) => (
+            <li
+              key={key.id}
+              className="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-1.5"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-mono text-xs text-foreground">{t.keyMasked(key.lastFour)}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {key.name} ·{" "}
+                  {key.revokedAt
+                    ? t.revokedBadge
+                    : key.lastUsedAt
+                      ? t.lastUsedAt(formatDateTime(key.lastUsedAt, locale))
+                      : t.neverUsed}
+                </p>
+              </div>
+              {!key.revokedAt && (
+                <Button variant="ghost" size="sm" onClick={() => setRevokeId(key.id)}>
+                  {t.revokeButton}
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.createDialogTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="flow-api-key-name">{t.nameLabel}</Label>
+            <Input
+              id="flow-api-key-name"
+              placeholder={t.namePlaceholder}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              {dict.common.cancel}
+            </Button>
+            <Button onClick={() => void onCreate()} disabled={createKey.isPending || !name.trim()}>
+              {createKey.isPending ? dict.common.saving : dict.common.save}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!createdKey} onOpenChange={(open) => !open && setCreatedKey(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.createdDialogTitle}</DialogTitle>
+          </DialogHeader>
+          {createdKey && (
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-danger">{t.createdWarning}</p>
+              <div className="space-y-1.5">
+                <Label htmlFor="flow-api-key-value">{t.keyLabel}</Label>
+                <div className="flex gap-1.5">
+                  <Input id="flow-api-key-value" readOnly value={createdKey.key} className="font-mono text-xs" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label={t.copyKeyAria}
+                    onClick={() => void copy(createdKey.key, t.keyCopied)}
+                  >
+                    <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="flow-api-endpoint">{t.endpointLabel}</Label>
+                <Input id="flow-api-endpoint" readOnly value={endpoint} className="font-mono text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="flow-api-curl">{t.curlLabel}</Label>
+                <div className="flex gap-1.5">
+                  <Textarea
+                    id="flow-api-curl"
+                    readOnly
+                    value={curlCommand}
+                    rows={3}
+                    className="font-mono text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label={t.copyCurlAria}
+                    onClick={() => void copy(curlCommand, t.curlCopied)}
+                  >
+                    <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setCreatedKey(null)}>{t.doneButton}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!revokeId} onOpenChange={(open) => !open && setRevokeId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.revokeConfirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{t.revokeConfirmDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{dict.common.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-danger/10 text-danger hover:bg-danger/20"
+              onClick={() => void onRevoke()}
+            >
+              {t.revokeButton}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
+  );
+}
+
+function WebhookFields({
+  config,
+  workflowId,
+}: {
+  config: Record<string, unknown>;
+  workflowId: string;
+}) {
+  const t = useDictionary().editor.configPanel;
+  const webhookId = config.webhookId as string | undefined;
+  const url = webhookId
+    ? `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333"}/hooks/${webhookId}`
+    : "";
+
+  async function copyUrl() {
+    const ok = await copyToClipboard(url);
+    if (ok) toast.success(t.webhook.urlCopied);
+    else toast.error(t.webhook.urlCopyFailed);
+  }
+
+  return (
+    <>
+      <Field label={t.webhook.label}>
+        <div className="flex gap-1.5">
+          <Input readOnly value={webhookId ? url : t.webhook.pendingSave} className="font-mono text-xs" />
+          {webhookId && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label={t.webhook.copyUrlAria}
+              onClick={() => void copyUrl()}
+            >
+              <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />
+            </Button>
+          )}
+        </div>
+      </Field>
+      <PublishAsApiSection workflowId={workflowId} />
+    </>
+  );
+}
+
 export function ConfigPanel({
+  workflowId,
   node,
   retry,
   onChange,
@@ -1318,17 +1688,7 @@ export function ConfigPanel({
         )}
 
         {node.data.nodeType === "trigger.webhook" && (
-          <Field label={t.webhook.label}>
-            <Input
-              readOnly
-              value={
-                config.webhookId
-                  ? `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333"}/hooks/${config.webhookId}`
-                  : t.webhook.pendingSave
-              }
-              className="font-mono text-xs"
-            />
-          </Field>
+          <WebhookFields config={config} workflowId={workflowId} />
         )}
 
         {node.data.nodeType === "trigger.cron" && (
@@ -1372,6 +1732,7 @@ export function ConfigPanel({
         )}
 
         {node.data.nodeType === "logic.delay" && <DelayFields config={config} onChange={onChange} />}
+        {node.data.nodeType === "logic.code" && <CodeFields config={config} onChange={onChange} />}
 
         {node.data.nodeType === "logic.switch" && <SwitchFields config={config} onChange={onChange} />}
 
@@ -1403,6 +1764,9 @@ export function ConfigPanel({
         )}
         {node.data.nodeType === "integration.teams" && (
           <TeamsFields config={config} onChange={onChange} />
+        )}
+        {node.data.nodeType === "approval.human" && (
+          <ApprovalHumanFields config={config} onChange={onChange} />
         )}
 
         {JSON_FALLBACK_TYPES.has(node.data.nodeType) && (

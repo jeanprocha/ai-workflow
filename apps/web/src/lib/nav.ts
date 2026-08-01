@@ -9,6 +9,7 @@ import {
   Plug,
   Settings,
   PiggyBank,
+  UserCheck,
   type LucideIcon,
 } from "lucide-react";
 import type { pt as navDict } from "./i18n/dictionaries/nav";
@@ -54,6 +55,7 @@ export const NAV_GROUPS: NavGroup[] = [
     key: "operate",
     items: [
       { key: "executions", href: "/executions", icon: ListChecks, showLiveIndicator: true },
+      { key: "approvals", href: "/approvals", icon: UserCheck },
       { key: "analytics", href: "/analytics", icon: BarChart3 },
       { key: "costOptimizer", href: "/cost-optimizer", icon: PiggyBank },
     ],
