@@ -19,6 +19,7 @@ export const pt = {
     rename: "Renomear",
     archive: "Arquivar",
     activate: "Ativar",
+    saveAsTemplate: "Salvar como template",
     /** Prefixo do aria-label do trigger do menu — concatenado com o nome do fluxo. */
     triggerAria: "Ações do fluxo",
   },
@@ -61,6 +62,15 @@ export const pt = {
     description:
       "Todas as versões e o histórico de execuções deste fluxo serão perdidos. Esta ação não pode ser desfeita.",
   },
+  saveAsTemplateDialog: {
+    title: "Salvar como template",
+    nameLabel: "Nome do template",
+    categoryLabel: "Categoria",
+    categoryPlaceholder: "Ex: Vendas",
+    descriptionLabel: "Descrição",
+    created: "Template criado.",
+    error: "Não foi possível criar o template.",
+  },
 };
 
 export const en = {
@@ -84,6 +94,7 @@ export const en = {
     rename: "Rename",
     archive: "Archive",
     activate: "Activate",
+    saveAsTemplate: "Save as template",
     triggerAria: "Flow actions",
   },
   toasts: {
@@ -124,5 +135,14 @@ export const en = {
     title: (name: string | undefined) => `Delete the flow “${name}”?`,
     description:
       "All versions and the execution history of this flow will be lost. This action cannot be undone.",
+  },
+  saveAsTemplateDialog: {
+    title: "Save as template",
+    nameLabel: "Template name",
+    categoryLabel: "Category",
+    categoryPlaceholder: "e.g. Sales",
+    descriptionLabel: "Description",
+    created: "Template created.",
+    error: "Could not create the template.",
   },
 } satisfies typeof pt;

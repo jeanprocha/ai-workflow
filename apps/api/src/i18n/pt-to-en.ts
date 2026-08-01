@@ -81,6 +81,8 @@ export const STATIC_TRANSLATIONS: Record<string, string> = {
   'Informe o valor desta conexao.': "Provide this connection's value.",
   'Ja existe uma predefinicao com este nome para este tipo de node.':
     'A preset with this name already exists for this node type.',
+  'Ja existe um template com este nome neste workspace.':
+    'A template with this name already exists in this workspace.',
 };
 
 /** Mensagens com valor interpolado (nome, id, erro concatenado) — regex + template. */

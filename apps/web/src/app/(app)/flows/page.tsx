@@ -52,6 +52,7 @@ import {
   useUpdateWorkflow,
   useWorkflows,
 } from "@/hooks/use-workflows";
+import { useCreateTemplate } from "@/hooks/use-templates";
 import { apiFetch } from "@/lib/api-client";
 import { errorMessage } from "@/lib/errors";
 import { useDictionary } from "@/lib/i18n";
@@ -316,6 +317,96 @@ function RenameFlowDialog({
   );
 }
 
+/**
+ * Criacao POR REFERENCIA (so manda workflowId) — o servidor busca o grafo da
+ * versao atual, sanitiza e valida. Por isso este dialog nao precisa do grafo
+ * do fluxo (useWorkflows() nao traz mesmo).
+ */
+function SaveAsTemplateDialog({
+  workflow,
+  onOpenChange,
+}: {
+  workflow: Workflow | null;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const t = useDictionary();
+  const [name, setName] = useState(workflow?.name ?? "");
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
+  const createTemplate = useCreateTemplate();
+
+  async function onSubmit() {
+    if (!workflow || !name.trim() || !category.trim()) return;
+    try {
+      await createTemplate.mutateAsync({
+        name: name.trim(),
+        category: category.trim(),
+        description: description.trim(),
+        workflowId: workflow.id,
+      });
+      toast.success(t.flows.saveAsTemplateDialog.created);
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(errorMessage(error, t.flows.saveAsTemplateDialog.error));
+    }
+  }
+
+  return (
+    <Dialog
+      open={!!workflow}
+      onOpenChange={(v) => {
+        if (!v) onOpenChange(false);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t.flows.saveAsTemplateDialog.title}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label htmlFor="save-as-template-name">{t.flows.saveAsTemplateDialog.nameLabel}</Label>
+          <Input
+            id="save-as-template-name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            autoFocus
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="save-as-template-category">{t.flows.saveAsTemplateDialog.categoryLabel}</Label>
+          <Input
+            id="save-as-template-category"
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+            placeholder={t.flows.saveAsTemplateDialog.categoryPlaceholder}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="save-as-template-description">
+            {t.flows.saveAsTemplateDialog.descriptionLabel}
+          </Label>
+          <Textarea
+            id="save-as-template-description"
+            rows={3}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t.common.cancel}
+          </Button>
+          <Button
+            onClick={onSubmit}
+            disabled={createTemplate.isPending || !name.trim() || !category.trim()}
+          >
+            {createTemplate.isPending ? t.common.creating : t.common.create}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function DeleteFlowDialog({
   workflow,
   onOpenChange,
@@ -370,6 +461,7 @@ export default function FlowsPage() {
   const [generateOpen, setGenerateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Workflow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Workflow | null>(null);
+  const [saveAsTemplateTarget, setSaveAsTemplateTarget] = useState<Workflow | null>(null);
 
   async function toggleStatus(workflow: Workflow) {
     const nextStatus = workflow.status === "active" ? "archived" : "active";
@@ -458,6 +550,9 @@ export default function FlowsPage() {
                       <DropdownMenuItem onClick={() => toggleStatus(workflow)}>
                         {workflow.status === "active" ? t.flows.menu.archive : t.flows.menu.activate}
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSaveAsTemplateTarget(workflow)}>
+                        {t.flows.menu.saveAsTemplate}
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         variant="destructive"
                         onClick={() => setDeleteTarget(workflow)}
@@ -496,6 +591,11 @@ export default function FlowsPage() {
         key={renameTarget?.id ?? "none"}
         workflow={renameTarget}
         onOpenChange={() => setRenameTarget(null)}
+      />
+      <SaveAsTemplateDialog
+        key={saveAsTemplateTarget?.id ?? "none"}
+        workflow={saveAsTemplateTarget}
+        onOpenChange={() => setSaveAsTemplateTarget(null)}
       />
       <DeleteFlowDialog workflow={deleteTarget} onOpenChange={() => setDeleteTarget(null)} />
     </div>

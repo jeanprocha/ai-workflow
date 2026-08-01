@@ -72,7 +72,10 @@ export class SearchService {
         },
       }),
       this.prisma.template.findMany({
-        where: { name: { contains: q, mode: 'insensitive' } },
+        where: {
+          name: { contains: q, mode: 'insensitive' },
+          OR: [{ workspaceId: null }, { workspaceId }],
+        },
         take: LIMIT,
         select: { id: true, name: true },
       }),

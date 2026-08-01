@@ -11,12 +11,12 @@ import { fetchWorkspaceId, workspaceHeaders } from "../../helpers/settings";
 /**
  * Fase 03 — criacao por template (terceiro caminho de criacao de fluxo;
  * mora em /templates, nao em /flows). Templates sao um catalogo GLOBAL
- * seedado (excecao deliberada ao ADR-006) — GET /templates nem exige o
- * header x-workspace-id, so o JWT.
+ * seedado (sem workspace_id na tabela — ver ADR-006), mas as rotas
+ * exigem x-workspace-id como qualquer outra rota de negocio (C5).
  */
 
 test.describe("Templates (via UI)", () => {
-  test("usar template cria fluxo e navega direto pro editor", async ({
+  test("usar template cria fluxo e navega direto pro editor @smoke", async ({
     page,
     context,
     request,
@@ -38,14 +38,24 @@ test.describe("Templates (via UI)", () => {
 });
 
 test.describe("Templates via API", () => {
-  test("GET /templates lista o catalogo global sem exigir workspace", async ({
-    request,
-  }) => {
+  test("GET /templates sem x-workspace-id -> 400", async ({ request }) => {
     const tokens = await registerViaApi(request, buildTestUser());
 
-    // So JWT, sem x-workspace-id — o catalogo e global.
     const response = await request.get(`${API_URL}/templates`, {
       headers: { Authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(response.status()).toBe(400);
+    expect((await response.json()).message).toBe(
+      "Header x-workspace-id e obrigatorio.",
+    );
+  });
+
+  test("GET /templates lista o catalogo global", async ({ request }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+
+    const response = await request.get(`${API_URL}/templates`, {
+      headers: workspaceHeaders(tokens, workspaceId),
     });
     expect(response.ok()).toBe(true);
     const templates = (await response.json()) as Array<{
@@ -66,9 +76,7 @@ test.describe("Templates via API", () => {
     const headers = workspaceHeaders(tokens, workspaceId);
 
     const templates = (await (
-      await request.get(`${API_URL}/templates`, {
-        headers: { Authorization: `Bearer ${tokens.accessToken}` },
-      })
+      await request.get(`${API_URL}/templates`, { headers })
     ).json()) as Array<{ id: string; name: string; graph: { nodes: unknown[] } }>;
     const template = templates[0];
 

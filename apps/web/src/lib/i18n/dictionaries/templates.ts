@@ -6,6 +6,32 @@ export const pt = {
   useButton: "Usar template",
   useSuccessToast: (workflowName: string) => `Fluxo "${workflowName}" criado a partir do template.`,
   useErrorFallback: "Não foi possível usar este template.",
+  searchPlaceholder: "Buscar templates...",
+  categoryFilterAria: "Filtrar por categoria",
+  allCategories: "Todas as categorias",
+  badgeGlobal: "Oficial",
+  badgeWorkspace: "Meu workspace",
+  filteredEmptyTitle: "Nenhum template encontrado",
+  filteredEmptyDescription: "Ajuste a busca ou a categoria para ver outros templates.",
+  menu: {
+    /** Prefixo do aria-label do trigger do menu — concatenado com o nome do template. */
+    triggerAria: "Ações do template",
+    edit: "Editar",
+  },
+  editDialog: {
+    title: "Editar template",
+    nameLabel: "Nome",
+    categoryLabel: "Categoria",
+    descriptionLabel: "Descrição",
+    saved: "Template atualizado.",
+    error: "Não foi possível atualizar o template.",
+  },
+  deleteDialog: {
+    title: (name: string | undefined) => `Excluir o template "${name}"?`,
+    description: "Fluxos já criados a partir dele não são afetados. Esta ação não pode ser desfeita.",
+    deleted: "Template excluído.",
+    error: "Não foi possível excluir o template.",
+  },
   /**
    * name/description/category dos 7 templates oficiais vem do banco
    * (apps/api/prisma/seed.ts, tabela Template) — sempre em pt-BR, sem coluna
@@ -61,6 +87,31 @@ export const en = {
   useButton: "Use template",
   useSuccessToast: (workflowName: string) => `Flow "${workflowName}" created from template.`,
   useErrorFallback: "Could not use this template.",
+  searchPlaceholder: "Search templates...",
+  categoryFilterAria: "Filter by category",
+  allCategories: "All categories",
+  badgeGlobal: "Official",
+  badgeWorkspace: "My workspace",
+  filteredEmptyTitle: "No templates found",
+  filteredEmptyDescription: "Adjust the search or category to see other templates.",
+  menu: {
+    triggerAria: "Template actions",
+    edit: "Edit",
+  },
+  editDialog: {
+    title: "Edit template",
+    nameLabel: "Name",
+    categoryLabel: "Category",
+    descriptionLabel: "Description",
+    saved: "Template updated.",
+    error: "Could not update the template.",
+  },
+  deleteDialog: {
+    title: (name: string | undefined) => `Delete the template "${name}"?`,
+    description: "Flows already created from it are not affected. This action cannot be undone.",
+    deleted: "Template deleted.",
+    error: "Could not delete the template.",
+  },
   catalog: {
     "suporte-ia": {
       name: "AI Support",

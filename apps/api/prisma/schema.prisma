@@ -68,6 +68,7 @@ model Workspace {
   aiSuggestions  AiSuggestion[]
   nodePresets    NodePreset[]
   alertSetting   WorkspaceAlertSetting?
+  templates      Template[]
 
   @@map("workspaces")
 }
@@ -356,16 +357,20 @@ model Agent {
   @@map("agents")
 }
 
-/// Catalogo global de templates oficiais — excecao deliberada ao ADR-006:
-/// nao carrega workspace_id porque e compartilhado entre todos os workspaces.
+/// Templates: workspace_id NULL = catalogo global seedado; preenchido = do
+/// workspace (ADR-006). Listagem = globais + do workspace atual.
 model Template {
   id          String   @id @default(uuid())
+  workspaceId String?  @map("workspace_id")
   name        String
   description String
   category    String
   graph       Json
   createdAt   DateTime @default(now()) @map("created_at")
 
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
   @@map("templates")
 }
 
