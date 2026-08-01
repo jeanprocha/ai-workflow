@@ -5,12 +5,22 @@ import type { WorkflowEdge, WorkflowGraph, WorkflowNode } from '@workflow/shared
  * pacotes ("type": "module"), incompativel com o ts-jest do api em CJS —
  * mesma familia de mock de templates.service.spec.ts/engine.service.spec.ts.
  */
-const KNOWN_TYPES = ['trigger.manual', 'logic.log', 'logic.merge', 'logic.if'];
+const KNOWN_TYPES = [
+  'trigger.manual',
+  'trigger.chat',
+  'logic.log',
+  'logic.merge',
+  'logic.if',
+  'approval.human',
+];
 jest.mock('@workflow/nodes/catalog', () => ({
   getCatalogEntry: (type: string) =>
     KNOWN_TYPES.includes(type) ? { type } : undefined,
 }));
-jest.mock('@workflow/shared', () => ({ ERROR_HANDLE: 'error' }));
+jest.mock('@workflow/shared', () => ({
+  ERROR_HANDLE: 'error',
+  APPROVAL_NODE_TYPE: 'approval.human',
+}));
 
 import { workflowGraphSchema } from './graph.schema';
 
@@ -86,6 +96,38 @@ describe('workflowGraphSchema (H2-05: edge de erro orfa)', () => {
     );
 
     expect(result.success).toBe(false);
+  });
+
+  it('H2-06: rejeita approval.human combinado com trigger.chat no mesmo grafo', () => {
+    const result = workflowGraphSchema.safeParse(
+      graph(
+        [
+          node('T', 'trigger.chat', { category: 'trigger' }),
+          node('A', 'approval.human'),
+        ],
+        [edge('T', 'A')],
+      ),
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.path).toEqual(['nodes', 1, 'type']);
+      expect(result.error.issues[0]?.message).toContain('Chat');
+    }
+  });
+
+  it('H2-06: aceita approval.human num grafo sem trigger.chat', () => {
+    const result = workflowGraphSchema.safeParse(
+      graph(
+        [
+          node('T', 'trigger.manual', { category: 'trigger' }),
+          node('A', 'approval.human'),
+        ],
+        [edge('T', 'A')],
+      ),
+    );
+
+    expect(result.success).toBe(true);
   });
 
   it('regressao: continua rejeitando tipo de node desconhecido e edge com id inexistente', () => {

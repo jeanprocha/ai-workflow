@@ -95,6 +95,15 @@ export const STATIC_TRANSLATIONS: Record<string, string> = {
     'A flow cannot be its own error-handling flow.',
   'Fluxo de tratamento de erro nao encontrado neste workspace.':
     'Error-handling flow not found in this workspace.',
+  // H2-06 — aprovacao humana (pausa duravel).
+  'Link de aprovacao invalido.': 'Invalid approval link.',
+  'Aprovacao nao encontrada.': 'Approval not found.',
+  'Esta aprovacao ja foi decidida ou expirou.':
+    'This approval has already been decided or has expired.',
+  'Este link de aprovacao e invalido, ja foi decidido ou expirou.':
+    'This approval link is invalid, was already decided, or has expired.',
+  'Esta execucao esta aguardando uma decisao de aprovacao — decida (ou aguarde o timeout) antes de tentar novamente.':
+    'This execution is waiting on an approval decision — decide (or wait for the timeout) before trying again.',
 };
 
 /** Mensagens com valor interpolado (nome, id, erro concatenado) — regex + template. */

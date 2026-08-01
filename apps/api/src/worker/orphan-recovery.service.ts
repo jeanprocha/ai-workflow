@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ExecutionEventsService } from '../execution-events/execution-events.service';
 import { ErrorWorkflowService } from '../executions/error-workflow.service';
+import { ApprovalsService } from '../approvals/approvals.service';
 
 const ORPHAN_THRESHOLD_MS = Number(
   process.env.ORPHAN_EXECUTION_THRESHOLD_MS ?? 10 * 60_000,
@@ -32,12 +33,17 @@ export class OrphanRecoveryService implements OnApplicationBootstrap {
     private readonly prisma: PrismaService,
     private readonly events: ExecutionEventsService,
     private readonly errorWorkflows: ErrorWorkflowService,
+    private readonly approvals: ApprovalsService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     const cutoff = new Date(Date.now() - ORPHAN_THRESHOLD_MS);
+    // H2-06: runStartedAt (nao startedAt, que e imutavel) — uma execucao
+    // retomada apos dias em waiting_approval teria startedAt antigo e seria
+    // falsamente elegivel aqui no proximo boot do worker. runStartedAt e
+    // regravado em TODO claim atomico (inicial e retomada, engine.service.ts).
     const orphans = await this.prisma.execution.findMany({
-      where: { status: 'running', startedAt: { lt: cutoff } },
+      where: { status: 'running', runStartedAt: { lt: cutoff } },
       select: { id: true },
     });
 
@@ -65,6 +71,11 @@ export class OrphanRecoveryService implements OnApplicationBootstrap {
       // H2-05: worker morto tambem e uma falha real do fluxo — sem isso, uma
       // execucao orfa nunca disparava o tratador (nem o alerting, de resto).
       void this.errorWorkflows.dispatchForFailedExecution(orphan.id);
+      // H2-06: fecha qualquer Approval aberta desta execucao orfa — o `where
+      // status:'running'` acima ja exclui waiting_approval de proposito
+      // (pausada legitima), mas cobre o caso em que a Approval foi criada
+      // (RPC ja respondeu) e o worker morreu antes de virar o status.
+      await this.approvals.voidOpenApprovals(orphan.id);
     }
   }
 }

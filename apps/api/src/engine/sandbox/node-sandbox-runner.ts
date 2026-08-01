@@ -30,6 +30,12 @@ export interface SandboxCtxHandlers {
     args: unknown,
   ) => Promise<unknown>;
   sendChatMessage: (content: string) => Promise<void>;
+  /** H2-06: cria a pendencia de aprovacao e devolve o link publico de decisao. */
+  requestApproval: (params: {
+    title: string;
+    timeoutHours: number;
+    onTimeout: 'approve' | 'reject';
+  }) => Promise<{ approvalId: string; url: string }>;
 }
 
 export interface SandboxOptions {
@@ -86,17 +92,20 @@ function sandboxEnv(): NodeJS.Dict<string> {
 export class NodeSandboxRunner {
   private readonly logger = new Logger(NodeSandboxRunner.name);
 
-  run(
-    nodeType: string,
-    resolvedConfig: unknown,
-    input: unknown,
-    vars: Record<string, unknown>,
-    handlers: SandboxCtxHandlers,
-    options: SandboxOptions,
-  ): Promise<SandboxResult> {
+  run(params: {
+    nodeType: string;
+    resolvedConfig: unknown;
+    input: unknown;
+    vars: Record<string, unknown>;
+    /** H2-06: presente so na retomada pos-pausa. */
+    resumeData?: unknown;
+    handlers: SandboxCtxHandlers;
+    options: SandboxOptions;
+  }): Promise<SandboxResult> {
+    const { nodeType, resolvedConfig, input, vars, resumeData, handlers, options } = params;
     return new Promise((resolve) => {
       const worker = new Worker(ENTRY_PATH, {
-        workerData: { nodeType, config: resolvedConfig, input, vars },
+        workerData: { nodeType, config: resolvedConfig, input, vars, resumeData },
         env: sandboxEnv(),
         resourceLimits: {
           maxOldGenerationSizeMb: options.memoryLimitMb,
@@ -214,6 +223,15 @@ export class NodeSandboxRunner {
           break;
         case 'sendChatMessage':
           result = await handlers.sendChatMessage(call.args[0] as string);
+          break;
+        case 'requestApproval':
+          result = await handlers.requestApproval(
+            call.args[0] as {
+              title: string;
+              timeoutHours: number;
+              onTimeout: 'approve' | 'reject';
+            },
+          );
           break;
       }
       const reply: CtxRpcReply = {

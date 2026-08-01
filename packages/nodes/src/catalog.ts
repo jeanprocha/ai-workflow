@@ -12,6 +12,7 @@ import { manualTriggerNode } from "./definitions/manual-trigger.js";
 import { webhookTriggerNode } from "./definitions/webhook-trigger.js";
 import { cronTriggerNode } from "./definitions/cron-trigger.js";
 import { chatTriggerNode } from "./definitions/chat-trigger.js";
+import { errorTriggerNode } from "./definitions/error-trigger.js";
 import { chatReplyNode } from "./definitions/chat-reply.js";
 import { httpRequestMeta } from "./definitions/http-request.meta.js";
 import { ifNode } from "./definitions/if.js";
@@ -23,7 +24,9 @@ import { delayNode } from "./definitions/delay.js";
 import { mergeNode } from "./definitions/merge.js";
 import { parallelNode } from "./definitions/parallel.js";
 import { logNode } from "./definitions/log.js";
+import { codeMeta } from "./definitions/code.meta.js";
 import { graphqlRequestNode } from "./definitions/graphql-request.js";
+import { apiRespondNode } from "./definitions/api-respond.js";
 import { csvParseNode } from "./definitions/csv-parse.js";
 import { txtReadNode } from "./definitions/txt-read.js";
 import { jsonParseNode } from "./definitions/json-parse.js";
@@ -55,6 +58,7 @@ import { googleDriveListFilesMeta } from "./definitions/google-drive-list-files.
 import { linearCreateIssueNode } from "./definitions/linear-create-issue.js";
 import { whatsappSendMessageNode } from "./definitions/whatsapp-send-message.js";
 import { teamsMessageNode } from "./definitions/teams-message.js";
+import { approvalHumanMeta } from "./definitions/approval-human.meta.js";
 
 export interface NodeCatalogEntry {
   type: string;
@@ -91,6 +95,7 @@ export const NODE_CATALOG: readonly NodeCatalogEntry[] = [
   webhookTriggerNode,
   cronTriggerNode,
   chatTriggerNode,
+  errorTriggerNode,
   chatReplyNode,
   httpRequestMeta,
   ifNode,
@@ -102,11 +107,13 @@ export const NODE_CATALOG: readonly NodeCatalogEntry[] = [
   mergeNode,
   parallelNode,
   logNode,
+  codeMeta,
   postgresQueryMeta,
   mysqlQueryMeta,
   redisCommandMeta,
   mongodbQueryMeta,
   graphqlRequestNode,
+  apiRespondNode,
   csvParseNode,
   pdfParseMeta,
   docxParseMeta,
@@ -134,6 +141,7 @@ export const NODE_CATALOG: readonly NodeCatalogEntry[] = [
   linearCreateIssueNode,
   whatsappSendMessageNode,
   teamsMessageNode,
+  approvalHumanMeta,
 ].map(toEntry);
 
 export function getCatalogEntry(type: string): NodeCatalogEntry | undefined {

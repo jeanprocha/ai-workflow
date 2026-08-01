@@ -5,6 +5,8 @@ export const EXECUTIONS_QUEUE = 'executions';
 export const INGESTION_QUEUE = 'ingestion';
 export const MCP_HEALTH_QUEUE = 'mcp-health';
 export const SCHEDULES_QUEUE = 'schedules';
+/** H2-06: sweeper de aprovacoes vencidas + decididas-mas-nunca-enfileiradas. */
+export const APPROVALS_QUEUE = 'approvals';
 
 @Module({
   imports: [
@@ -27,6 +29,7 @@ export const SCHEDULES_QUEUE = 'schedules';
     BullModule.registerQueue({ name: INGESTION_QUEUE }),
     BullModule.registerQueue({ name: MCP_HEALTH_QUEUE }),
     BullModule.registerQueue({ name: SCHEDULES_QUEUE }),
+    BullModule.registerQueue({ name: APPROVALS_QUEUE }),
   ],
   exports: [BullModule],
 })

@@ -262,6 +262,8 @@ model NodePreset {
 enum ExecutionStatus {
   queued
   running
+  /** H2-06: pausada num node de aprovacao humana, esperando decisao (ou timeout do sweeper). */
+  waiting_approval
   success
   failed
   canceled
@@ -294,18 +296,98 @@ model Execution {
   traceId           String?         @map("trace_id")
   /** Node a partir do qual esta execucao foi um replay parcial, se houver. */
   replayFromNodeId  String?         @map("replay_from_node_id")
+  /**
+   * H2-06: gravado em TODO claim (enfileiramento inicial e cada retomada pos-
+   * pausa) — e o que o orphan recovery usa pra decidir "travou" em vez de
+   * `startedAt`, que nunca muda e faria uma execucao retomada virar elegivel
+   * a ser morta no proximo boot de worker.
+   */
+  runStartedAt          DateTime? @map("run_started_at")
+  suspendedAt           DateTime? @map("suspended_at")
+  /** Soma do tempo de execucao real (fora das pausas) — sem isso, durationMs contaria os dias parados. */
+  elapsedMsBeforePause  Int?      @map("elapsed_ms_before_pause")
 
-  workflow      Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  version       WorkflowVersion @relation(fields: [versionId], references: [id])
+  workflow      Workflow             @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  version       WorkflowVersion      @relation(fields: [versionId], references: [id])
   steps         ExecutionStep[]
   logs          ExecutionLog[]
-  parent        Execution?      @relation("Replay", fields: [parentExecutionId], references: [id])
-  replays       Execution[]     @relation("Replay")
+  parent        Execution?           @relation("Replay", fields: [parentExecutionId], references: [id])
+  replays       Execution[]          @relation("Replay")
   aiSuggestions AiSuggestion[]
+  pausedState   ExecutionPausedState?
+  approvals     Approval[]
 
   @@index([workflowId])
   @@index([traceId])
   @@map("executions")
+}
+
+/**
+ * H2-06: frontier da engine (nodeOutputs/vars/executed/mergeBuffers/...)
+ * enquanto a execucao esta `waiting_approval`. Tabela separada, NAO coluna em
+ * Execution: executions.service.ts:list() usa `include` sem `select`, e uma
+ * coluna Json aqui devolveria ate 100 blobs de frontier por pagina — a
+ * relacao so vem quando alguem pede explicitamente.
+ */
+model ExecutionPausedState {
+  executionId String   @id @map("execution_id")
+  version     Int      @default(1)
+  state       Json
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  execution Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@map("execution_paused_states")
+}
+
+/** O que de fato aconteceu — "void" e usado quando a execucao termina (por qualquer caminho) com a aprovacao ainda aberta. */
+enum ApprovalDecisionValue {
+  approved
+  rejected
+  void
+}
+
+/** O que fazer quando o prazo estoura sem decisao — subconjunto deliberado de ApprovalDecisionValue (nunca "void"). */
+enum ApprovalTimeoutAction {
+  approve
+  reject
+}
+
+/**
+ * H2-06: pendencia criada pelo RPC ctx.requestApproval (node approval.human).
+ * `@@unique([executionId, nodeId])` fecha a janela de retry do sandbox: se o
+ * worker morrer DEPOIS do RPC criar a linha mas ANTES do node terminar, a
+ * proxima tentativa cai no mesmo par e ROTACIONA o token em vez de duplicar
+ * (ver ApprovalsService.create) — "so o ultimo link vale" e documentado.
+ */
+model Approval {
+  id          String    @id @default(uuid())
+  executionId String    @map("execution_id")
+  /** Denormalizado do Workflow — evita join pra listar/filtrar por workspace (GET /approvals). */
+  workspaceId String    @map("workspace_id")
+  nodeId      String    @map("node_id")
+  title       String
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at")
+  onTimeout   ApprovalTimeoutAction @default(reject) @map("on_timeout")
+
+  decidedAt  DateTime?              @map("decided_at")
+  decision   ApprovalDecisionValue?
+  decidedBy  String?                @map("decided_by")
+  comment    String?
+
+  /** Preenchido so depois que executions.enqueueResume() de fato enfileirou — o sweeper reenfileira se ficar null (worker morreu entre decidir e enfileirar). */
+  resumeEnqueuedAt DateTime? @map("resume_enqueued_at")
+  resumeAttempts   Int       @default(0) @map("resume_attempts")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  execution Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@unique([executionId, nodeId])
+  @@index([workspaceId, decidedAt])
+  @@index([decidedAt, expiresAt])
+  @@map("approvals")
 }
 
 model ExecutionStep {

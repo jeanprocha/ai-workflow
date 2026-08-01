@@ -3,6 +3,7 @@ import { manualTriggerNode } from "./definitions/manual-trigger.js";
 import { webhookTriggerNode } from "./definitions/webhook-trigger.js";
 import { cronTriggerNode } from "./definitions/cron-trigger.js";
 import { chatTriggerNode } from "./definitions/chat-trigger.js";
+import { errorTriggerNode } from "./definitions/error-trigger.js";
 import { chatReplyNode } from "./definitions/chat-reply.js";
 import { httpRequestNode } from "./definitions/http-request.js";
 import { ifNode } from "./definitions/if.js";
@@ -14,11 +15,13 @@ import { switchNode } from "./definitions/switch.js";
 import { delayNode } from "./definitions/delay.js";
 import { mergeNode } from "./definitions/merge.js";
 import { parallelNode } from "./definitions/parallel.js";
+import { codeNode } from "./definitions/code.js";
 import { postgresQueryNode } from "./definitions/postgres-query.js";
 import { mysqlQueryNode } from "./definitions/mysql-query.js";
 import { redisCommandNode } from "./definitions/redis-command.js";
 import { mongodbQueryNode } from "./definitions/mongodb-query.js";
 import { graphqlRequestNode } from "./definitions/graphql-request.js";
+import { apiRespondNode } from "./definitions/api-respond.js";
 import { csvParseNode } from "./definitions/csv-parse.js";
 import { pdfParseNode } from "./definitions/pdf-parse.js";
 import { docxParseNode } from "./definitions/docx-parse.js";
@@ -46,12 +49,14 @@ import { googleDriveListFilesNode } from "./definitions/google-drive-list-files.
 import { linearCreateIssueNode } from "./definitions/linear-create-issue.js";
 import { whatsappSendMessageNode } from "./definitions/whatsapp-send-message.js";
 import { teamsMessageNode } from "./definitions/teams-message.js";
+import { approvalHumanNode } from "./definitions/approval-human.js";
 
 export const NODE_DEFINITIONS: readonly NodeDefinition<never>[] = [
   manualTriggerNode,
   webhookTriggerNode,
   cronTriggerNode,
   chatTriggerNode,
+  errorTriggerNode,
   chatReplyNode,
   httpRequestNode,
   ifNode,
@@ -63,11 +68,13 @@ export const NODE_DEFINITIONS: readonly NodeDefinition<never>[] = [
   mergeNode,
   parallelNode,
   logNode,
+  codeNode,
   postgresQueryNode,
   mysqlQueryNode,
   redisCommandNode,
   mongodbQueryNode,
   graphqlRequestNode,
+  apiRespondNode,
   csvParseNode,
   pdfParseNode,
   docxParseNode,
@@ -95,6 +102,7 @@ export const NODE_DEFINITIONS: readonly NodeDefinition<never>[] = [
   linearCreateIssueNode,
   whatsappSendMessageNode,
   teamsMessageNode,
+  approvalHumanNode,
 ] as unknown as NodeDefinition<never>[];
 
 const registry = new Map<string, NodeDefinition<never>>(

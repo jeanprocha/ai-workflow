@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { SentryModule } from '@sentry/nestjs/setup';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ObservabilityModule } from './observability/observability.module';
@@ -33,9 +35,31 @@ import { CostOptimizerModule } from './cost-optimizer/cost-optimizer.module';
 import { CopilotModule } from './copilot/copilot.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { FlowApiModule } from './flow-api/flow-api.module';
+import { ApprovalsModule } from './approvals/approvals.module';
+
+/**
+ * H1.1 (hardening): limite generoso por padrao (protege contra flood/DoS
+ * acidental), apertado por rota via @Throttle nos endpoints de auth
+ * (auth.controller.ts). Fora de producao o default e bem mais folgado —
+ * sem isso a suite E2E (que registra/loga dezenas de usuarios em minutos)
+ * tomaria 429 no meio dos testes.
+ */
+function throttlerConfig() {
+  const isProd = process.env.NODE_ENV === 'production';
+  return [
+    {
+      name: 'default',
+      ttl: Number(process.env.THROTTLE_TTL_MS ?? 60_000),
+      limit: Number(process.env.THROTTLE_LIMIT ?? (isProd ? 100 : 2000)),
+    },
+  ];
+}
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
+    ThrottlerModule.forRoot(throttlerConfig()),
     ObservabilityModule,
     PrismaModule,
     CacheModule,
@@ -64,10 +88,15 @@ import { AlertsModule } from './alerts/alerts.module';
     CopilotModule,
     AlertsModule,
     TelemetryModule,
+    FlowApiModule,
+    ApprovalsModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    // ThrottlerGuard antes do JwtAuthGuard: uma request que estoura o limite
+    // leva 429 sem gastar verificacao de JWT.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_INTERCEPTOR, useClass: AuthContextInterceptor },
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },

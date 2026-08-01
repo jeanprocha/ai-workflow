@@ -165,6 +165,25 @@ export class ExecutionsService {
     });
   }
 
+  /**
+   * H2-06: retomada pos-pausa — enfileira um job pra uma Execution JA
+   * EXISTENTE (ao contrario de createAndEnqueue, que sempre cria uma nova
+   * linha). Quem chama (endpoint de decisao de aprovacao, sweeper de
+   * timeout) ja fez o consumo atomico da decisao antes disto — aqui e so o
+   * enfileiramento; engine.run() e quem sabe restaurar o frontier a partir
+   * de ExecutionPausedState.
+   */
+  async enqueueResume(
+    executionId: string,
+    nodeId: string,
+    data: unknown,
+  ): Promise<void> {
+    await this.queue.add(
+      'run',
+      withJobContext({ executionId, resume: { nodeId, data } }),
+    );
+  }
+
   private async createAndEnqueue(params: {
     workflowId: string;
     versionId: string | null;
@@ -267,9 +286,24 @@ export class ExecutionsService {
     return execution;
   }
 
+  /**
+   * H2-06: 409 pra retry/replay de uma execucao waiting_approval — sem isto,
+   * o node de aprovacao rodaria de novo (2o e-mail, 2a Approval) enquanto a
+   * ORIGINAL continua pausada esperando a mesma decisao. O usuario decide
+   * (ou deixa o sweeper aplicar o timeout) antes de tentar de novo.
+   */
+  private assertNotWaitingApproval(execution: { status: string }): void {
+    if (execution.status === 'waiting_approval') {
+      throw new ConflictException(
+        'Esta execucao esta aguardando uma decisao de aprovacao — decida (ou aguarde o timeout) antes de tentar novamente.',
+      );
+    }
+  }
+
   /** Re-executa a mesma execucao do zero, com o mesmo input original. */
   async retry(workspaceId: string, id: string) {
     const original = await this.findOne(workspaceId, id);
+    this.assertNotWaitingApproval(original);
     return this.createAndEnqueue({
       workflowId: original.workflowId,
       versionId: original.versionId,
@@ -286,6 +320,7 @@ export class ExecutionsService {
    */
   async replay(workspaceId: string, id: string, dto: ReplayExecutionDto) {
     const original = await this.findOne(workspaceId, id);
+    this.assertNotWaitingApproval(original);
 
     if (dto.fromNodeId) {
       // O node de partida do replay parcial e tipicamente o que falhou —

@@ -34,6 +34,12 @@ export type ExecutionEvent =
       type: 'execution.completed';
       executionId: string;
       status: 'success' | 'failed';
+    }
+  | {
+      /** H2-06: execucao pausada (waiting_approval) — trata como fim de stream, igual completed. */
+      type: 'execution.suspended';
+      executionId: string;
+      nodeIds: string[];
     };
 
 const CHANNEL_PREFIX = 'execution-events:';
@@ -119,7 +125,15 @@ export class ExecutionEventsService implements OnModuleDestroy {
       this.metrics.sseActiveConnections.inc();
       const unsubscribe = this.subscribe(executionId, (event) => {
         subscriber.next({ data: event });
-        if (event.type === 'execution.completed') subscriber.complete();
+        // H2-06: pausada tambem fecha o stream — sem isso, uma aba aberta
+        // numa execucao que vai esperar dias por uma decisao humana
+        // manteria a subscription Redis + heartbeat de 15s vivos por dias.
+        if (
+          event.type === 'execution.completed' ||
+          event.type === 'execution.suspended'
+        ) {
+          subscriber.complete();
+        }
       });
       const heartbeat = setInterval(() => {
         subscriber.next({

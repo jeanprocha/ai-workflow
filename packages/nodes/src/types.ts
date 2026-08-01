@@ -47,6 +47,40 @@ export interface NodeExecutionContext<Config = Record<string, unknown>> {
    * no-op silencioso que nunca entrega a mensagem.
    */
   sendChatMessage: (content: string) => Promise<void>;
+  /**
+   * Cria a pendencia de aprovacao (H2-06) e devolve o link publico de
+   * decisao — o proprio node e quem avisa o aprovador (ex.: por e-mail),
+   * a engine so persiste a linha. Chamar de novo com o mesmo executionId/
+   * nodeId (retry apos o sandbox morrer pos-RPC) ROTACIONA o token: o link
+   * anterior, se chegou a ser enviado, para de valer.
+   */
+  requestApproval: (params: {
+    title: string;
+    timeoutHours: number;
+    onTimeout: "approve" | "reject";
+  }) => Promise<{ approvalId: string; url: string }>;
+  /**
+   * Preenchido pela engine SO na retomada apos uma pausa (`suspend` na
+   * chamada anterior deste mesmo node): o dado da decisao (ex.: aprovado?
+   * comentario?). `undefined` na primeira passada — e o sinal que o node usa
+   * pra saber se deve suspender ou processar a decisao (H2-06).
+   */
+  resumeData?: unknown;
+}
+
+/**
+ * Sinal generico de pausa (H2-06) — a engine NUNCA interpreta o conteudo,
+ * so usa `ref` pra reidentificar o node na retomada e loga/emite `reason`/
+ * `label`. Quem da semantica a pausa (ex.: "e uma aprovacao humana") e o
+ * node, via o RPC que ele chamou antes de devolver o suspend.
+ */
+export interface SuspendDescriptor {
+  /** Por que suspendeu — vira log/evento, nunca interpretado pela engine. */
+  reason: string;
+  /** Identificador da pendencia no dominio do node (ex.: id da Approval). */
+  ref: string;
+  /** Rotulo curto pra UI (ex.: titulo da aprovacao). */
+  label?: string;
 }
 
 export interface NodeExecutionResult {
@@ -61,6 +95,12 @@ export interface NodeExecutionResult {
   varsPatch?: Record<string, unknown>;
   /** Nodes de IA preenchem isto — a engine grava em execution_steps e soma no total da execucao. */
   usage?: { tokens: number; model: string; costUsd: number };
+  /**
+   * Presente = "pausar aqui" (H2-06). A engine nao roteia nada a partir
+   * deste node ate a retomada; `output`/`branches`/`varsPatch` sao
+   * ignorados quando `suspend` esta presente.
+   */
+  suspend?: SuspendDescriptor;
 }
 
 export interface NodeDefinition<Config = Record<string, unknown>> {

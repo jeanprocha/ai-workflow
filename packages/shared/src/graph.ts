@@ -35,6 +35,13 @@ export interface WorkflowNode {
 /** sourceHandle reservado para o caminho de erro (onError:'branch'). */
 export const ERROR_HANDLE = "error";
 
+/**
+ * H2-06: type do node de aprovacao humana — compartilhado entre o catalogo
+ * (packages/nodes) e o gate de graph.schema.ts (bloqueia combinar com
+ * trigger.chat, ver ADR-011) pra nao dessincronizar as duas pontas.
+ */
+export const APPROVAL_NODE_TYPE = "approval.human";
+
 export interface WorkflowEdge {
   id: string;
   source: string;

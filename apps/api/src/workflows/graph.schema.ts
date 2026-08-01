@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { ERROR_HANDLE, type WorkflowGraph } from '@workflow/shared';
+import {
+  APPROVAL_NODE_TYPE,
+  ERROR_HANDLE,
+  type WorkflowGraph,
+} from '@workflow/shared';
 import { getCatalogEntry } from '@workflow/nodes/catalog';
 
 const nodeCategorySchema = z.enum([
@@ -63,6 +67,28 @@ export const workflowGraphSchema = workflowGraphShape.superRefine(
         });
       }
     });
+
+    // H2-06: aprovacao humana bloqueada em fluxos disparados por Chat (v1) —
+    // conversation.state so e persistido no bloco terminal de engine.run()
+    // (ver comentario la), e uma 2a mensagem do visitante durante a pausa
+    // causaria lost update silencioso no $vars da conversa. Mesmo precedente
+    // do refine de ERROR_HANDLE acima: regra cross-cutting que nao cabe no
+    // configSchema de um node isolado.
+    const hasChatTrigger = graph.nodes.some(
+      (node) => node.type === 'trigger.chat',
+    );
+    if (hasChatTrigger) {
+      graph.nodes.forEach((node, index) => {
+        if (node.type === APPROVAL_NODE_TYPE) {
+          ctx.addIssue({
+            code: 'custom',
+            message:
+              'Aprovacao humana nao e suportada em fluxos disparados por Chat (v1).',
+            path: ['nodes', index, 'type'],
+          });
+        }
+      });
+    }
 
     graph.edges.forEach((edge, index) => {
       if (!nodesById.has(edge.source)) {

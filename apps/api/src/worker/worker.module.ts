@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SentryModule } from '@sentry/nestjs/setup';
 import { ObservabilityModule } from '../observability/observability.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CacheModule } from '../cache/cache.module';
@@ -13,6 +14,8 @@ import { McpModule } from '../mcp/mcp.module';
 import { McpHealthProcessor } from '../mcp/mcp-health.processor';
 import { SchedulerModule } from '../scheduler/scheduler.module';
 import { ScheduleProcessor } from '../scheduler/schedule.processor';
+import { ApprovalsModule } from '../approvals/approvals.module';
+import { ApprovalsSweepProcessor } from '../approvals/approvals-sweep.processor';
 import { OrphanRecoveryService } from './orphan-recovery.service';
 import { WorkerHeartbeatService } from './worker-heartbeat.service';
 
@@ -30,6 +33,7 @@ import { WorkerHeartbeatService } from './worker-heartbeat.service';
  */
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ObservabilityModule,
     PrismaModule,
     CacheModule,
@@ -40,12 +44,14 @@ import { WorkerHeartbeatService } from './worker-heartbeat.service';
     KnowledgeModule,
     McpModule,
     SchedulerModule,
+    ApprovalsModule,
   ],
   providers: [
     ExecutionsProcessor,
     IngestionProcessor,
     McpHealthProcessor,
     ScheduleProcessor,
+    ApprovalsSweepProcessor,
     OrphanRecoveryService,
     WorkerHeartbeatService,
   ],

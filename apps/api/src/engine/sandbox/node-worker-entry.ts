@@ -115,6 +115,8 @@ async function run(): Promise<void> {
       callMcpTool: (mcpServerId, toolName, args) =>
         callMain('callMcpTool', [mcpServerId, toolName, args]),
       sendChatMessage: (content) => callMain('sendChatMessage', [content]),
+      requestApproval: (params) => callMain('requestApproval', [params]),
+      resumeData: data.resumeData,
     });
 
     const result: SandboxResult = {
@@ -124,6 +126,9 @@ async function run(): Promise<void> {
       branches: executionResult.branches,
       varsPatch: executionResult.varsPatch,
       usage: executionResult.usage,
+      // H2-06: sem esta linha, um node que devolve `suspend` teria o sinal
+      // descartado em silencio aqui — a copia e campo a campo de proposito.
+      suspend: executionResult.suspend,
     };
     port.postMessage(result);
   } catch (error) {
