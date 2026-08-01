@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -85,6 +86,60 @@ export class ExecutionsService {
       triggerType: 'chat',
       inputPayload,
     });
+  }
+
+  /**
+   * Invoke autenticado por chave de API (H2-04, POST /v1/flows/:id/invoke).
+   * O workflow ja foi resolvido pelo FlowApiKeyGuard (a chave e escopada a um
+   * workflowId) — aqui so falta o gate de status e o enqueue, mesmo papel
+   * que triggerChat tem pro chatToken. Mais estrito que triggerByWebhook de
+   * proposito: draft nao dispara pela API publica (o dono da chave nao esta
+   * testando, esta em producao), e o erro e explicito (409, nao um 404
+   * opaco) — quem tem a chave nao e um atacante tentando descobrir o fluxo.
+   */
+  async triggerByApiKey(workflowId: string, inputPayload: unknown) {
+    const workflow = await this.prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { id: true, status: true, currentVersionId: true },
+    });
+    if (!workflow) {
+      throw new NotFoundException('Fluxo nao encontrado.');
+    }
+    if (workflow.status !== 'active') {
+      throw new ConflictException(
+        'Este fluxo nao esta ativo. Ative-o no editor para publicar como API.',
+      );
+    }
+    return this.createAndEnqueue({
+      workflowId: workflow.id,
+      versionId: workflow.currentVersionId,
+      triggerType: 'webhook',
+      inputPayload,
+    });
+  }
+
+  /**
+   * GET de resultado do invoke publicado (H2-04). Os dois ids no `where` —
+   * nao so o executionId — sao o gate: uma chave do fluxo A nunca enxerga
+   * uma execucao do fluxo B, mesmo sabendo o id (que nao e secreto, aparece
+   * na propria resposta do invoke).
+   */
+  async findByApiKey(workflowId: string, executionId: string) {
+    const execution = await this.prisma.execution.findFirst({
+      where: { id: executionId, workflowId },
+      select: {
+        id: true,
+        status: true,
+        versionId: true,
+        outputPayload: true,
+        error: true,
+        durationMs: true,
+      },
+    });
+    if (!execution) {
+      throw new NotFoundException('Execucao nao encontrada.');
+    }
+    return execution;
   }
 
   private async createAndEnqueue(params: {

@@ -5,6 +5,8 @@ declare global {
     interface Request {
       workspaceId?: string;
       workspaceRole?: WorkspaceRole;
+      /** H2-04: preenchido pelo FlowApiKeyGuard (rotas publicas v1/flows). */
+      flowApiKey?: { id: string; workflowId: string };
     }
   }
 }

@@ -130,9 +130,34 @@ model Workflow {
   executions     Execution[]
   aiSuggestions  AiSuggestion[]
   conversations  Conversation[]
+  apiKeys        WorkflowApiKey[]
 
   @@index([workspaceId])
   @@map("workflows")
+}
+
+/**
+ * H2-04: chave de API por fluxo (POST /v1/flows/:id/invoke). Valor bruto
+ * (wfk_ + 32 bytes hex) so existe na resposta da criacao; aqui so o sha256 —
+ * dump do banco nao habilita nada. Lookup por indice unico no hash dispensa
+ * timingSafeEqual (nao ha comparacao byte a byte de segredo — mesmo padrao
+ * de tokens tipo GitHub). Revogar = revokedAt, nunca hard delete
+ * (auditabilidade). Multiplas chaves ativas por fluxo = rotacao sem downtime.
+ */
+model WorkflowApiKey {
+  id         String    @id @default(uuid())
+  workflowId String    @map("workflow_id")
+  name       String
+  keyHash    String    @unique @map("key_hash")
+  lastFour   String    @map("last_four")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  revokedAt  DateTime? @map("revoked_at")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+  @@map("workflow_api_keys")
 }
 
 model WorkflowVersion {

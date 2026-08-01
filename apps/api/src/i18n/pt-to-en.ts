@@ -83,6 +83,13 @@ export const STATIC_TRANSLATIONS: Record<string, string> = {
     'A preset with this name already exists for this node type.',
   'Ja existe um template com este nome neste workspace.':
     'A template with this name already exists in this workspace.',
+  // H2-04 — publicar fluxo como API (guard/controller de v1/flows/*).
+  'Chave de API invalida ou revogada.': 'Invalid or revoked API key.',
+  'Este fluxo nao esta ativo. Ative-o no editor para publicar como API.':
+    'This flow is not active. Activate it in the editor to publish it as an API.',
+  'Limite de requisicoes desta chave excedido. Tente novamente em instantes.':
+    'This key has exceeded its request limit. Please try again shortly.',
+  'Chave de API nao encontrada.': 'API key not found.',
 };
 
 /** Mensagens com valor interpolado (nome, id, erro concatenado) — regex + template. */
