@@ -38,11 +38,49 @@ export interface SandboxOptions {
 }
 
 /**
+ * Allowlist, nao denylist: um segredo novo nasce protegido por default (ex.:
+ * SECRETS_ENCRYPTION_KEY, DATABASE_URL — sem isso, codigo dentro do worker
+ * decifraria credenciais de qualquer workspace). Fixas: o que @workflow/ai
+ * le DENTRO do worker (packages/ai/src/rate-limiter.ts:REDIS_URL,
+ * providers/ollama.ts:OLLAMA_BASE_URL) + env de runtime/infra que o Node e
+ * libs nativas (pg/mysql2/mongodb, fetch dos SDKs de IA) consomem
+ * implicitamente — cair no allowlist so quebraria em producao (TLS custom,
+ * egress proxy, timezone), nunca localmente.
+ */
+const ENV_ALLOWLIST = [
+  'REDIS_URL',
+  'OLLAMA_BASE_URL',
+  'NODE_ENV',
+  'TZ',
+  'NODE_EXTRA_CA_CERTS',
+  'HTTP_PROXY',
+  'HTTPS_PROXY',
+  'NO_PROXY',
+];
+
+/** AI_RATE_LIMIT_<PROVIDER>_RPM e por provider (rate-limiter.ts) — chave dinamica, nao cabe em lista fixa. */
+const ENV_ALLOWLIST_PREFIX = 'AI_RATE_LIMIT_';
+
+function sandboxEnv(): NodeJS.Dict<string> {
+  const env: NodeJS.Dict<string> = {};
+  for (const key of ENV_ALLOWLIST) {
+    if (process.env[key] != null) env[key] = process.env[key];
+  }
+  for (const key of Object.keys(process.env)) {
+    if (key.startsWith(ENV_ALLOWLIST_PREFIX) && process.env[key] != null) {
+      env[key] = process.env[key];
+    }
+  }
+  return env;
+}
+
+/**
  * Isola a execucao de cada node num worker_thread (ADR-005 v3): timeout duro
  * (worker.terminate(), nao apenas uma race de Promise) + limite de heap via
- * resourceLimits. Callbacks de ctx (getCredential, callAgent, etc.) cruzam a
- * fronteira da thread por RPC via postMessage, ja que so o thread principal
- * tem acesso a Prisma/criptografia/outros services.
+ * resourceLimits + env allowlist (nunca o process.env inteiro). Callbacks de
+ * ctx (getCredential, callAgent, etc.) cruzam a fronteira da thread por RPC
+ * via postMessage, ja que so o thread principal tem acesso a
+ * Prisma/criptografia/outros services.
  */
 @Injectable()
 export class NodeSandboxRunner {
@@ -59,6 +97,7 @@ export class NodeSandboxRunner {
     return new Promise((resolve) => {
       const worker = new Worker(ENTRY_PATH, {
         workerData: { nodeType, config: resolvedConfig, input, vars },
+        env: sandboxEnv(),
         resourceLimits: {
           maxOldGenerationSizeMb: options.memoryLimitMb,
           maxYoungGenerationSizeMb: Math.max(
