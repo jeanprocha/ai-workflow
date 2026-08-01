@@ -12,10 +12,16 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
   },
   "devDependencies": {
+    "@types/ioredis-mock": "^8.2.7",
+    "@types/jest": "^30.0.0",
     "@types/node": "^26.1.1",
+    "ioredis-mock": "^8.13.1",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.2.5",
     "typescript": "^5.7.2"
   },
   "dependencies": {
@@ -25,5 +31,18 @@
     "ioredis": "^5.11.1",
     "openai": "^6.49.0",
     "zod": "^4.4.3"
+  },
+  "jest": {
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "testEnvironment": "node",
+    "transform": {
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.jest.json"
+        }
+      ]
+    }
   }
 }

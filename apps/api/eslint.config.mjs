@@ -32,4 +32,15 @@ export default tseslint.config(
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
+  {
+    // H1.2: expect.objectContaining/stringContaining (jest) tipam como `any`
+    // — atribuir o retorno como valor de propriedade sempre estoura
+    // no-unsafe-assignment/no-unsafe-member-access, mesmo com o teste
+    // correto. Restrito a *.spec.ts (nunca afrouxa codigo de producao).
+    files: ['**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+    },
+  },
 );
