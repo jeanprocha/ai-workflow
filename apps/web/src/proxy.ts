@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"];
-// "/chat" e "/inbox" sao publicos mas NAO sao rotas de auth — um usuario
-// logado acessando um link de chat/inbox nao deve ser chutado pro dashboard
-// (o que aconteceria se entrassem em AUTH_ROUTES, ver o bloco isAuthRoute abaixo).
-const PUBLIC_ROUTES = [...AUTH_ROUTES, "/chat", "/inbox"];
+// "/chat", "/inbox" e "/approve" sao publicos mas NAO sao rotas de auth — um
+// usuario logado acessando um link de chat/inbox/aprovacao nao deve ser
+// chutado pro dashboard (o que aconteceria se entrassem em AUTH_ROUTES, ver
+// o bloco isAuthRoute abaixo).
+const PUBLIC_ROUTES = [...AUTH_ROUTES, "/chat", "/inbox", "/approve"];
 
 export function proxy(request: NextRequest) {
   const hasSession = request.cookies.has("wf_session");
