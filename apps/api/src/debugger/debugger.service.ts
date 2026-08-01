@@ -60,9 +60,13 @@ export interface DiagnosisResult {
 
 /**
  * AI Debugger (Fase 11): analisa uma execucao que falhou e sugere causa +
- * fixes acionaveis (retry/timeout aplicaveis com um clique; fallback fica
- * informativo, ja que a engine e fail-fast e nao tem um mecanismo de
- * fallback entre nodes hoje).
+ * fixes acionaveis, todos aplicaveis com um clique:
+ * - `retry`: grava node.retry.attempts/backoffMs (clamp 1..10 / 0..60s);
+ * - `timeout`: grava a chave de timeout do proprio config do node, quando ele
+ *   tem uma (findTimeoutKey — clamp 1s..120s);
+ * - `fallback`: marca `onError: 'branch'` no node (desde a correcao C3) — o
+ *   usuario ainda precisa conectar a edge de erro no editor pro caminho
+ *   alternativo existir de fato. Nao aplicavel em node de trigger.
  */
 @Injectable()
 export class DebuggerService {

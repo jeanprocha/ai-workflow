@@ -5,7 +5,7 @@ export type ExecutionStatus =
   | "failed"
   | "canceled";
 
-export type TriggerType = "manual" | "webhook" | "cron" | "event";
+export type TriggerType = "manual" | "webhook" | "cron" | "event" | "chat";
 
 export interface Execution {
   id: string;

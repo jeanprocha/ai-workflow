@@ -50,7 +50,14 @@ export class ExecutionsService {
     const workflow = await this.prisma.workflow.findUnique({
       where: { webhookId },
     });
-    if (!workflow) {
+    // Arquivar e o "desligar" do fluxo na UI de /flows — sem esse gate o hook
+    // continuava criando execucoes (e gastando tokens de IA) pra sempre. Mesma
+    // mensagem/status do caso inexistente de proposito: a URL do hook e uma
+    // capability publica, distinguir "nao existe" de "arquivado" vazaria a
+    // existencia do recurso. So `archived` gateia: `draft` continua disparando
+    // (e assim que se testa um fluxo antes de ativar). Execucao manual pelo
+    // editor (trigger() acima) fica de fora deliberadamente.
+    if (!workflow || workflow.status === 'archived') {
       throw new NotFoundException('Webhook nao encontrado.');
     }
     return this.createAndEnqueue({

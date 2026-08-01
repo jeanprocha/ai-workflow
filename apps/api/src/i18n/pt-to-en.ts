@@ -16,6 +16,8 @@ export type Locale = 'pt' | 'en';
 /** Mensagens estaticas (sem interpolacao) — lookup exato. */
 export const STATIC_TRANSLATIONS: Record<string, string> = {
   'Template nao encontrado.': 'Template not found.',
+  'Template invalido ou incompativel com a versao atual.':
+    'Invalid template or incompatible with the current version.',
   'Sugestao invalida para aplicacao.': 'Invalid suggestion to apply.',
   'Informe a credencial do provider de IA.':
     'Provide the AI provider credential.',
@@ -45,6 +47,7 @@ export const STATIC_TRANSLATIONS: Record<string, string> = {
     'An account with this email already exists.',
   'Email ou senha invalidos.': 'Invalid email or password.',
   'Refresh token invalido ou expirado.': 'Invalid or expired refresh token.',
+  'Token invalido ou expirado.': 'Invalid or expired token.',
   'Usuario nao encontrado.': 'User not found.',
   'So e possivel diagnosticar execucoes que falharam.':
     'Only failed executions can be diagnosed.',

@@ -7,6 +7,7 @@ export interface WorkflowSummary {
   name: string;
   status: "draft" | "active" | "archived";
   currentVersionId: string | null;
+  errorWorkflowId?: string | null;
 }
 
 /**
@@ -138,7 +139,9 @@ export interface ExecutionSummary {
   id: string;
   workflowId: string;
   versionId: string;
-  status: "queued" | "running" | "success" | "failed" | "canceled";
+  // Mirror manual de ExecutionStatus (@workflow/shared) — apps/e2e nao
+  // depende do pacote, ver H2-06.
+  status: "queued" | "running" | "waiting_approval" | "success" | "failed" | "canceled";
   triggerType: string;
   parentExecutionId: string | null;
   [key: string]: unknown;
@@ -193,6 +196,37 @@ export async function waitForExecutionStatus(
   }
 }
 
+/**
+ * NAO lanca em resposta nao-ok — quem chama testa tanto o caminho feliz
+ * (200 + nova execucao) quanto a rejeicao (H2-06: 409 pra execucao
+ * waiting_approval, ver ExecutionsService.assertNotWaitingApproval).
+ */
+export async function retryExecutionViaApi(
+  request: APIRequestContext,
+  tokens: AuthTokens,
+  workspaceId: string,
+  executionId: string,
+): Promise<{ status: number; body: ExecutionSummary & { message?: string } }> {
+  const response = await request.post(`${API_URL}/executions/${executionId}/retry`, {
+    headers: workspaceHeaders(tokens, workspaceId),
+  });
+  return { status: response.status(), body: await response.json() };
+}
+
+export async function replayExecutionViaApi(
+  request: APIRequestContext,
+  tokens: AuthTokens,
+  workspaceId: string,
+  executionId: string,
+  data: { input?: unknown; fromNodeId?: string } = {},
+): Promise<{ status: number; body: ExecutionSummary & { message?: string } }> {
+  const response = await request.post(`${API_URL}/executions/${executionId}/replay`, {
+    headers: workspaceHeaders(tokens, workspaceId),
+    data,
+  });
+  return { status: response.status(), body: await response.json() };
+}
+
 export async function createWorkflowViaApi(
   request: APIRequestContext,
   tokens: AuthTokens,
@@ -216,6 +250,73 @@ export interface SavedWorkflow {
   chatToken: string | null;
   inboxToken: string | null;
   [key: string]: unknown;
+}
+
+/** trigger.webhook -> logic.log — grafo minimo pra exercitar POST /hooks/:webhookId. */
+export function webhookGraph() {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.webhook",
+        category: "trigger",
+        label: "Webhook",
+        position: { x: 0, y: 0 },
+        config: { webhookId: "" },
+      },
+      {
+        id: "n2",
+        type: "logic.log",
+        category: "logic",
+        label: "Log",
+        position: { x: 320, y: 0 },
+        config: { message: "recebido" },
+      },
+    ],
+    edges: [{ id: "e1", source: "n1", target: "n2" }],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
+/** PATCH /workflows/:id — troca o status (draft/active/archived). */
+export async function setWorkflowStatusViaApi(
+  request: APIRequestContext,
+  tokens: AuthTokens,
+  workspaceId: string,
+  workflowId: string,
+  status: WorkflowSummary["status"],
+): Promise<WorkflowSummary> {
+  const response = await request.patch(`${API_URL}/workflows/${workflowId}`, {
+    headers: workspaceHeaders(tokens, workspaceId),
+    data: { status },
+  });
+  if (!response.ok()) {
+    throw new Error(`setWorkflowStatusViaApi falhou (${response.status()})`);
+  }
+  return response.json() as Promise<WorkflowSummary>;
+}
+
+/**
+ * PATCH /workflows/:id generico (H2-05: errorWorkflowId) — NAO lanca em
+ * resposta nao-ok, devolve status+body pra quem quer testar rejeicao (ex.:
+ * 400 de auto-referencia, 404 de tratador inexistente).
+ */
+export async function updateWorkflowViaApi(
+  request: APIRequestContext,
+  tokens: AuthTokens,
+  workspaceId: string,
+  workflowId: string,
+  data: Partial<{
+    name: string;
+    status: WorkflowSummary["status"];
+    errorWorkflowId: string | null;
+  }>,
+): Promise<{ status: number; body: WorkflowSummary & { message?: string } }> {
+  const response = await request.patch(`${API_URL}/workflows/${workflowId}`, {
+    headers: workspaceHeaders(tokens, workspaceId),
+    data,
+  });
+  return { status: response.status(), body: await response.json() };
 }
 
 export async function saveGraphViaApi(
@@ -722,6 +823,221 @@ export function httpRequestGraph(nodeConfig: Record<string, unknown>) {
         label: "HTTP Request",
         position: { x: 320, y: 0 },
         config: nodeConfig,
+      },
+    ],
+    edges: [{ id: "e1", source: "n1", target: "n2" }],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
+/**
+ * trigger.manual -> logic.code -> logic.log. O log interpola
+ * `{{ $vars.dobro }}` pra provar que o varsPatch do code node ja foi
+ * mesclado antes do proximo node rodar (H2-03).
+ */
+export function codeGraph(options: { code: string; timeoutMs?: number }) {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.manual",
+        category: "trigger",
+        label: "Manual Trigger",
+        position: { x: 0, y: 0 },
+        config: {},
+      },
+      {
+        id: "n2",
+        type: "logic.code",
+        category: "logic",
+        label: "Código",
+        position: { x: 320, y: 0 },
+        config: {
+          code: options.code,
+          ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
+        },
+      },
+      {
+        id: "n3",
+        type: "logic.log",
+        category: "logic",
+        label: "Log",
+        position: { x: 640, y: 0 },
+        config: { message: "dobro={{ $vars.dobro }}" },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", target: "n2" },
+      { id: "e2", source: "n2", target: "n3" },
+    ],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
+/**
+ * trigger.manual -> api.httpRequest (falha deterministica, onError:'continue')
+ * -> logic.log interpolando `{{ $input.error }}`. Sem edge dedicada — a
+ * execucao segue pelo caminho normal com o payload de erro (H2-05).
+ */
+export function continueOnErrorGraph() {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.manual",
+        category: "trigger",
+        label: "Manual Trigger",
+        position: { x: 0, y: 0 },
+        config: {},
+      },
+      {
+        id: "n2",
+        type: "api.httpRequest",
+        category: "api",
+        label: "HTTP Request",
+        position: { x: 320, y: 0 },
+        config: { method: "GET", url: "http://127.0.0.1:9", headers: {}, timeoutMs: 3000 },
+        onError: "continue",
+      },
+      {
+        id: "n3",
+        type: "logic.log",
+        category: "logic",
+        label: "Log",
+        position: { x: 640, y: 0 },
+        config: { message: "erro capturado: {{ $input.error }}" },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", target: "n2" },
+      { id: "e2", source: "n2", target: "n3" },
+    ],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
+/**
+ * Mesmo n2 (onError:'continue'), mas com DOIS caminhos de saida: n3 por edge
+ * normal (sem handle — deve rodar) e n4 por edge com sourceHandle (nunca
+ * dispara em continue, so edges normais roteiam). Prova que continue nao
+ * "adivinha" qual saida rotear quando o node falho tinha mais de uma.
+ */
+export function continueOnErrorFanOutGraph() {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.manual",
+        category: "trigger",
+        label: "Manual Trigger",
+        position: { x: 0, y: 0 },
+        config: {},
+      },
+      {
+        id: "n2",
+        type: "api.httpRequest",
+        category: "api",
+        label: "HTTP Request",
+        position: { x: 320, y: 0 },
+        config: { method: "GET", url: "http://127.0.0.1:9", headers: {}, timeoutMs: 3000 },
+        onError: "continue",
+      },
+      {
+        id: "n3",
+        type: "logic.log",
+        category: "logic",
+        label: "Log normal",
+        position: { x: 640, y: -80 },
+        config: { message: "caminho normal" },
+      },
+      {
+        id: "n4",
+        type: "logic.log",
+        category: "logic",
+        label: "Log handle",
+        position: { x: 640, y: 80 },
+        config: { message: "nao deveria rodar" },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", target: "n2" },
+      { id: "e2", source: "n2", target: "n3" },
+      { id: "e3", source: "n2", target: "n4", sourceHandle: "algum-handle" },
+    ],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
+/**
+ * If roteia so o lado "true" pro logic.merge (2 edges entrantes) — sem o
+ * flush parcial (H2-05), a onda esvaziava e a execucao gravava "success"
+ * incompleta, com o merge e tudo depois dele nunca executados.
+ */
+export function mergePartialGraph() {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.manual",
+        category: "trigger",
+        label: "Manual Trigger",
+        position: { x: 0, y: 0 },
+        config: {},
+      },
+      {
+        id: "n2",
+        type: "logic.if",
+        category: "logic",
+        label: "If",
+        position: { x: 320, y: 0 },
+        config: { left: "1", operator: "==", right: "1" },
+      },
+      {
+        id: "n3",
+        type: "logic.merge",
+        category: "logic",
+        label: "Merge",
+        position: { x: 640, y: 0 },
+        config: {},
+      },
+      {
+        id: "n4",
+        type: "logic.log",
+        category: "logic",
+        label: "Log",
+        position: { x: 960, y: 0 },
+        config: { message: "" },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", target: "n2" },
+      { id: "e2", source: "n2", target: "n3", sourceHandle: "true" },
+      { id: "e3", source: "n2", target: "n3", sourceHandle: "false" },
+      { id: "e4", source: "n3", target: "n4" },
+    ],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
+/** trigger.error -> logic.log — grafo minimo de um fluxo tratador de erro (H2-05). */
+export function errorHandlerGraph() {
+  return {
+    nodes: [
+      {
+        id: "n1",
+        type: "trigger.error",
+        category: "trigger",
+        label: "Error Trigger",
+        position: { x: 0, y: 0 },
+        config: {},
+      },
+      {
+        id: "n2",
+        type: "logic.log",
+        category: "logic",
+        label: "Log",
+        position: { x: 320, y: 0 },
+        config: { message: "" },
       },
     ],
     edges: [{ id: "e1", source: "n1", target: "n2" }],

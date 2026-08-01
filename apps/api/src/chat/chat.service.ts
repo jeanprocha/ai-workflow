@@ -22,7 +22,11 @@ export class ChatService {
       where: { chatToken },
       include: { currentVersion: true },
     });
-    if (!workflow) {
+    // Um unico ponto cobre createConversation, postVisitorMessage e
+    // listMessages. getWorkflowByInboxToken (abaixo) NAO gateia: o inbox nao
+    // dispara fluxo e o operador precisa continuar lendo o historico de um
+    // fluxo arquivado.
+    if (!workflow || workflow.status === 'archived') {
       throw new NotFoundException('Link de chat invalido ou expirado.');
     }
     return workflow;
