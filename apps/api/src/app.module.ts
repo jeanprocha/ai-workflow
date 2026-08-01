@@ -32,6 +32,7 @@ import { DebuggerModule } from './debugger/debugger.module';
 import { CostOptimizerModule } from './cost-optimizer/cost-optimizer.module';
 import { CopilotModule } from './copilot/copilot.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
+import { AlertsModule } from './alerts/alerts.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
     DebuggerModule,
     CostOptimizerModule,
     CopilotModule,
+    AlertsModule,
     TelemetryModule,
   ],
   controllers: [AppController],

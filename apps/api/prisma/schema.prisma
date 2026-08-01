@@ -67,8 +67,25 @@ model Workspace {
   mcpServers     McpServer[]
   aiSuggestions  AiSuggestion[]
   nodePresets    NodePreset[]
+  alertSetting   WorkspaceAlertSetting?
 
   @@map("workspaces")
+}
+
+/**
+ * Alerting de falhas de execucao (H1.6) — MVP: sem linha, comportamento
+ * default e email habilitado (ver alerts.service.ts). Linha so passa a
+ * existir quando o workspace muda a config pela primeira vez (PUT).
+ */
+model WorkspaceAlertSetting {
+  workspaceId  String   @id @map("workspace_id")
+  emailEnabled Boolean  @default(true) @map("email_enabled")
+  webhookUrl   String?  @map("webhook_url")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("workspace_alert_settings")
 }
 
 model WorkspaceMember {

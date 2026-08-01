@@ -99,6 +99,23 @@ export const pt = {
     /** Prefixo do aria-label do botao de lixeira — concatenado com o nome da predefinicao. */
     removeAria: "Remover predefinição",
   },
+  alerts: {
+    title: "Alertas",
+    description: "Notificações quando uma execução de fluxo falha.",
+    emailToggleLabel: "Notificar membros do workspace por email",
+    webhookLabel: "URL de webhook (opcional)",
+    webhookPlaceholder: "https://...",
+    webhookHint:
+      "Recebe um POST em JSON a cada falha — compatível com Slack/Discord via webhook de entrada.",
+    save: "Salvar",
+    saving: "Salvando...",
+    savedToast: "Preferências de alerta salvas.",
+    saveErrorFallback: "Não foi possível salvar as preferências de alerta.",
+    sendTest: "Enviar teste",
+    sendingTest: "Enviando...",
+    testSentToast: "Alerta de teste enviado.",
+    testErrorFallback: "Não foi possível enviar o alerta de teste.",
+  },
 };
 
 export const en = {
@@ -197,5 +214,22 @@ export const en = {
     removeConfirmDescription:
       "Nodes that already applied this preset are unaffected — it just stops showing up to apply on new nodes.",
     removeAria: "Remove preset",
+  },
+  alerts: {
+    title: "Alerts",
+    description: "Notifications when a flow execution fails.",
+    emailToggleLabel: "Notify workspace members by email",
+    webhookLabel: "Webhook URL (optional)",
+    webhookPlaceholder: "https://...",
+    webhookHint:
+      "Receives a JSON POST on every failure — compatible with Slack/Discord via incoming webhook.",
+    save: "Save",
+    saving: "Saving...",
+    savedToast: "Alert preferences saved.",
+    saveErrorFallback: "Could not save the alert preferences.",
+    sendTest: "Send test",
+    sendingTest: "Sending...",
+    testSentToast: "Test alert sent.",
+    testErrorFallback: "Could not send the test alert.",
   },
 } satisfies typeof pt;

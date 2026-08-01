@@ -38,6 +38,11 @@ import {
 } from "@/hooks/use-credentials";
 import { useCreateVariable, useDeleteVariable, useVariables } from "@/hooks/use-variables";
 import { useCreateNodePreset, useDeleteNodePreset, useNodePresets } from "@/hooks/use-node-presets";
+import {
+  useAlertSettings,
+  useSendTestAlert,
+  useUpdateAlertSettings,
+} from "@/hooks/use-alert-settings";
 import { NODE_CATALOG } from "@/lib/node-catalog";
 import { errorMessage } from "@/lib/errors";
 import { useDictionary, useLocale, setLocale, type Locale } from "@/lib/i18n";
@@ -743,6 +748,83 @@ function NodePresetsSection() {
   );
 }
 
+function AlertsSection() {
+  const t = useDictionary();
+  const a = t.settings.alerts;
+  const { data, isLoading } = useAlertSettings();
+  const updateSettings = useUpdateAlertSettings();
+  const sendTest = useSendTestAlert();
+  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [webhookUrl, setWebhookUrl] = useState("");
+  // So sincroniza do servidor ANTES do usuario mexer no form — depois disso
+  // o estado local e que manda, ate salvar (padrao das outras secoes, que
+  // usam dialogs; aqui e inline, entao o guard e por referencia do `data`).
+  const [hydrated, setHydrated] = useState(false);
+  if (data && !hydrated) {
+    setEmailEnabled(data.emailEnabled);
+    setWebhookUrl(data.webhookUrl ?? "");
+    setHydrated(true);
+  }
+
+  async function onSave() {
+    try {
+      await updateSettings.mutateAsync({
+        emailEnabled,
+        webhookUrl: webhookUrl.trim() ? webhookUrl.trim() : null,
+      });
+      toast.success(a.savedToast);
+    } catch (error) {
+      toast.error(errorMessage(error, a.saveErrorFallback));
+    }
+  }
+
+  async function onSendTest() {
+    try {
+      await sendTest.mutateAsync({ webhookUrl: webhookUrl.trim() || undefined });
+      toast.success(a.testSentToast);
+    } catch (error) {
+      toast.error(errorMessage(error, a.testErrorFallback));
+    }
+  }
+
+  if (isLoading) return <Skeleton className="h-16 rounded-lg" />;
+
+  return (
+    <div className="space-y-4">
+      <label className="flex items-center gap-2 text-sm text-foreground">
+        <input
+          type="checkbox"
+          checked={emailEnabled}
+          onChange={(event) => setEmailEnabled(event.target.checked)}
+          className="h-4 w-4 rounded border-border-strong"
+        />
+        {a.emailToggleLabel}
+      </label>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="alert-webhook">{a.webhookLabel}</Label>
+        <Input
+          id="alert-webhook"
+          type="url"
+          placeholder={a.webhookPlaceholder}
+          value={webhookUrl}
+          onChange={(event) => setWebhookUrl(event.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">{a.webhookHint}</p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button onClick={onSave} disabled={updateSettings.isPending}>
+          {updateSettings.isPending ? a.saving : a.save}
+        </Button>
+        <Button variant="outline" onClick={onSendTest} disabled={sendTest.isPending}>
+          {sendTest.isPending ? a.sendingTest : a.sendTest}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const t = useDictionary();
 
@@ -787,6 +869,10 @@ export default function SettingsPage() {
         description={t.settings.nodePresets.description}
       >
         <NodePresetsSection />
+      </SettingsSection>
+
+      <SettingsSection title={t.settings.alerts.title} description={t.settings.alerts.description}>
+        <AlertsSection />
       </SettingsSection>
     </div>
   );
