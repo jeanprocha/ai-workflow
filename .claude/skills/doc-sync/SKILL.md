@@ -31,6 +31,8 @@ git log --oneline <commit-do-carimbo>..HEAD -- <caminhos do domínio>
 
 Sem commits, o domínio está em dia. Com commits, ele é candidato — mas nem todo commit é mudança funcional.
 
+**Cuidado com os caminhos.** Muitos contêm os grupos de rota do Next (`apps/web/src/app/(app)/...`); sem aspas, os parênteses quebram o shell e o `git log` devolve vazio — a auditoria reporta "nenhuma defasagem" em tudo e você acredita. Passe os caminhos como array entre aspas, e desconfie de um resultado zerado em todos os domínios: valide rodando um `git log` isolado num domínio que você sabe que mudou.
+
 **2. Triar.** Leia o diff de cada commit candidato e classifique:
 
 - **Conta**: rota nova ou removida, model novo no Prisma, fila nova, mudança de comportamento observável, limitação que deixou de existir, arquivo-chave novo ou removido.
