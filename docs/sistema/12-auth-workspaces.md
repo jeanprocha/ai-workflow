@@ -1,0 +1,111 @@
+# Autenticação, workspaces e ativos
+
+> Última revisão: 2026-08-02 · commit `80da213`
+
+## O que faz
+
+Este domínio responde duas perguntas antes de qualquer outra coisa da plataforma acontecer: **quem é você** e **em nome de qual workspace você está agindo**. A identidade é um `User` com email e senha (bcrypt, 12 rounds); o contexto de trabalho é um `Workspace`, e a ponte entre os dois é o `WorkspaceMember`. Ao se registrar, o usuário ganha automaticamente um workspace próprio e vira `owner` dele — não existe estado "logado sem workspace".
+
+Autenticação é por par de tokens JWT: um _access token_ curto e um _refresh token_ longo, assinado com um segredo derivado (`JWT_SECRET` + sufixo) para que um token não sirva no lugar do outro. Nada disso é guardado no servidor — os JWTs são stateless, o que traz a consequência que aparece nas Limitações: não há revogação de sessão. O reset de senha, entregue no H1.5, é a exceção com estado: gera um token aleatório cujo **hash** é o que vai ao banco (`PasswordResetToken`), com TTL curto e uso único; pedir um segundo reset invalida os anteriores. Endpoints de auth respondem sempre de forma indiferente à existência do email, para não virarem oráculo de enumeração de contas.
+
+A autorização acontece em duas camadas empilhadas. A primeira é global: um `JwtAuthGuard` registrado como `APP_GUARD` protege **todas** as rotas por padrão, e sair disso exige marcar o handler com `@Public()` — o default é fechado, o opt-out é explícito e auditável por grep. À frente dele roda o `ThrottlerGuard` (hardening do H1.1), também global, para que uma request que estoura o limite seja barrada antes de custar um round-trip de validação de token; as rotas de auth têm um limite próprio bem mais apertado que o default. A segunda camada é o `WorkspaceGuard`, aplicado por controller com `@UseGuards`: ele exige o header `x-workspace-id`, confirma que o usuário autenticado é membro daquele workspace e injeta o id (e o papel) na request. Isso materializa o ADR-006 — todo recurso de negócio nasce escopado por workspace, e nenhuma query filtra por `userId` diretamente.
+
+Em cima dessa fundação vivem os **ativos do workspace**: as coisas que os fluxos consomem mas que não pertencem a fluxo nenhum. **Credenciais** guardam segredos de terceiros criptografados; **variáveis** guardam configuração por escopo (global, environment, runtime), com a opção de marcar como secreta; **templates** são fluxos prontos para instanciar; **node presets** são configurações salvas de um tipo de node, reaproveitáveis entre fluxos; e as **configurações de alerta** definem para onde vai o aviso quando uma execução falha.
+
+Credenciais merecem nota à parte porque têm duas formas. A original (`kind: "secret"`) é um valor único — um token, uma connection string — do qual a API só devolve os últimos quatro caracteres. A segunda (`kind: "fields"`) é uma conexão multi-campo: vários pares chave/valor, criptografados juntos como um objeto, que o node HTTP expõe nas expressões como `$auth.<chave>`. Os **nomes e tipos** dos campos ficam em claro numa coluna à parte (`fieldsMeta`), de propósito: nome de chave não é segredo, e ter isso legível permite listar conexões sem descriptografar nada e pré-preencher a tela de edição com o tipo certo de cada campo. O valor de cada campo nunca sai do blob criptografado.
+
+Alertas de falha (H1.6) fecham o ciclo operacional do workspace: quando uma execução termina em falha, o engine avisa por email e/ou por webhook, com um throttle por workflow para não transformar um fluxo quebrado em tempestade de notificação. O envio usa um transporte SMTP genérico de sistema (`MailerService`), distinto das credenciais SMTP por workspace que o node `email.send` consome — sem `SMTP_HOST` configurado ele vira no-op com aviso no log, e localmente o alvo é o Mailpit do `docker-compose.dev.yml`.
+
+## Onde vive
+
+| Arquivo                                                             | Papel                                                                                                                |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/auth/auth.controller.ts`                              | Superfície HTTP de auth; define o throttle apertado das rotas sensíveis.                                             |
+| `apps/api/src/auth/auth.service.ts`                                 | Registro (usuário + workspace + membership numa transação), login, emissão/refresh de tokens, forgot/reset de senha. |
+| `apps/api/src/auth/guards/jwt-auth.guard.ts`                        | Guard global; respeita `@Public()` via `Reflector`.                                                                  |
+| `apps/api/src/auth/decorators/public.decorator.ts`                  | `@Public()` — único jeito de tirar uma rota da autenticação.                                                         |
+| `apps/api/src/auth/decorators/current-user.decorator.ts`            | `@CurrentUser()` e o tipo `AuthenticatedUser`.                                                                       |
+| `apps/api/src/auth/strategies/jwt.strategy.ts`                      | Validação do access token (Passport).                                                                                |
+| `apps/api/src/workspaces/guards/workspace.guard.ts`                 | Exige `x-workspace-id`, valida a membership e injeta `workspaceId`/`workspaceRole` na request.                       |
+| `apps/api/src/workspaces/decorators/current-workspace.decorator.ts` | `@CurrentWorkspace()` — lê o id que o guard injetou.                                                                 |
+| `apps/api/src/app.module.ts`                                        | Registra `ThrottlerGuard` e `JwtAuthGuard` como `APP_GUARD`, **nesta ordem** (`app.module.ts:97-100`).               |
+| `apps/api/src/crypto/crypto.service.ts`                             | AES-256-GCM com chave derivada por `scrypt` de `SECRETS_ENCRYPTION_KEY` (ADR-007).                                   |
+| `apps/api/src/credentials/credentials.service.ts`                   | CRUD de credenciais; traduz `{kind, value, fields}` do DTO nas colunas (`credentials.service.ts:74-142`).            |
+| `apps/api/src/variables/variables.service.ts`                       | CRUD de variáveis; criptografa quando `isSecret` e nunca devolve o valor de uma secreta.                             |
+| `apps/api/src/templates/templates.service.ts`                       | Listagem (globais + do workspace), CRUD e `use()` — instancia o template como workflow novo.                         |
+| `apps/api/src/templates/template-sanitizer.ts`                      | Remove `webhookId`/`chatToken`/`inboxToken` herdados e valida o grafo antes de salvar/instanciar.                    |
+| `apps/api/src/node-presets/node-presets.service.ts`                 | Presets de config por tipo de node.                                                                                  |
+| `apps/api/src/workspaces/workspaces.service.ts`                     | Listar workspaces do usuário e criar novos.                                                                          |
+| `apps/api/src/alerts/alerts.service.ts`                             | Dispatch de alerta de falha (email + webhook) com throttle por workflow via Redis.                                   |
+| `apps/api/src/alerts/alert-settings.controller.ts`                  | Configuração de alerta do workspace + disparo de teste.                                                              |
+| `apps/api/src/mailer/mailer.service.ts`                             | Transporte SMTP de sistema (nodemailer); no-op sem `SMTP_HOST`.                                                      |
+
+**Rotas da API**
+
+| Rota                                            | O que faz                                                                          |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `POST /auth/register`                           | Cria usuário + workspace + membership `owner` e já devolve o par de tokens.        |
+| `POST /auth/login`                              | Valida credenciais e emite o par de tokens.                                        |
+| `POST /auth/refresh`                            | Troca um refresh token válido por um par novo.                                     |
+| `GET /auth/me`                                  | Dados do usuário autenticado.                                                      |
+| `POST /auth/forgot-password`                    | Dispara o email de reset. Sempre 200, exista ou não a conta.                       |
+| `POST /auth/reset-password`                     | Consome o token (uso único), troca a senha e invalida os demais tokens do usuário. |
+| `GET /workspaces` · `POST /workspaces`          | Lista os workspaces do usuário (com o papel) e cria novos.                         |
+| `/credentials` · `/variables` · `/node-presets` | CRUD dos ativos, todos atrás do `WorkspaceGuard`.                                  |
+| `/templates` + `POST /templates/:id/use`        | CRUD de templates e instanciação de um template como fluxo novo.                   |
+| `GET                                            | PUT /workspaces/alert-settings`·`POST /workspaces/alert-settings/test`             | Configuração de alertas do workspace e disparo de teste. |
+
+**Models Prisma**
+
+| Model                   | Papel                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `User`                  | Identidade: email único, nome, hash de senha.                                                                            |
+| `PasswordResetToken`    | Hash do token de reset + `expiresAt` + `usedAt` (uso único).                                                             |
+| `Workspace`             | O tenant. Raiz de cascade de praticamente todo dado de negócio.                                                          |
+| `WorkspaceMember`       | Ponte usuário↔workspace com `role` (`WorkspaceRole`: owner/admin/member).                                                |
+| `WorkspaceAlertSetting` | Um por workspace, criado só no primeiro `PUT`; sem linha, o default é email habilitado.                                  |
+| `Credential`            | `encryptedData` + `kind` (`secret`/`fields`) + `fieldsMeta` (chaves em claro) + `lastFour`. Único por nome no workspace. |
+| `Variable`              | `key`/`value`/`isSecret`/`scope` (`VariableScope`: global/environment/runtime). Única por chave no workspace.            |
+| `NodePreset`            | Config salva por `nodeType`, única por (workspace, tipo, nome).                                                          |
+| `Template`              | **Exceção do ADR-006**: `workspaceId` é nullable — `null` = template global seedado.                                     |
+
+**Páginas web**
+
+| Página                                                                 | O que faz                                                                    |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `/settings`                                                            | Tela única com credenciais, variáveis, presets, alertas, aparência e idioma. |
+| `/templates`                                                           | Galeria de templates (globais + do workspace) e "usar template".             |
+| `(auth)`: `/login`, `/register`, `/forgot-password`, `/reset-password` | Grupo de rotas de autenticação.                                              |
+
+## Como se conecta
+
+- Praticamente todo domínio da plataforma depende deste: qualquer controller com `WorkspaceGuard` recebe seu escopo daqui, e todo model de negócio pendura um `workspaceId`.
+- [Engine de execução](01-engine-execucao.md) — descriptografa credenciais e resolve variáveis em memória no momento de rodar o node, e chama o `AlertsService` no ponto único de finalização com falha.
+- [Workflows e versionamento](02-workflows-versionamento.md) — `POST /templates/:id/use` cria um workflow novo por esse caminho; o sanitizador existe justamente para não colidir com os `@unique` de token de capability do `Workflow`.
+- [Nodes: catálogo](03-nodes-catalogo.md) — o node HTTP consome credenciais `kind: "fields"` como `$auth.<chave>`; o node `email.send` usa credenciais SMTP do workspace, não o mailer de sistema.
+- [Flow API pública](05-flow-api-publica.md) — as chaves de API por workflow são um mecanismo de auth **paralelo** a este, não derivado dele.
+- [Aprovação humana](04-aprovacao-humana.md), [Chat e inbox](07-chat-inbox.md) — rotas públicas por token, fora do `JwtAuthGuard` via `@Public()`.
+- [Web e editor](13-web-editor.md) — o cliente HTTP guarda os tokens e o workspace ativo e injeta `Authorization` + `x-workspace-id` em toda chamada.
+- [Observabilidade e deploy](14-observabilidade-deploy.md) — `userId`/`workspaceId` entram no contexto de log via interceptor.
+
+## Decisões e histórico
+
+- [ADR-006](../adr/006-multi-tenancy.md) — multi-tenancy por workspace desde a Fase 2, para não pagar o retrofit depois; documenta `templates` como a única exceção e o motivo de ela ainda passar pelo `WorkspaceGuard`.
+- [ADR-007](../adr/007-criptografia-secrets.md) — AES-256-GCM com chave em env var, valor nunca retornado em GET, descriptografia só em memória no worker.
+- [spec-h2-02](../produto/spec-h2-02-templates-crud.md) — templates deixam de ser catálogo somente-leitura e ganham CRUD por workspace; explica o `workspaceId` nullable e por que não existe `is_public`.
+- [plano-h1](../produto/plano-h1.md) — H1.1 (throttler e hardening HTTP), H1.4 (Sentry), H1.5 (email de sistema + reset de senha), H1.6 (alerting de falhas).
+- [base-evolucao](../produto/base-evolucao.md) §H3 — RBAC e audit log estão explicitamente adiados para o H3.
+- **Não há ADR** sobre a estratégia de tokens JWT (par access/refresh, TTLs, segredo derivado para o refresh): a decisão vive só no código, em `auth.service.ts`.
+
+## Limitações e fora de escopo
+
+- **RBAC não existe de fato.** O enum `WorkspaceRole` e a coluna `role` existem, e o `WorkspaceGuard` até injeta `request.workspaceRole` — mas **nenhuma rota lê esse valor para decidir permissão** (única leitura no repo é a própria atribuição, `workspace.guard.ts:41`). Ser `member` dá exatamente os mesmos poderes de ser `owner`. Está no H3.
+- **Não há audit log.** Nenhum model, tabela ou serviço registra quem alterou o quê. H3.
+- **Não há como convidar alguém para um workspace.** `WorkspacesController` só expõe listar e criar; não existe endpoint de convite, adição ou remoção de membro. Na prática, todo workspace hoje tem exatamente um membro — o criador. Multi-membro é estrutura pronta sem porta de entrada.
+- **Sessões não são revogáveis.** Refresh tokens são JWTs stateless: trocar a senha via reset **não** derruba sessões abertas. Limitação conhecida, anotada no próprio `auth.service.ts` e em `docs/deploy/railway.md`; a revogação vem junto com o RBAC no H3.
+- **O ADR-007 está defasado.** Ele descreve credencial como "um valor por credencial" e fala em `lastFour` como o único metadado exposto. Não cobre `kind: "fields"` — conexões multi-campo, o objeto JSON criptografado inteiro e, principalmente, a coluna `fieldsMeta` que guarda **nomes e tipos de campo em texto claro** de propósito. Quem ler só o ADR vai concluir errado sobre o que a API expõe. A justificativa real está nos comentários do `schema.prisma` (model `Credential`) e em `credentials.service.ts`.
+- **Rotação de `SECRETS_ENCRYPTION_KEY` não está implementada.** Trocar a chave hoje inutiliza todos os secrets existentes; o ADR-007 já registra que o processo precisa ser desenhado.
+- **A chave de criptografia é derivada com salt fixo e hardcoded** (`crypto.service.ts:25`) — determinístico de propósito (a mesma env var precisa derivar a mesma chave em todo processo), mas significa que a força efetiva depende inteiramente da entropia de `SECRETS_ENCRYPTION_KEY`.
+- **Sem OAuth, SSO, MFA ou verificação de email.** Registro é imediato, sem confirmação; OAuth nas integrações é H3.
+- **Sem exclusão de conta ou de workspace pela API.** O `onDelete: Cascade` está no schema, mas não há rota que o acione.
+- **Throttle de alerta não é atômico** (`get` + `set` separados no Redis): sob corrida, dois alertas podem sair no lugar de um. Aceito de propósito — é throttle de UX, não controle de segurança.

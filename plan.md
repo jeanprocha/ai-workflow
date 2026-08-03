@@ -1,3 +1,10 @@
+> **Documento histórico — congelado em 2026-07-23.**
+> Aposentado como tracker: as caixas de seleção abaixo nunca foram marcadas, embora
+> a maior parte das fases tenha sido entregue. O tracker vivo é
+> [`docs/produto/base-evolucao.md`](docs/produto/base-evolucao.md) e os planos por
+> horizonte que ele referencia. Para o estado atual do sistema, veja
+> [`docs/sistema/`](docs/sistema/00-visao-geral.md).
+
 # Workflow AI Platform — Plano de Implementação (plan.md)
 
 Versão: 1.0

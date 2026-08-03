@@ -1,3 +1,9 @@
+> **Documento histórico — congelado em 2026-07-23.**
+> Descreve a intenção original do produto, que divergiu do que foi construído
+> (o marketplace, por exemplo, nunca existiu). Para o estado atual do sistema,
+> veja [`docs/sistema/`](docs/sistema/00-visao-geral.md); para o registro de
+> como o produto evoluiu, [`docs/produto/base-evolucao.md`](docs/produto/base-evolucao.md).
+
 # Workflow AI Platform
 ## Product Specification (spec.md)
 

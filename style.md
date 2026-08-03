@@ -1,3 +1,10 @@
+> **Documento histórico — congelado em 2026-07-23.**
+> A UI foi reescrita no redesign de 2026-07-26 e a fonte de verdade atual dos tokens
+> e regras visuais é [`apps/web/DESIGN.md`](apps/web/DESIGN.md). Os princípios
+> conceituais registrados aqui (cor é informação, dados em mono, "o Pulso") continuam
+> valendo — os valores concretos, não necessariamente. Ver
+> [`docs/sistema/13-web-editor.md`](docs/sistema/13-web-editor.md).
+
 # Workflow AI Platform — Design System (style.md)
 
 Versão: 1.0
