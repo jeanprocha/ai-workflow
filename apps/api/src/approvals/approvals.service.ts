@@ -12,6 +12,18 @@ function hashToken(raw: string): string {
   return createHash('sha256').update(raw).digest('hex');
 }
 
+/**
+ * Um token bruto pode ser o atual OU o de uma tentativa anterior do mesmo
+ * ciclo, que continua valendo (ver create). Por isso a busca por token nunca
+ * e findUnique: o match pode vir do array.
+ */
+function whereToken(rawToken: string): Prisma.ApprovalWhereInput {
+  const tokenHash = hashToken(rawToken);
+  return {
+    OR: [{ tokenHash }, { previousTokenHashes: { has: tokenHash } }],
+  };
+}
+
 function webUrl(): string {
   return process.env.WEB_URL ?? 'http://localhost:3000';
 }
@@ -47,11 +59,28 @@ export class ApprovalsService {
   /**
    * Chamado pelo RPC ctx.requestApproval (EngineService, dentro do worker).
    * Upsert em vez de create: se o sandbox morrer DEPOIS do RPC criar a linha
-   * mas ANTES do node terminar (crash/OOM), a proxima tentativa de retry cai
-   * no mesmo par [executionId, nodeId] e ROTACIONA o token — nao duplica (a
-   * unique constraint impediria create()) nem falha o node. "So o ultimo
-   * link vale" e o preco: se o primeiro e-mail chegou a sair antes do crash,
-   * aquele link para de valer.
+   * mas ANTES do node terminar (SMTP fora do ar, timeout do sandbox, OOM), a
+   * proxima tentativa de retry cai no mesmo par [executionId, nodeId] — nao
+   * duplica (a unique constraint impediria create()) nem falha o node.
+   *
+   * Cada tentativa emite um token NOVO, mas o anterior nao e descartado: vai
+   * pra previousTokenHashes e continua valendo enquanto a pendencia estiver
+   * aberta. Ate 2026-08-02 ele era sobrescrito, e o e-mail que ja tinha saido
+   * na tentativa anterior apontava pra um link morto — o aprovador clicava e
+   * recebia "link invalido", sem nenhuma explicacao possivel do lado dele.
+   * Reemitir a URL antiga nao e opcao (so o hash e guardado, de proposito),
+   * entao a saida e aceitar N links validos pra MESMA linha: todos resolvem
+   * pra mesma pendencia e o consumo atomico de consumeDecision garante que so
+   * a primeira decisao vale, venha ela de qual link vier.
+   *
+   * O historico nao cresce sem limite: a pendencia so e recriada dentro do
+   * retry do proprio node, cujo teto sao 10 tentativas (`retry.attempts` em
+   * graph.schema.ts:20) — a retomada nunca passa por aqui (o node so chama o
+   * RPC quando ctx.resumeData e undefined).
+   *
+   * Se a linha existente ja foi decidida (ou anulada), isto e uma pendencia
+   * NOVA reusando a chave: a decisao antiga e o historico de tokens sao
+   * zerados juntos — link de ciclo encerrado nao ressuscita.
    */
   async create(params: {
     executionId: string;
@@ -64,6 +93,36 @@ export class ApprovalsService {
     const raw = randomBytes(32).toString('hex');
     const tokenHash = hashToken(raw);
     const expiresAt = new Date(Date.now() + params.timeoutHours * 3_600_000);
+
+    // Leitura solta antes do upsert (nao da pra fazer `push` do tokenHash
+    // atual dentro do proprio upsert). Nao ha corrida real, mas isso se apoia
+    // em invariantes que vivem FORA deste modulo — se qualquer uma delas cair,
+    // este read-then-upsert vira uma corrida de verdade (dois workers no mesmo
+    // node se sobrescrevendo, e um token sumindo do historico):
+    //  - engine.service.ts:211 — o claim atomico (updateMany de
+    //    queued/waiting_approval para running) garante UM worker por execucao;
+    //    quem perde a corrida volta sem rodar node nenhum.
+    //  - queue.module.ts:23 — `defaultJobOptions` nao define `attempts`, entao
+    //    vale o padrao do BullMQ (1): job de execucao que falha nao e
+    //    reentregue.
+    //  - orphan-recovery.service.ts:78 — execucao orfa e ANULADA (failed +
+    //    voidOpenApprovals), nunca re-despachada; nao nasce um segundo worker
+    //    para a mesma execucao.
+    // As tentativas de retry do node, essas sim, sao sequenciais dentro do
+    // mesmo worker (o laco de `attempt` em engine.service.ts:938).
+    const existing = await this.prisma.approval.findUnique({
+      where: {
+        executionId_nodeId: {
+          executionId: params.executionId,
+          nodeId: params.nodeId,
+        },
+      },
+      select: { tokenHash: true, decidedAt: true, previousTokenHashes: true },
+    });
+    const previousTokenHashes =
+      existing && existing.decidedAt === null
+        ? [...existing.previousTokenHashes, existing.tokenHash]
+        : [];
 
     const approval = await this.prisma.approval.upsert({
       where: {
@@ -84,6 +143,7 @@ export class ApprovalsService {
       update: {
         title: params.title,
         tokenHash,
+        previousTokenHashes,
         expiresAt,
         onTimeout: params.onTimeout,
         decidedAt: null,
@@ -101,8 +161,8 @@ export class ApprovalsService {
 
   /** Estado publico por token — usado pela pagina /approve/[token] (C3). */
   async findByToken(rawToken: string) {
-    const approval = await this.prisma.approval.findUnique({
-      where: { tokenHash: hashToken(rawToken) },
+    const approval = await this.prisma.approval.findFirst({
+      where: whereToken(rawToken),
       select: {
         id: true,
         title: true,
@@ -124,8 +184,8 @@ export class ApprovalsService {
     decision: 'approved' | 'rejected',
     comment: string | undefined,
   ): Promise<void> {
-    const approval = await this.prisma.approval.findUnique({
-      where: { tokenHash: hashToken(rawToken) },
+    const approval = await this.prisma.approval.findFirst({
+      where: whereToken(rawToken),
       select: { id: true },
     });
     if (!approval) {

@@ -357,8 +357,9 @@ enum ApprovalTimeoutAction {
  * H2-06: pendencia criada pelo RPC ctx.requestApproval (node approval.human).
  * `@@unique([executionId, nodeId])` fecha a janela de retry do sandbox: se o
  * worker morrer DEPOIS do RPC criar a linha mas ANTES do node terminar, a
- * proxima tentativa cai no mesmo par e ROTACIONA o token em vez de duplicar
- * (ver ApprovalsService.create) — "so o ultimo link vale" e documentado.
+ * proxima tentativa cai no mesmo par em vez de duplicar. Cada tentativa emite
+ * um token novo, mas o anterior continua valendo enquanto a pendencia estiver
+ * aberta (previousTokenHashes) — ver ApprovalsService.create.
  */
 model Approval {
   id          String    @id @default(uuid())
@@ -368,6 +369,8 @@ model Approval {
   nodeId      String    @map("node_id")
   title       String
   tokenHash   String    @unique @map("token_hash")
+  /** Hashes dos tokens de tentativas anteriores do MESMO ciclo — links ja enviados por e-mail que continuam valendo. Zerado quando a pendencia e reaberta depois de uma decisao (ApprovalsService.create). */
+  previousTokenHashes String[] @default([]) @map("previous_token_hashes")
   expiresAt   DateTime  @map("expires_at")
   onTimeout   ApprovalTimeoutAction @default(reject) @map("on_timeout")
 
@@ -387,6 +390,8 @@ model Approval {
   @@unique([executionId, nodeId])
   @@index([workspaceId, decidedAt])
   @@index([decidedAt, expiresAt])
+  /** A busca por token bruto casa `tokenHash` (btree do @unique) OU um elemento deste array — sem GIN, o segundo lado do OR seria seq scan na tabela inteira a cada GET /approve/:token. */
+  @@index([previousTokenHashes], type: Gin)
   @@map("approvals")
 }
 
