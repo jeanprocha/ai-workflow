@@ -601,14 +601,30 @@ model McpServer {
   /** Comando do processo (transport stdio). */
   command       String?
   args          Json?
-  env           Json?
   /** URL do servidor remoto (transport sse/http). */
   url           String?
-  headers       Json?
   status        McpServerStatus @default(disconnected)
   lastError     String?         @map("last_error")
   lastCheckedAt DateTime?       @map("last_checked_at")
   createdAt     DateTime        @default(now()) @map("created_at")
+
+  /// env (stdio) e headers (sse/http) tipicamente carregam token de API do
+  /// servidor MCP, entao seguem o ADR-007 como qualquer outro secret: o mapa
+  /// inteiro vira UMA string AES-256-GCM pelo CryptoService. Mapa vazio grava
+  /// null — nao ha segredo, e um ciphertext de "{}" so confundiria a leitura.
+  /// Diferente de Credential, nao existe coluna de metadado em claro: as
+  /// CHAVES que a API expoe (envKeys/headerKeys) saem de descriptografar isto
+  /// na hora, pra nao haver lista de chaves que possa divergir do ciphertext.
+  envEncrypted     String? @map("env_encrypted")
+  headersEncrypted String? @map("headers_encrypted")
+
+  /// LEGADO: env/headers em texto claro, de antes da criptografia. Nenhuma
+  /// escrita nova cai aqui — McpService.onModuleInit criptografa o que sobrou
+  /// e zera estas colunas no boot, e a leitura so usa isto como fallback
+  /// enquanto esse backfill nao passou pela linha. Removiveis numa migration
+  /// futura, depois de confirmar que estao NULL em todos os ambientes.
+  env     Json?
+  headers Json?
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tools     McpTool[]

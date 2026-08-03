@@ -3,6 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { McpController } from './mcp.controller';
 import { McpService } from './mcp.service';
+import { CryptoModule } from '../crypto/crypto.module';
 import { QueueModule, MCP_HEALTH_QUEUE } from '../queue/queue.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 
@@ -16,7 +17,7 @@ const HEALTH_CHECK_INTERVAL_MS = 60_000;
  * do bootstrap do worker sem duplicar o agendamento.
  */
 @Module({
-  imports: [QueueModule, WorkspacesModule],
+  imports: [CryptoModule, QueueModule, WorkspacesModule],
   controllers: [McpController],
   providers: [McpService],
   exports: [McpService],

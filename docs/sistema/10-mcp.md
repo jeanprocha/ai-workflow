@@ -1,6 +1,6 @@
 # Servidores MCP
 
-> Última revisão: 2026-08-02 · commit `80da213`
+> Última revisão: 2026-08-03 · commit `d12ca35`
 
 ## O que faz
 
@@ -10,6 +10,8 @@ O modelo mental é simples e vale internalizar: **um servidor MCP é conectado u
 
 Existem três transportes. O `stdio` roda o servidor como processo filho, com comando, argumentos e variáveis de ambiente configurados no registro. O `sse` e o `http` falam com um servidor remoto por URL, com headers opcionais. A escolha é por servidor e não muda depois sem reconectar.
 
+As variáveis de ambiente e os headers são **secrets** — é onde mora o token de API do servidor MCP — e seguem o [ADR-007](../adr/007-criptografia-secrets.md) como qualquer credencial: o mapa inteiro vira uma string AES-256-GCM pelo `CryptoService` antes de ir ao banco, e só é descriptografado em memória, no momento de abrir o transporte. A API nunca devolve esses valores: a listagem expõe apenas os **nomes** das chaves configuradas (`envKeys`, `headerKeys`), pelo mesmo racional do `fieldsMeta` de uma credencial — nome de chave não é segredo e permite à UI mostrar o que está setado. Não existe rota que leia o valor de volta; trocar um token significa remover e registrar o servidor de novo.
+
 O status de um servidor tem quatro estados (`connecting`, `connected`, `disconnected`, `error`) e é sempre o resultado da última operação real, nunca uma declaração do usuário. Um erro de conexão não derruba a requisição: o servidor é registrado mesmo assim, mas fica em `error` com a mensagem original em `lastError`, para que o usuário veja o que aconteceu e possa corrigir a configuração e reconectar.
 
 A conexão viva em si — o cliente do SDK com o transporte aberto — mora **em memória, no processo que fez o connect**. Isso é o detalhe mais consequente do domínio, porque a API e o worker são processos separados. Chamar uma tool a partir da API reaproveita a conexão em cache se ela existir e, se não existir, reconecta sob demanda a partir da configuração persistida. Por isso o health-check, que roda no worker, não pode confiar nesse cache: ele faz uma sondagem própria a cada minuto — conecta a partir da configuração salva, lista as tools, fecha — e só marca `error` quando essa sondagem falha de verdade.
@@ -18,40 +20,43 @@ A chamada de uma tool valida em duas etapas, e a ordem importa. Primeiro garante
 
 ## Onde vive
 
-| Arquivo                                      | Papel                                                                         |
-| -------------------------------------------- | ----------------------------------------------------------------------------- |
-| `apps/api/src/mcp/mcp.controller.ts`         | Rotas de CRUD, reconnect/disconnect e chamada de tool.                        |
-| `apps/api/src/mcp/mcp.service.ts`            | Estado das conexões vivas, descoberta e persistência de tools, health-check.  |
-| `apps/api/src/mcp/mcp.module.ts`             | Registra o job repetível de health-check (intervalo de 60 s); só produtor.    |
-| `apps/api/src/mcp/mcp-health.processor.ts`   | Consumidor da fila `mcp-health` no worker.                                    |
-| `packages/ai/src/mcp-client.ts`              | Cliente `@modelcontextprotocol/sdk`: monta o transporte, lista e chama tools. |
-| `packages/nodes/src/definitions/mcp-tool.ts` | Definição do node `mcp.tool`.                                                 |
-| `apps/api/src/agents/agents.service.ts`      | Converte refs `mcp:<serverId>:<toolName>` do agente em tools executáveis.     |
-| `apps/api/src/engine/engine.service.ts`      | Expõe o callback `callMcpTool` no contexto de execução dos nodes.             |
+| Arquivo                                      | Papel                                                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/mcp/mcp.controller.ts`         | Rotas de CRUD, reconnect/disconnect e chamada de tool.                                                  |
+| `apps/api/src/mcp/mcp.service.ts`            | Estado das conexões vivas, descoberta e persistência de tools, health-check, cripto de `env`/`headers`. |
+| `apps/api/src/mcp/mcp.service.spec.ts`       | Cobre a criptografia: gravação, mascaramento na leitura, uso na conexão e backfill.                     |
+| `apps/e2e/tests/mcp/api.spec.ts`             | Suíte E2E da API, incluindo a garantia de que o segredo nunca volta no POST/GET.                        |
+| `apps/api/src/crypto/crypto.service.ts`      | AES-256-GCM (ADR-007) — o mesmo serviço que as credenciais usam.                                        |
+| `apps/api/src/mcp/mcp.module.ts`             | Registra o job repetível de health-check (intervalo de 60 s); só produtor.                              |
+| `apps/api/src/mcp/mcp-health.processor.ts`   | Consumidor da fila `mcp-health` no worker.                                                              |
+| `packages/ai/src/mcp-client.ts`              | Cliente `@modelcontextprotocol/sdk`: monta o transporte, lista e chama tools.                           |
+| `packages/nodes/src/definitions/mcp-tool.ts` | Definição do node `mcp.tool`.                                                                           |
+| `apps/api/src/agents/agents.service.ts`      | Converte refs `mcp:<serverId>:<toolName>` do agente em tools executáveis.                               |
+| `apps/api/src/engine/engine.service.ts`      | Expõe o callback `callMcpTool` no contexto de execução dos nodes.                                       |
 
 **Rotas da API**
 
-| Rota                               | O que faz                                                      |
-| ---------------------------------- | -------------------------------------------------------------- |
-| `GET /mcp/servers`                 | Lista os servidores do workspace, já com as tools descobertas. |
-| `POST /mcp/servers`                | Registra um servidor e tenta conectar imediatamente.           |
-| `POST /mcp/servers/:id/reconnect`  | Refaz a conexão e redescobre as tools.                         |
-| `POST /mcp/servers/:id/disconnect` | Fecha a conexão viva e marca `disconnected`.                   |
-| `DELETE /mcp/servers/:id`          | Fecha a conexão e remove o registro (tools caem por cascade).  |
-| `POST /mcp/servers/:id/call`       | Invoca uma tool pelo nome, com argumentos livres.              |
+| Rota                               | O que faz                                                                                                                  |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `GET /mcp/servers`                 | Lista os servidores do workspace, já com as tools descobertas. Sem valores de `env`/`headers` — só `envKeys`/`headerKeys`. |
+| `POST /mcp/servers`                | Registra um servidor e tenta conectar imediatamente.                                                                       |
+| `POST /mcp/servers/:id/reconnect`  | Refaz a conexão e redescobre as tools.                                                                                     |
+| `POST /mcp/servers/:id/disconnect` | Fecha a conexão viva e marca `disconnected`.                                                                               |
+| `DELETE /mcp/servers/:id`          | Fecha a conexão e remove o registro (tools caem por cascade).                                                              |
+| `POST /mcp/servers/:id/call`       | Invoca uma tool pelo nome, com argumentos livres.                                                                          |
 
 **Páginas web**
 
-| Página | O que faz                                                                     |
-| ------ | ----------------------------------------------------------------------------- |
-| `/mcp` | Registra servidores, mostra status e último erro, lista as tools descobertas. |
+| Página | O que faz                                                                                                      |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| `/mcp` | Registra servidores, mostra status e último erro, lista as tools descobertas e os nomes das chaves de segredo. |
 
 **Models Prisma** (`apps/api/prisma/schema.prisma`)
 
-| Model       | Uma linha                                                                                                                      |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `McpServer` | Registro do servidor: transporte, comando/args/env (stdio) ou url/headers (sse, http), `status`, `lastError`, `lastCheckedAt`. |
-| `McpTool`   | Tool descoberta em um servidor: nome, descrição e o JSON Schema de entrada declarado pelo servidor.                            |
+| Model       | Uma linha                                                                                                                                                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `McpServer` | Registro do servidor: transporte, comando/args (stdio) ou url (sse, http), `status`, `lastError`, `lastCheckedAt`. Os segredos ficam em `envEncrypted`/`headersEncrypted`; as colunas `env`/`headers` em claro são legado à espera de drop. |
+| `McpTool`   | Tool descoberta em um servidor: nome, descrição e o JSON Schema de entrada declarado pelo servidor.                                                                                                                                         |
 
 **Filas BullMQ**
 
@@ -72,6 +77,7 @@ A chamada de uma tool valida em duas etapas, e a ordem importa. Primeiro garante
 - [ADR-008](../adr/008-worker-separado.md) — por que o health-check é consumido pelo worker enquanto o registro do job repetível sai da API; é a origem direta da divergência de estado descrita abaixo.
 - [ADR-009](../adr/009-saida-estruturada-llm.md) — as restrições de JSON Schema dos providers que obrigam a sanitizar o `inputSchema` de uma tool MCP antes de oferecê-la a um agente.
 - [ADR-006](../adr/006-multi-tenancy.md) — o isolamento por workspace que se aplica a servidores e tools.
+- [ADR-007](../adr/007-criptografia-secrets.md) — a criptografia que `env`/`headers` passaram a usar. O ADR fala só de `credentials` e `variables`; este domínio é um terceiro consumidor da mesma camada, e a migração dos registros antigos foi feita por backfill no boot (`mcp.service.ts`, `encryptLegacySecrets`) porque a chave vive na aplicação, não no banco.
 - [base-evolucao.md](../produto/base-evolucao.md) §3.3 — registra "conexões MCP em memória por processo" como dívida, com a direção de mover o estado para Redis ou banco.
 - Não há ADR próprio sobre MCP: a escolha do protocolo e dos três transportes foi decisão de implementação da fase, documentada em comentários no `schema.prisma` e no `mcp.service.ts`.
 
@@ -80,7 +86,12 @@ A chamada de uma tool valida em duas etapas, e a ordem importa. Primeiro garante
 - **Conexões vivem em memória por processo.** API e worker mantêm caches independentes: reconectar pela API não afeta o worker, e vice-versa. Na prática o worker nunca tem conexões em cache, então toda execução de node MCP que caia nele reconecta sob demanda. Um servidor `stdio` acaba sendo respawnado com frequência.
 - **O health-check faz uma conexão nova a cada tick.** Para transporte `stdio` isso significa subir e derrubar o processo do servidor a cada 60 segundos, por servidor conectado — custo real em servidores pesados.
 - **Só servidores em `connected` são sondados.** Um servidor que caiu para `error` nunca se recupera sozinho; precisa de um `reconnect` manual. Não há backoff nem retry automático.
-- **`env` e `headers` são gravados como JSON em claro no banco**, fora do mecanismo de credenciais criptografadas do workspace ([ADR-007](../adr/007-criptografia-secrets.md)). Tokens de API passados a um servidor MCP não têm a mesma proteção que uma credencial nativa.
+- **Não há como trocar `env`/`headers` de um servidor já registrado.** Não existe `PATCH /mcp/servers/:id`, e o valor nunca volta na leitura — girar um token exige remover e registrar o servidor de novo (o que também apaga e redescobre as tools).
+- **As colunas `env`/`headers` em claro continuam no banco.** Dropar exigiria perder o dado de quem ainda não passou pelo backfill, então elas ficam como fallback de leitura, sempre `NULL` depois do primeiro boot. Removê-las é uma migration futura, depois de confirmar `NULL` em todos os ambientes.
+- **O backfill roda no boot da API e do worker, e falha em silêncio no log.** O `try/catch` em volta dele (`mcp.service.ts:207-259`) cobre dois casos: `SECRETS_ENCRYPTION_KEY` **errada** (o ciphertext antigo não abre) e erro de banco. Nesses, o processo sobe normalmente e a falha só aparece no log (`ERROR` de `McpService`), nunca na UI. Ele **não** cobre chave **ausente**: aí o `CryptoService` lança já no construtor (`crypto.service.ts:20-26`), a injeção de dependência do Nest aborta e o processo não sobe — nem chega ao backfill. Ou seja, sem `SECRETS_ENCRYPTION_KEY` a API não inicia; é o mesmo comportamento de credenciais e variáveis, e é deliberado.
+- **Segredo ilegível degrada em vez de gritar.** Se a chave de criptografia mudar, `envKeys`/`headerKeys` vêm vazios na listagem (com `WARN` no log) e o erro real só aparece no `lastError` do próximo connect ou health-check. Não existe rotação de `SECRETS_ENCRYPTION_KEY` — é a mesma limitação que [Auth e workspaces](12-auth-workspaces.md) registra para credenciais.
+- **A criptografia cobre só `env` e `headers` — `url`, `command` e `args` continuam em texto claro, inclusive na resposta da API.** São colunas comuns do `McpServer` (`schema.prisma:596-599`) e saem inteiras no `toPublic` (`mcp.service.ts:291-292`). Quem registrar um servidor `http` com o token na query string (`https://mcp.exemplo.com/sse?token=...`) ou um `stdio` com `--api-key=...` nos args guarda esse segredo em claro no banco e o recebe de volta em todo `GET /mcp/servers`. Não é regressão — sempre foi assim, e a mudança do ADR-007 não piorou isso —, mas também não há validação que impeça a configuração. Deliberadamente fora de escopo: `url` e `args` são metadado de conexão legítimo (a UI precisa deles), e mascará-los exigiria um esquema de "parte secreta da URL" que ninguém pediu.
+- **A criptografia é em repouso, não contra o próprio host.** Um servidor `stdio` recebe as variáveis descriptografadas no ambiente do processo filho, e a plataforma roda esse comando no host da aplicação — ver o item da allowlist abaixo.
 - **Não há allowlist nem escopo por tool.** Registrado o servidor, todas as tools que ele expõe ficam chamáveis por qualquer node ou agente do workspace, e um servidor `stdio` roda um comando arbitrário no host da aplicação.
 - **A descoberta é destrutiva e só acontece na conexão.** Não há polling do catálogo: se o servidor ganhar tools novas, elas só aparecem depois de um `reconnect`.
 - **Só o lado cliente existe.** A plataforma não expõe os próprios fluxos ou nodes como um servidor MCP.

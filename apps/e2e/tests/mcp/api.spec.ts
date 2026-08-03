@@ -47,6 +47,37 @@ test.describe("MCP (API)", () => {
     expect(items[0]!.id).toBe(second.id);
   });
 
+  test("env nunca volta em claro: POST e GET devolvem so os nomes das chaves (ADR-007)", async ({
+    request,
+  }) => {
+    const tokens = await registerViaApi(request, buildTestUser());
+    const workspaceId = await fetchWorkspaceId(request, tokens);
+    const headers = workspaceHeaders(tokens, workspaceId);
+    const segredo = "token-que-nao-pode-vazar-e2e";
+
+    const response = await request.post(`${API_URL}/mcp/servers`, {
+      headers,
+      data: { ...fixtureServerPayload("Fixture Segredo"), env: { API_TOKEN: segredo } },
+    });
+    expect(response.status()).toBe(201);
+    const criado = await response.text();
+    expect(criado).not.toContain(segredo);
+    expect((JSON.parse(criado) as McpServerSummary).envKeys).toEqual(["API_TOKEN"]);
+
+    const list = await request.get(`${API_URL}/mcp/servers`, { headers });
+    const listado = await list.text();
+    expect(listado).not.toContain(segredo);
+    expect((JSON.parse(listado) as McpServerSummary[])[0]!.envKeys).toEqual(["API_TOKEN"]);
+
+    // O valor continua utilizavel: reconectar descriptografa e redescobre as tools.
+    const server = (JSON.parse(criado) as McpServerSummary).id;
+    const reconnect = await request.post(`${API_URL}/mcp/servers/${server}/reconnect`, { headers });
+    expect(reconnect.status()).toBe(201);
+    const reconectado = (await reconnect.json()) as McpServerSummary;
+    expect(reconectado.status).toBe("connected");
+    expect(reconectado.tools.map((t) => t.name).sort()).toEqual(["echo", "soma"]);
+  });
+
   test("connect com erro de handshake: 201 + status error, nunca 500", async ({ request }) => {
     const tokens = await registerViaApi(request, buildTestUser());
     const workspaceId = await fetchWorkspaceId(request, tokens);

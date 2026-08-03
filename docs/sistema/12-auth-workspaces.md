@@ -1,6 +1,6 @@
 # Autenticação, workspaces e ativos
 
-> Última revisão: 2026-08-02 · commit `80da213`
+> Última revisão: 2026-08-03 · commit `d12ca35`
 
 ## O que faz
 
@@ -30,6 +30,7 @@ Alertas de falha (H1.6) fecham o ciclo operacional do workspace: quando uma exec
 | `apps/api/src/workspaces/decorators/current-workspace.decorator.ts` | `@CurrentWorkspace()` — lê o id que o guard injetou.                                                                 |
 | `apps/api/src/app.module.ts`                                        | Registra `ThrottlerGuard` e `JwtAuthGuard` como `APP_GUARD`, **nesta ordem** (`app.module.ts:97-100`).               |
 | `apps/api/src/crypto/crypto.service.ts`                             | AES-256-GCM com chave derivada por `scrypt` de `SECRETS_ENCRYPTION_KEY` (ADR-007).                                   |
+| `apps/api/src/mcp/mcp.service.ts`                                   | Terceiro consumidor do `CryptoService`: `env`/`headers` de servidor MCP — ver [Servidores MCP](10-mcp.md).           |
 | `apps/api/src/credentials/credentials.service.ts`                   | CRUD de credenciais; traduz `{kind, value, fields}` do DTO nas colunas (`credentials.service.ts:74-142`).            |
 | `apps/api/src/variables/variables.service.ts`                       | CRUD de variáveis; criptografa quando `isSecret` e nunca devolve o valor de uma secreta.                             |
 | `apps/api/src/templates/templates.service.ts`                       | Listagem (globais + do workspace), CRUD e `use()` — instancia o template como workflow novo.                         |
@@ -83,6 +84,7 @@ Alertas de falha (H1.6) fecham o ciclo operacional do workspace: quando uma exec
 - [Engine de execução](01-engine-execucao.md) — descriptografa credenciais e resolve variáveis em memória no momento de rodar o node, e chama o `AlertsService` no ponto único de finalização com falha.
 - [Workflows e versionamento](02-workflows-versionamento.md) — `POST /templates/:id/use` cria um workflow novo por esse caminho; o sanitizador existe justamente para não colidir com os `@unique` de token de capability do `Workflow`.
 - [Nodes: catálogo](03-nodes-catalogo.md) — o node HTTP consome credenciais `kind: "fields"` como `$auth.<chave>`; o node `email.send` usa credenciais SMTP do workspace, não o mailer de sistema.
+- [Servidores MCP](10-mcp.md) — `env`/`headers` de um servidor MCP usam o mesmo `CryptoService`, mas **não** são um `Credential`: vivem em colunas próprias do `McpServer` e não aparecem em `/credentials`.
 - [Flow API pública](05-flow-api-publica.md) — as chaves de API por workflow são um mecanismo de auth **paralelo** a este, não derivado dele.
 - [Aprovação humana](04-aprovacao-humana.md), [Chat e inbox](07-chat-inbox.md) — rotas públicas por token, fora do `JwtAuthGuard` via `@Public()`.
 - [Web e editor](13-web-editor.md) — o cliente HTTP guarda os tokens e o workspace ativo e injeta `Authorization` + `x-workspace-id` em toda chamada.
@@ -103,8 +105,8 @@ Alertas de falha (H1.6) fecham o ciclo operacional do workspace: quando uma exec
 - **Não há audit log.** Nenhum model, tabela ou serviço registra quem alterou o quê. H3.
 - **Não há como convidar alguém para um workspace.** `WorkspacesController` só expõe listar e criar; não existe endpoint de convite, adição ou remoção de membro. Na prática, todo workspace hoje tem exatamente um membro — o criador. Multi-membro é estrutura pronta sem porta de entrada.
 - **Sessões não são revogáveis.** Refresh tokens são JWTs stateless: trocar a senha via reset **não** derruba sessões abertas. Limitação conhecida, anotada no próprio `auth.service.ts` e em `docs/deploy/railway.md`; a revogação vem junto com o RBAC no H3.
-- **O ADR-007 está defasado.** Ele descreve credencial como "um valor por credencial" e fala em `lastFour` como o único metadado exposto. Não cobre `kind: "fields"` — conexões multi-campo, o objeto JSON criptografado inteiro e, principalmente, a coluna `fieldsMeta` que guarda **nomes e tipos de campo em texto claro** de propósito. Quem ler só o ADR vai concluir errado sobre o que a API expõe. A justificativa real está nos comentários do `schema.prisma` (model `Credential`) e em `credentials.service.ts`.
-- **Rotação de `SECRETS_ENCRYPTION_KEY` não está implementada.** Trocar a chave hoje inutiliza todos os secrets existentes; o ADR-007 já registra que o processo precisa ser desenhado.
+- **O ADR-007 está defasado em dois pontos.** Primeiro, ele descreve credencial como "um valor por credencial" e fala em `lastFour` como o único metadado exposto: não cobre `kind: "fields"` — conexões multi-campo, o objeto JSON criptografado inteiro e, principalmente, a coluna `fieldsMeta` que guarda **nomes e tipos de campo em texto claro** de propósito. Segundo, ele fala só de `credentials` e `variables`, mas a camada tem um terceiro consumidor desde 2026-08-03: `env` e `headers` de um servidor MCP, que seguem o mesmo padrão (blob AES-256-GCM, leitura devolvendo só os nomes das chaves) — ver [Servidores MCP](10-mcp.md). Quem ler só o ADR vai concluir errado sobre o que a API expõe e sobre onde a criptografia se aplica. A justificativa real está nos comentários do `schema.prisma` (models `Credential` e `McpServer`), em `credentials.service.ts` e em `mcp.service.ts`.
+- **Rotação de `SECRETS_ENCRYPTION_KEY` não está implementada.** Trocar a chave hoje inutiliza todos os secrets existentes — credenciais, variáveis secretas e, agora, `env`/`headers` de servidor MCP; o ADR-007 já registra que o processo precisa ser desenhado.
 - **A chave de criptografia é derivada com salt fixo e hardcoded** (`crypto.service.ts:25`) — determinístico de propósito (a mesma env var precisa derivar a mesma chave em todo processo), mas significa que a força efetiva depende inteiramente da entropia de `SECRETS_ENCRYPTION_KEY`.
 - **Sem OAuth, SSO, MFA ou verificação de email.** Registro é imediato, sem confirmação; OAuth nas integrações é H3.
 - **Sem exclusão de conta ou de workspace pela API.** O `onDelete: Cascade` está no schema, mas não há rota que o acione.
