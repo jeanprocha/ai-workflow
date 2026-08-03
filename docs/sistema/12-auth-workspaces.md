@@ -1,6 +1,6 @@
 # Autenticação, workspaces e ativos
 
-> Última revisão: 2026-08-03 · commit `d12ca35`
+> Última revisão: 2026-08-03 · commit `93468bf`
 
 ## O que faz
 

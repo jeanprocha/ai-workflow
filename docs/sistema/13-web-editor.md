@@ -1,6 +1,6 @@
 # Web e editor
 
-> Última revisão: 2026-08-02 · commit `80da213`
+> Última revisão: 2026-08-03 · commit `93468bf`
 
 ## O que faz
 
