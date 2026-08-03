@@ -67,6 +67,7 @@ Estes documentos **não são atualizados**. Cada um registra uma decisão ou uma
 2. [`produto/plano-h1.md`](produto/plano-h1.md) — H1 (hardening, testes, CI, Sentry, reset de senha, alertas). Plano e checklist no mesmo arquivo, com o que ficou de fora e por quê.
 3. [`produto/discovery-h2.md`](produto/discovery-h2.md) — discovery somente-leitura dos seis temas do H2, com veredicto e evidência `arquivo:linha` por tema.
 4. As seis specs do H2, uma por entrega: [correções de passagem](produto/spec-h2-01-correcoes-passagem.md) · [templates CRUD](produto/spec-h2-02-templates-crud.md) · [node de código](produto/spec-h2-03-node-codigo.md) · [publicar como API](produto/spec-h2-04-publicar-como-api.md) · [continue-on-error e error workflow](produto/spec-h2-05-continue-on-error-error-workflow.md) · [aprovação humana](produto/spec-h2-06-aprovacao-humana.md).
+5. [`produto/spec-pendencias-2026-08.md`](produto/spec-pendencias-2026-08.md) — inventário do que ficou em aberto depois do H2, levantado ao construir a camada de sistema e ao deployar. 39 itens em seis grupos, com evidência e ordem sugerida.
 
 **Decisões arquiteturais** — [`adr/`](adr/), 11 registros no formato do [template](adr/template.md):
 
