@@ -23,6 +23,8 @@ export const pt = {
   },
   reconnectTooltip: "Reconectar",
   disconnect: "Desconectar",
+  /** Prefixo da linha que lista as CHAVES de env/headers — o valor nunca volta da API (ADR-007). */
+  secretKeys: "Segredos configurados (valores ocultos)",
   /** aria-label do botao de remover — nome do servidor e concatenado. */
   removeAria: "Remover servidor",
   toasts: {
@@ -86,6 +88,7 @@ export const en = {
   },
   reconnectTooltip: "Reconnect",
   disconnect: "Disconnect",
+  secretKeys: "Configured secrets (values hidden)",
   removeAria: "Remove server",
   toasts: {
     connected: "MCP server connected.",

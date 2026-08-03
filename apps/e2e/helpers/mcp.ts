@@ -22,9 +22,10 @@ export interface McpServerSummary {
   transport: McpTransport;
   command: string | null;
   args: string[] | null;
-  env: Record<string, string> | null;
   url: string | null;
-  headers: Record<string, string> | null;
+  /** Só os nomes das chaves: env/headers são secrets criptografados (ADR-007). */
+  envKeys: string[];
+  headerKeys: string[];
   status: McpServerStatus;
   lastError: string | null;
   lastCheckedAt: string | null;

@@ -401,6 +401,18 @@ export default function McpPage() {
                 <p className="mt-2 font-mono text-xs text-danger">{server.lastError}</p>
               )}
 
+              {/* Optional chaining de propósito: uma API anterior a esta mudança não
+                  devolve envKeys/headerKeys, e um skew de deploy (web novo, API antiga)
+                  quebraria a página inteira com TypeError. */}
+              {!!(server.envKeys?.length || server.headerKeys?.length) && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t.mcp.secretKeys}:{" "}
+                  <span className="font-mono">
+                    {[...(server.envKeys ?? []), ...(server.headerKeys ?? [])].join(", ")}
+                  </span>
+                </p>
+              )}
+
               {!!server.tools.length && (
                 <div className="mt-3 flex flex-wrap gap-1">
                   {server.tools.map((tool) => (

@@ -17,9 +17,14 @@ export interface McpServer {
   transport: McpTransport;
   command: string | null;
   args: string[] | null;
-  env: Record<string, string> | null;
   url: string | null;
-  headers: Record<string, string> | null;
+  /**
+   * Só os NOMES das chaves de env/headers — os valores são secrets
+   * criptografados e nunca voltam da API (ADR-007). Mandar env/headers no POST
+   * continua funcionando; o que muda é que não dá pra lê-los de volta.
+   */
+  envKeys: string[];
+  headerKeys: string[];
   status: McpServerStatus;
   lastError: string | null;
   lastCheckedAt: string | null;
