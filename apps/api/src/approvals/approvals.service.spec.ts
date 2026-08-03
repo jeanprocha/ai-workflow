@@ -1,9 +1,12 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { ApprovalsService } from './approvals.service';
 
 function buildService(opts: {
   upsertImpl?: jest.Mock;
+  /** prisma.approval.findUnique — a linha ja existente lida por create(). */
   findUniqueImpl?: jest.Mock;
+  /** prisma.approval.findFirst — a busca por token (atual ou anterior) e o escopo por workspace. */
   findFirstImpl?: jest.Mock;
   updateManyImpl?: jest.Mock;
   findUniqueOrThrowImpl?: jest.Mock;
@@ -11,7 +14,7 @@ function buildService(opts: {
   const prisma = {
     approval: {
       upsert: opts.upsertImpl ?? jest.fn(),
-      findUnique: opts.findUniqueImpl ?? jest.fn(),
+      findUnique: opts.findUniqueImpl ?? jest.fn().mockResolvedValue(null),
       findFirst: opts.findFirstImpl ?? jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
       updateMany: opts.updateManyImpl ?? jest.fn().mockResolvedValue({ count: 1 }),
@@ -57,18 +60,17 @@ describe('ApprovalsService.create (H2-06)', () => {
     expect(call.create.tokenHash).toHaveLength(64);
   });
 
-  it('retry (2a chamada com o mesmo executionId+nodeId) ROTACIONA o token em vez de duplicar', async () => {
+  it('retry (2a chamada com o mesmo executionId+nodeId) nao duplica e PRESERVA o token da tentativa anterior', async () => {
     const upsertImpl = jest.fn().mockResolvedValue({ id: 'appr-1' });
-    const { service } = buildService({ upsertImpl });
-
-    const first = await service.create({
-      executionId: 'exec-1',
-      workspaceId: 'ws-1',
-      nodeId: 'A',
-      title: 'Aprovar desconto',
-      timeoutHours: 24,
-      onTimeout: 'reject',
+    // A 1a tentativa ja criou a linha (e pode ter enviado o e-mail) antes de
+    // o node morrer: pendencia ainda aberta.
+    const findUniqueImpl = jest.fn().mockResolvedValue({
+      tokenHash: 'hash-da-1a-tentativa',
+      decidedAt: null,
+      previousTokenHashes: [],
     });
+    const { service, prisma } = buildService({ upsertImpl, findUniqueImpl });
+
     const second = await service.create({
       executionId: 'exec-1',
       workspaceId: 'ws-1',
@@ -78,14 +80,68 @@ describe('ApprovalsService.create (H2-06)', () => {
       onTimeout: 'reject',
     });
 
-    // Link anterior para de valer: o segundo token e diferente do primeiro.
-    expect(second.url).not.toBe(first.url);
-    const secondCall = upsertImpl.mock.calls[1][0];
-    // A branch de update reseta qualquer decisao anterior — retry so faz
-    // sentido antes de qualquer decisao ter chegado, mas o reset e
-    // incondicional por seguranca (nunca deixa lixo de uma tentativa antiga).
-    expect(secondCall.update).toEqual(
+    expect(prisma.approval.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { executionId_nodeId: { executionId: 'exec-1', nodeId: 'A' } },
+      }),
+    );
+    const update = upsertImpl.mock.calls[0][0].update;
+    // O link novo vale (e o que vai no e-mail desta tentativa)...
+    expect(second.url).toMatch(
+      /^http:\/\/localhost:3000\/approve\/[0-9a-f]{64}$/,
+    );
+    expect(update.tokenHash).not.toBe('hash-da-1a-tentativa');
+    // ...e o da tentativa anterior TAMBEM continua valendo: se aquele e-mail
+    // chegou a sair, o aprovador clica nele e decide normalmente.
+    expect(update.previousTokenHashes).toEqual(['hash-da-1a-tentativa']);
+  });
+
+  it('3a tentativa: o historico de tokens acumula, nao substitui', async () => {
+    const upsertImpl = jest.fn().mockResolvedValue({ id: 'appr-1' });
+    const findUniqueImpl = jest.fn().mockResolvedValue({
+      tokenHash: 'hash-da-2a',
+      decidedAt: null,
+      previousTokenHashes: ['hash-da-1a'],
+    });
+    const { service } = buildService({ upsertImpl, findUniqueImpl });
+
+    await service.create({
+      executionId: 'exec-1',
+      workspaceId: 'ws-1',
+      nodeId: 'A',
+      title: 'Aprovar desconto',
+      timeoutHours: 24,
+      onTimeout: 'reject',
+    });
+
+    expect(upsertImpl.mock.calls[0][0].update.previousTokenHashes).toEqual([
+      'hash-da-1a',
+      'hash-da-2a',
+    ]);
+  });
+
+  it('pendencia ja decidida: e um ciclo NOVO — zera a decisao e o historico de tokens', async () => {
+    const upsertImpl = jest.fn().mockResolvedValue({ id: 'appr-1' });
+    const findUniqueImpl = jest.fn().mockResolvedValue({
+      tokenHash: 'hash-do-ciclo-anterior',
+      decidedAt: new Date('2026-08-01T10:00:00Z'),
+      previousTokenHashes: ['hash-mais-antigo'],
+    });
+    const { service } = buildService({ upsertImpl, findUniqueImpl });
+
+    await service.create({
+      executionId: 'exec-1',
+      workspaceId: 'ws-1',
+      nodeId: 'A',
+      title: 'Aprovar desconto',
+      timeoutHours: 24,
+      onTimeout: 'reject',
+    });
+
+    // Nenhum link do ciclo encerrado ressuscita junto com a pendencia.
+    expect(upsertImpl.mock.calls[0][0].update).toEqual(
+      expect.objectContaining({
+        previousTokenHashes: [],
         decidedAt: null,
         decision: null,
         decidedBy: null,
@@ -97,13 +153,51 @@ describe('ApprovalsService.create (H2-06)', () => {
   });
 });
 
+describe('ApprovalsService — resolucao do token (H2-06)', () => {
+  const rawToken = 'token-bruto-do-e-mail';
+  const expectedHash = createHash('sha256').update(rawToken).digest('hex');
+
+  it.each([
+    ['findByToken', (s: ApprovalsService) => s.findByToken(rawToken)],
+    [
+      'decideByToken',
+      (s: ApprovalsService) => s.decideByToken(rawToken, 'approved', undefined),
+    ],
+  ])(
+    '%s: casa o hash no token atual OU no de uma tentativa anterior',
+    async (_name, call) => {
+      const findFirstImpl = jest.fn().mockResolvedValue({ id: 'appr-1' });
+      const { service } = buildService({ findFirstImpl });
+
+      await call(service);
+
+      const { where } = findFirstImpl.mock.calls[0][0];
+      expect(where.OR).toEqual([
+        { tokenHash: expectedHash },
+        { previousTokenHashes: { has: expectedHash } },
+      ]);
+      // O token bruto nunca vai pro banco — nem no where.
+      expect(JSON.stringify(where)).not.toContain(rawToken);
+    },
+  );
+
+  it('findByToken: token que nao casa nem no atual nem no historico -> NotFound', async () => {
+    const findFirstImpl = jest.fn().mockResolvedValue(null);
+    const { service } = buildService({ findFirstImpl });
+
+    await expect(service.findByToken('token-de-outro-ciclo')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+});
+
 describe('ApprovalsService — consumo atomico da decisao (H2-06)', () => {
   it('decideByToken: count:1 enfileira a retomada e marca resumeEnqueuedAt', async () => {
     const updateManyImpl = jest.fn().mockResolvedValue({ count: 1 });
-    const findUniqueImpl = jest.fn().mockResolvedValue({ id: 'appr-1' });
+    const findFirstImpl = jest.fn().mockResolvedValue({ id: 'appr-1' });
     const { service, executions, prisma } = buildService({
       updateManyImpl,
-      findUniqueImpl,
+      findFirstImpl,
     });
 
     await service.decideByToken('raw-token', 'approved', 'ok, pode mandar');
@@ -138,9 +232,9 @@ describe('ApprovalsService — consumo atomico da decisao (H2-06)', () => {
   });
 
   it('decideByToken: token inexistente lanca NotFoundException sem tocar updateMany', async () => {
-    const findUniqueImpl = jest.fn().mockResolvedValue(null);
+    const findFirstImpl = jest.fn().mockResolvedValue(null);
     const updateManyImpl = jest.fn();
-    const { service } = buildService({ findUniqueImpl, updateManyImpl });
+    const { service } = buildService({ findFirstImpl, updateManyImpl });
 
     await expect(
       service.decideByToken('token-invalido', 'approved', undefined),

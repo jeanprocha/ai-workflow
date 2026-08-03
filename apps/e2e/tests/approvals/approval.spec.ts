@@ -36,6 +36,32 @@ import {
  * (ApprovalsSweepProcessor + ApprovalsService.applyTimeout, guard de
  * expiracao invertido em relacao a decideByToken/decideById) ja e coberta
  * por unit tests (apps/api/src/approvals/approvals.service.spec.ts).
+ *
+ * Tambem fora de escopo: a preservacao do token entre tentativas do node
+ * (2026-08-02, ApprovalsService.create). O cenario so aparece quando o node
+ * roda o RPC, envia o e-mail e SO ENTAO morre — e as unicas coisas que matam
+ * o node depois do sendMail estao fora do controle do teste (timeout duro do
+ * sandbox, OOM, worker derrubado). A falha ao persistir o estado pausado
+ * tampouco serve de gatilho: ela acontece FORA do laco de retry do node
+ * (o laco esta em engine.service.ts:938; persistPausedState so e chamado na
+ * :675, depois da onda drenar), entao mata a execucao em vez de retentar. E
+ * tudo que da pra forcar daqui (credencial invalida, SMTP fora do ar) falha
+ * ANTES do envio, quando o token daquela tentativa nunca chegou a sair por
+ * e-mail — nao existe link antigo pra clicar.
+ *
+ * BURACO CONHECIDO, e nao vale fingir o contrario: os unit tests NAO fecham
+ * esse cenario. Eles travam a FORMA do `where` (`previousTokenHashes: { has:
+ * ... }`) contra um mock do Prisma — nada, nem aqui nem la, exercita a
+ * traducao desse `has` para `@>` no Postgres nem o
+ * `@map("previous_token_hashes")` do schema. Errar o mapeamento da coluna
+ * mantem a suite inteira verde e ressuscita o bug original (o aprovador
+ * clica no link antigo e recebe "link invalido"). A traducao foi conferida A
+ * MAO em 2026-08-03 contra um Postgres real (`... WHERE token_hash = $1 OR
+ * previous_token_hashes @> $2`, linha encontrada pelo token antigo), mas
+ * isso e verificacao pontual, nao regressao automatizada. Fechar o buraco
+ * exige acesso direto ao banco a partir do e2e — o mesmo backdoor que falta
+ * pro timeout acima. Registrado em docs/sistema/04-aprovacao-humana.md,
+ * "Limitacoes e fora de escopo".
  */
 
 async function setupApprovalWorkflow(

@@ -1,6 +1,6 @@
 # Pausa durável e aprovação humana
 
-> Última revisão: 2026-08-02 · commit `80da213`
+> Última revisão: 2026-08-03 · commit `d12ca35`
 
 ## O que faz
 
@@ -43,6 +43,19 @@ então o node devolve o descritor de suspensão. Na retomada, ele lê a decisão
 anexa aprovado/comentário/quem decidiu/quando ao output, e dispara o branch
 `approved` ou `rejected`.
 
+Uma pendência pode ter **mais de um link válido ao mesmo tempo**. Se o node for
+retentado depois de já ter chamado o RPC — SMTP fora do ar, timeout do sandbox,
+OOM —, a tentativa seguinte cai na mesma linha (`[executionId, nodeId]` é único)
+e emite um token novo, mas o token anterior **não** é descartado: fica guardado
+como hash ao lado do atual e continua resolvendo a mesma pendência. Sem isso, o
+e-mail que já tinha saído apontava para um link morto e o aprovador recebia
+"link inválido" sem explicação possível — e reemitir a URL antiga não é opção,
+já que só o hash é guardado. Ter N links não afrouxa nada: todos resolvem a
+mesma linha, e o consumo atômico garante que só a primeira decisão vale. O
+histórico é do **ciclo**: se a pendência já tinha sido decidida ou anulada, uma
+nova chamada do RPC a reabre do zero e os links do ciclo anterior morrem junto
+com a decisão antiga.
+
 Decidir pode acontecer por dois caminhos. O **público** é a página que o link do
 e-mail abre: sem conta, o token na URL é a única prova de posse. O `GET` só lê o
 estado — nunca decide, para que um scanner de link de e-mail ou um preview não
@@ -71,26 +84,26 @@ alguém apontando para uma execução que já acabou.
 
 ## Onde vive
 
-| Arquivo                                                        | Papel                                                                                               |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `packages/nodes/src/types.ts`                                  | `SuspendDescriptor`, `resumeData` e o RPC `requestApproval` no contexto de execução.                |
-| `packages/nodes/src/definitions/approval-human.ts`             | O node: pede a aprovação, envia o e-mail, suspende; na retomada ramifica `approved`/`rejected`.     |
-| `packages/nodes/src/definitions/approval-human.meta.ts`        | Schema do config (título, conexão SMTP, destinatários, prazo, ação de timeout).                     |
-| `apps/api/src/engine/engine.service.ts`                        | Persiste/restaura o `PausedStateV1`, marca `waiting_approval`, emite `execution.suspended`.         |
-| `apps/api/src/engine/sandbox/node-sandbox-runner.ts`           | Encaminha o RPC `requestApproval` do worker para o host.                                            |
-| `apps/api/src/approvals/approvals.service.ts`                  | Criação (upsert que rotaciona o token), decisão atômica, timeout, void, enfileiramento da retomada. |
-| `apps/api/src/approvals/approvals.controller.ts`               | Fila autenticada, escopada ao workspace.                                                            |
-| `apps/api/src/approvals/approve-public.controller.ts`          | Rotas públicas por token — `GET` lê, `POST` decide.                                                 |
-| `apps/api/src/approvals/approval-rate-limit.ts`                | Rate limit em memória por IP das rotas públicas.                                                    |
-| `apps/api/src/approvals/approvals-sweep.processor.ts`          | As duas varreduras: expiradas e retomadas travadas.                                                 |
-| `apps/api/src/approvals/approvals.module.ts`                   | Agenda o job repetível do sweeper (`APPROVAL_SWEEP_INTERVAL_MS`, 60s por padrão).                   |
-| `apps/api/src/executions/executions.service.ts`                | `enqueueResume`; e o 409 que impede retry/replay de execução pausada.                               |
-| `apps/api/src/workflows/graph.schema.ts`                       | Gate: bloqueia `approval.human` em fluxo com trigger de chat (v1).                                  |
-| `apps/api/src/worker/orphan-recovery.service.ts`               | Anula aprovações abertas de execuções órfãs.                                                        |
-| `apps/web/src/proxy.ts`                                        | `/approve` em `PUBLIC_ROUTES` mas fora de `AUTH_ROUTES` — ver abaixo.                               |
-| `apps/web/src/components/approvals/approval-decision-view.tsx` | A tela de decisão pública.                                                                          |
-| `apps/web/src/app/(app)/approvals/page.tsx`                    | A fila autenticada.                                                                                 |
-| `apps/web/src/components/editor/config-panel.tsx`              | Painel do node `approval.human` no editor.                                                          |
+| Arquivo                                                        | Papel                                                                                                         |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `packages/nodes/src/types.ts`                                  | `SuspendDescriptor`, `resumeData` e o RPC `requestApproval` no contexto de execução.                          |
+| `packages/nodes/src/definitions/approval-human.ts`             | O node: pede a aprovação, envia o e-mail, suspende; na retomada ramifica `approved`/`rejected`.               |
+| `packages/nodes/src/definitions/approval-human.meta.ts`        | Schema do config (título, conexão SMTP, destinatários, prazo, ação de timeout).                               |
+| `apps/api/src/engine/engine.service.ts`                        | Persiste/restaura o `PausedStateV1`, marca `waiting_approval`, emite `execution.suspended`.                   |
+| `apps/api/src/engine/sandbox/node-sandbox-runner.ts`           | Encaminha o RPC `requestApproval` do worker para o host.                                                      |
+| `apps/api/src/approvals/approvals.service.ts`                  | Criação (upsert que preserva os tokens do ciclo), decisão atômica, timeout, void, enfileiramento da retomada. |
+| `apps/api/src/approvals/approvals.controller.ts`               | Fila autenticada, escopada ao workspace.                                                                      |
+| `apps/api/src/approvals/approve-public.controller.ts`          | Rotas públicas por token — `GET` lê, `POST` decide.                                                           |
+| `apps/api/src/approvals/approval-rate-limit.ts`                | Rate limit em memória por IP das rotas públicas.                                                              |
+| `apps/api/src/approvals/approvals-sweep.processor.ts`          | As duas varreduras: expiradas e retomadas travadas.                                                           |
+| `apps/api/src/approvals/approvals.module.ts`                   | Agenda o job repetível do sweeper (`APPROVAL_SWEEP_INTERVAL_MS`, 60s por padrão).                             |
+| `apps/api/src/executions/executions.service.ts`                | `enqueueResume`; e o 409 que impede retry/replay de execução pausada.                                         |
+| `apps/api/src/workflows/graph.schema.ts`                       | Gate: bloqueia `approval.human` em fluxo com trigger de chat (v1).                                            |
+| `apps/api/src/worker/orphan-recovery.service.ts`               | Anula aprovações abertas de execuções órfãs.                                                                  |
+| `apps/web/src/proxy.ts`                                        | `/approve` em `PUBLIC_ROUTES` mas fora de `AUTH_ROUTES` — ver abaixo.                                         |
+| `apps/web/src/components/approvals/approval-decision-view.tsx` | A tela de decisão pública.                                                                                    |
+| `apps/web/src/app/(app)/approvals/page.tsx`                    | A fila autenticada.                                                                                           |
+| `apps/web/src/components/editor/config-panel.tsx`              | Painel do node `approval.human` no editor.                                                                    |
 
 **Rotas da API**
 
@@ -118,7 +131,9 @@ a aprovação.
 - `Approval` — a pendência: execução e node de origem, workspace denormalizado,
   título, hash do token, prazo, ação de timeout, decisão/comentário/quem
   decidiu, e o par `resumeEnqueuedAt`/`resumeAttempts` que o sweeper usa. Única
-  por `[executionId, nodeId]`.
+  por `[executionId, nodeId]`. `previousTokenHashes` guarda os tokens das
+  tentativas anteriores do mesmo ciclo, com índice GIN — a busca por token
+  casa o hash no campo atual **ou** nesse array.
 - `ExecutionPausedState` — o estado congelado da execução, com um número de
   versão que faz o restore falhar explícito se o formato mudar entre deploys.
 - Enums: `ApprovalDecisionValue` (`approved`/`rejected`/`void`) e
@@ -166,6 +181,12 @@ a aprovação.
 - Não há ADR específico para o **rate limit** das rotas públicas nem para o
   formato do token: as duas escolhas estão documentadas em comentário no
   `approve-public.controller.ts` e no `approvals.service.ts`.
+- A linha "Retry do RPC pós-crash" da tabela de decisões técnicas da SPEC H2-06
+  ("rotaciona o token", "só o último link vale") está **superada** desde
+  2026-08-02: o token deixou de ser rotacionado e passou a ser acumulado
+  enquanto a pendência estiver aberta. A spec é imutável por convenção; o
+  comportamento atual é o descrito aqui e o porquê está no comentário de
+  `ApprovalsService.create` (`approvals.service.ts:66`).
 
 ## Limitações e fora de escopo
 
@@ -174,9 +195,29 @@ a aprovação.
   múltiplas assinaturas, delegação nem escalonamento — a única identidade
   registrada é o e-mail de quem decidiu pela fila autenticada; pelo link público,
   fica nulo.
-- **O link é único por node e rotativo.** Se o sandbox morrer depois do RPC e o
-  node for retentado, o token é rotacionado: se o primeiro e-mail já tinha saído,
-  aquele link para de valer.
+- **Um link não é revogável isoladamente.** Enquanto a pendência estiver aberta,
+  todos os tokens emitidos para ela valem; não há como matar só um deles (o
+  caso real seria um e-mail enviado para o destinatário errado — a saída hoje é
+  decidir a pendência, o que fecha todos de uma vez).
+- **Uma decisão que chegue durante o retry do node é perdida.** Se o aprovador
+  decidir na janela entre a tentativa que falhou e a próxima, a pendência é
+  reaberta do zero (decisão e links do ciclo anterior zerados) e ele precisa
+  decidir de novo. É a menos ruim das duas saídas: preservar a decisão deixaria
+  a execução pausada para sempre, porque a retomada já teria sido enfileirada
+  para uma execução que ainda estava rodando e teria sido descartada no claim.
+- **A busca de token pelo histórico não tem teste automatizado.** Os unit tests
+  de `approvals.service.spec.ts` travam só a _forma_ do `where` contra um mock do
+  Prisma (`previousTokenHashes: { has: ... }`); nada na suíte exercita a tradução
+  desse `has` para `@>` no Postgres nem o `@map("previous_token_hashes")` — errar
+  o mapeamento mantém tudo verde e ressuscita o "link inválido". A tradução foi
+  conferida à mão em 2026-08-03 contra um Postgres real (o SQL gerado é
+  `... token_hash = $1 OR previous_token_hashes @> $2`, e a linha foi encontrada
+  pelo token antigo), mas isso é verificação pontual, não regressão
+  automatizada. O e2e não fecha a lacuna: o cenário exige o node morrer
+  **depois** do `sendMail` (só timeout duro do sandbox, OOM ou worker derrubado
+  fazem isso) e o repo não tem acesso direto ao banco a partir do e2e — a mesma
+  falta que impede testar o timeout do sweeper
+  (`apps/e2e/tests/approvals/approval.spec.ts:32`).
 - **O canal de aviso é só e-mail (SMTP).** Nada de Slack, WhatsApp ou push, e o
   envio depende de uma conexão SMTP configurada no workspace.
 - **O estado pausado tem teto de 1 MB serializado.** Um fluxo grande, com muitas
