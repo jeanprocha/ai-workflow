@@ -1,7 +1,12 @@
 import { test, expect } from "../../helpers/fixtures";
 import { API_URL, buildTestUser, registerViaApi, buildStorageState, authenticateContext } from "../../helpers/auth";
 import { fetchWorkspaceId, workspaceHeaders } from "../../helpers/settings";
-import { createWorkflowViaApi, saveGraphViaApi, cronGraph } from "../../helpers/workflows";
+import {
+  createWorkflowViaApi,
+  saveGraphViaApi,
+  setWorkflowStatusViaApi,
+  cronGraph,
+} from "../../helpers/workflows";
 
 /**
  * Fase 11 — Scheduler (cron de fluxo). Busca global (Ctrl+K) fica em search.spec.ts.
@@ -17,11 +22,15 @@ import { createWorkflowViaApi, saveGraphViaApi, cronGraph } from "../../helpers/
  *   comparacoes antes/depois usam desigualdade (>, <) e nao delta exato
  *   (+1/-1), pra nao quebrar por causa de outro teste que tambem registrou/
  *   removeu um cron ao mesmo tempo.
- * - TODO teste que salva um grafo com trigger.cron habilitado tem que
- *   deletar o workflow no finally — saveGraph agenda o repeatable job na
- *   hora (independente do status do workflow), e ele fica rodando pra
- *   sempre no Redis de dev se ninguem limpar (removeSchedule so roda no
- *   PATCH pra draft/archived ou no DELETE do workflow).
+ * - Salvar o grafo NAO agenda mais nada enquanto o fluxo estiver em draft:
+ *   quem liga o cron e o PATCH pra `active` (o gate vive em
+ *   SchedulerService.syncWorkflowSchedule). Todo teste que ATIVA um fluxo com
+ *   trigger.cron habilitado tem que deletar o workflow no finally, senao o
+ *   repeatable job fica rodando pra sempre no Redis de dev.
+ * - A ponta negativa do gate ("draft nao agenda") NAO da pra afirmar por
+ *   /health/queues: a contagem e global por fila e a suite roda em paralelo,
+ *   entao "nao aumentou" seria flaky. Ela e coberta deterministicamente nos
+ *   unitarios (apps/api/src/scheduler/scheduler.service.spec.ts).
  * - O teste "disparo real" precisa do worker de execucoes rodando (pnpm
  *   --filter @workflow/api dev:worker) pra o job da fila "schedules" ser
  *   processado e criar a execucao.
@@ -241,7 +250,7 @@ test.describe("Scheduler (API)", () => {
     expect(crossWorkspace.status()).toBe(403);
   });
 
-  test("fix A2: arquivar fluxo com cron habilitado remove o repeatable job (GET /health/queues)", async ({
+  test("ciclo de vida do repeatable job: ativar agenda, arquivar remove (GET /health/queues)", async ({
     request,
   }) => {
     const tokens = await registerViaApi(request, buildTestUser());
@@ -254,22 +263,22 @@ test.describe("Scheduler (API)", () => {
         await (await request.get(`${API_URL}/health/queues`)).json()
       ) as { schedules: { delayed: number } };
 
+      // O fluxo nasce draft: salvar o grafo com cron habilitado nao agenda.
       await saveGraphViaApi(request, tokens, workspaceId, workflow.id, cronGraph("*/5 * * * *"));
-      const afterSave = (
+
+      await setWorkflowStatusViaApi(request, tokens, workspaceId, workflow.id, "active");
+      const afterActivate = (
         await (await request.get(`${API_URL}/health/queues`)).json()
       ) as { schedules: { delayed: number } };
       // Desigualdade, nao delta exato: /health/queues agrega contagem GLOBAL
       // da fila, e a suite roda varios specs em paralelo.
-      expect(afterSave.schedules.delayed).toBeGreaterThan(before.schedules.delayed);
+      expect(afterActivate.schedules.delayed).toBeGreaterThan(before.schedules.delayed);
 
-      await request.patch(`${API_URL}/workflows/${workflow.id}`, {
-        headers,
-        data: { status: "archived" },
-      });
+      await setWorkflowStatusViaApi(request, tokens, workspaceId, workflow.id, "archived");
       const afterArchive = (
         await (await request.get(`${API_URL}/health/queues`)).json()
       ) as { schedules: { delayed: number } };
-      expect(afterArchive.schedules.delayed).toBeLessThan(afterSave.schedules.delayed);
+      expect(afterArchive.schedules.delayed).toBeLessThan(afterActivate.schedules.delayed);
     } finally {
       await request.delete(`${API_URL}/workflows/${workflow.id}`, { headers });
     }
@@ -286,6 +295,8 @@ test("disparo real: cron de 1 em 1 minuto cria execucao com triggerType=cron", a
 
   try {
     await saveGraphViaApi(request, tokens, workspaceId, workflow.id, cronGraph("* * * * *"));
+    // Ativar e o que agenda de fato — salvar em draft nao dispara nada.
+    await setWorkflowStatusViaApi(request, tokens, workspaceId, workflow.id, "active");
 
     const deadline = Date.now() + 120_000;
     let found = false;

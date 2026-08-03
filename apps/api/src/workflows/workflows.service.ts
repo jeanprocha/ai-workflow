@@ -163,16 +163,22 @@ export class WorkflowsService {
     // O schedule (fila "schedules") so era sincronizado ao salvar o grafo —
     // arquivar ou voltar pra rascunho um fluxo com trigger.cron habilitado
     // NAO cancelava o agendamento, que continuava disparando execucoes pra
-    // sempre. Agora o PATCH de status tambem sincroniza: active re-agenda
-    // a partir do grafo atual, draft/archived remove.
-    if (dto.status === 'active') {
+    // sempre. Agora o PATCH de status tambem sincroniza; o proprio
+    // syncWorkflowSchedule decide entre agendar (active) e so remover
+    // (draft/archived), entao os tres status caem na mesma chamada.
+    if (dto.status !== undefined) {
       const graph = workflow.currentVersion?.graph as unknown as
         WorkflowGraph | undefined;
       if (graph) {
-        await this.scheduler.syncWorkflowSchedule(id, workspaceId, graph);
+        await this.scheduler.syncWorkflowSchedule(
+          id,
+          workspaceId,
+          graph,
+          updated.status,
+        );
+      } else {
+        await this.scheduler.removeSchedule(id);
       }
-    } else if (dto.status === 'draft' || dto.status === 'archived') {
-      await this.scheduler.removeSchedule(id);
     }
 
     return updated;
@@ -228,7 +234,15 @@ export class WorkflowsService {
         include: { currentVersion: true },
       });
     });
-    await this.scheduler.syncWorkflowSchedule(id, workspaceId, graph);
+    // `updated.status` (nao um literal): salvar o grafo nunca muda o status, e
+    // e o sync que decide se agenda — um rascunho com trigger.cron habilitado
+    // fica agendado so a partir do momento em que for ativado.
+    await this.scheduler.syncWorkflowSchedule(
+      id,
+      workspaceId,
+      graph,
+      updated.status,
+    );
     return updated;
   }
 
@@ -309,7 +323,12 @@ export class WorkflowsService {
         include: { currentVersion: true },
       });
     });
-    await this.scheduler.syncWorkflowSchedule(id, workspaceId, graph);
+    await this.scheduler.syncWorkflowSchedule(
+      id,
+      workspaceId,
+      graph,
+      updated.status,
+    );
     return updated;
   }
 }

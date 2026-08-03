@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
+import type { WorkflowStatus } from '@prisma/client';
 import { CronExpressionParser } from 'cron-parser';
 import type { WorkflowGraph } from '@workflow/shared';
 import { SCHEDULES_QUEUE } from '../queue/queue.module';
@@ -17,13 +18,32 @@ export class SchedulerService {
 
   constructor(@InjectQueue(SCHEDULES_QUEUE) private readonly queue: Queue) {}
 
-  /** Chamado a cada save/rollback de grafo — (re)agenda ou remove o repeatable job do workflow. */
+  /**
+   * Chamado a cada save/rollback de grafo e a cada PATCH de status — (re)agenda
+   * ou remove o repeatable job do workflow. Como sempre remove ANTES de decidir,
+   * e idempotente e serve tambem como "desagendar": apagar o node cron,
+   * desabilita-lo ou tirar o fluxo de `active` cai todo no mesmo caminho.
+   *
+   * O gate de status mora aqui, e nao no ScheduleProcessor, de proposito: o
+   * agendamento e o unico estado que vive fora do Postgres (repeatable job no
+   * Redis) e nao tem tela que o liste. Gatear na criacao mantem o invariante
+   * "existe job repetivel <=> fluxo `active` com trigger.cron habilitado", que
+   * torna o estado do Redis derivavel do Postgres; gatear so no consumo
+   * deixaria jobs de rascunho tiquetaqueando pra sempre e batendo no banco a
+   * cada tick, sem nada visivel explicando por que nao disparam.
+   */
   async syncWorkflowSchedule(
     workflowId: string,
     workspaceId: string,
     graph: WorkflowGraph,
+    status: WorkflowStatus,
   ): Promise<void> {
     await this.removeSchedule(workflowId);
+
+    // "Rascunho nao roda sozinho": um fluxo em draft so dispara por acao
+    // explicita de quem esta editando (Executar no editor, que ignora status).
+    // Ativar e o que liga o cron — e o PATCH de status ja chama este metodo.
+    if (status !== 'active') return;
 
     const cronNode = graph.nodes.find((node) => node.type === 'trigger.cron');
     if (!cronNode) return;

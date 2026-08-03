@@ -715,6 +715,7 @@ function CronFields({
         />
         {t.cron.enabledLabel}
       </label>
+      <p className="text-xs text-muted-foreground">{t.cron.activeOnlyHint}</p>
 
       <div className="rounded-md border border-border bg-muted p-2">
         <Button

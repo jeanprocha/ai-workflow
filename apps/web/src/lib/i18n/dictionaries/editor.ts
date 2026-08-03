@@ -100,6 +100,8 @@ export const pt = {
       expressionHint: "Formato: minuto hora dia-do-mês mês dia-da-semana",
       timezone: "Timezone",
       enabledLabel: "Agendamento habilitado",
+      /** O agendamento so e criado quando o fluxo esta Ativo — ver docs/sistema/06-triggers-scheduler.md. */
+      activeOnlyHint: "O agendamento só dispara com o fluxo Ativo. Em rascunho, use Executar.",
       calculateButton: "Calcular próximas execuções",
       /** aria-label da lista de proximas execucoes calculadas — antes era um <ul> solto, sem rotulo. */
       nextRunsAria: "Próximas execuções calculadas",
@@ -457,6 +459,7 @@ export const en = {
       expressionHint: "Format: minute hour day-of-month month day-of-week",
       timezone: "Timezone",
       enabledLabel: "Schedule enabled",
+      activeOnlyHint: "The schedule only runs while the flow is Active. In draft, use Run.",
       calculateButton: "Calculate next runs",
       nextRunsAria: "Calculated next runs",
     },
