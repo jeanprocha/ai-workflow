@@ -9,11 +9,34 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CryptoService } from '../crypto/crypto.service';
+import { CacheService } from '../cache/cache.service';
+import { getOAuthProvider } from '../oauth/providers';
+import {
+  exchangeRefreshToken,
+  OAuthInvalidGrantError,
+} from '../oauth/token-exchange';
 import {
   CreateCredentialDto,
   type CredentialFieldDto,
 } from './dto/create-credential.dto';
 import { UpdateCredentialDto } from './dto/update-credential.dto';
+
+/** Blob que vive dentro de encryptedData quando kind = "oauth" (ver spec-oauth-credencial.md). */
+interface OAuthBlob {
+  access_token: string;
+  refresh_token: string | null;
+  token_type: string;
+}
+
+/** Renova se faltar menos que isso pra expirar — folga sobre o timeout de troca (8s). */
+const OAUTH_REFRESH_SKEW_MS = 120_000;
+const OAUTH_LOCK_TTL_SECONDS = 15;
+const OAUTH_WAIT_INTERVAL_MS = 250;
+const OAUTH_WAIT_MAX_MS = 5_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /** Metadados publicos de uma credencial — o valor descriptografado nunca sai daqui. */
 function toPublic(credential: {
@@ -68,6 +91,7 @@ export class CredentialsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly cache: CacheService,
   ) {}
 
   /**
@@ -172,7 +196,142 @@ export class CredentialsService {
         `Credencial "${name}" nao encontrada neste workspace.`,
       );
     }
-    return this.crypto.decrypt(credential.encryptedData);
+    if (credential.kind !== 'oauth') {
+      return this.crypto.decrypt(credential.encryptedData);
+    }
+    return this.resolveOAuth(credential);
+  }
+
+  /**
+   * Token perto de expirar (ou ja expirado) e renovado antes de devolver —
+   * o contrato continua "so uma string opaca", entao nenhum node muda.
+   * Lock leve (CacheService.acquireLock) evita duas renovacoes concorrentes
+   * da mesma credencial invalidarem uma a outra num provedor com refresh-
+   * token rotation (Google reusa e invalida o antigo).
+   */
+  private async resolveOAuth(credential: {
+    id: string;
+    encryptedData: string;
+    oauthProvider: string | null;
+    oauthExpiresAt: Date | null;
+  }): Promise<string> {
+    if (!this.needsOAuthRefresh(credential.oauthExpiresAt)) {
+      return this.decryptOAuthBlob(credential.encryptedData).access_token;
+    }
+
+    const lockKey = `oauth-refresh:${credential.id}`;
+    const lockToken = await this.cache.acquireLock(
+      lockKey,
+      OAUTH_LOCK_TTL_SECONDS,
+    );
+
+    if (!lockToken) {
+      const resolved = await this.waitForOAuthRefresh(credential.id);
+      if (resolved) return resolved;
+      // Ninguem terminou dentro da janela de espera (o dono do lock pode
+      // levar ate 8s, a espera aqui e so 5s) — tenta renovar tambem. Nao e
+      // Redlock: no raro caso de corrida dupla, uma das duas renovacoes
+      // pode falhar e marcar a credencial como erro, exigindo reconexao.
+    }
+
+    try {
+      return await this.refreshOAuthCredential(credential);
+    } finally {
+      if (lockToken) await this.cache.releaseLock(lockKey, lockToken);
+    }
+  }
+
+  private needsOAuthRefresh(expiresAt: Date | null): boolean {
+    if (!expiresAt) return false;
+    return expiresAt.getTime() - Date.now() < OAUTH_REFRESH_SKEW_MS;
+  }
+
+  private decryptOAuthBlob(encryptedData: string): OAuthBlob {
+    return JSON.parse(this.crypto.decrypt(encryptedData)) as OAuthBlob;
+  }
+
+  /** Espera curta por quem tem o lock terminar, relendo o banco — nao reimplementa a renovacao. */
+  private async waitForOAuthRefresh(
+    credentialId: string,
+  ): Promise<string | null> {
+    const deadline = Date.now() + OAUTH_WAIT_MAX_MS;
+    while (Date.now() < deadline) {
+      await sleep(OAUTH_WAIT_INTERVAL_MS);
+      const fresh = await this.prisma.credential.findUnique({
+        where: { id: credentialId },
+      });
+      if (!fresh) return null;
+      if (fresh.oauthStatus === 'error') {
+        throw new BadRequestException(
+          fresh.oauthLastError ??
+            'Conexao oauth com erro — reconecte em Configuracoes.',
+        );
+      }
+      if (!this.needsOAuthRefresh(fresh.oauthExpiresAt)) {
+        return this.decryptOAuthBlob(fresh.encryptedData).access_token;
+      }
+    }
+    return null;
+  }
+
+  private async refreshOAuthCredential(credential: {
+    id: string;
+    encryptedData: string;
+    oauthProvider: string | null;
+  }): Promise<string> {
+    const blob = this.decryptOAuthBlob(credential.encryptedData);
+    if (!blob.refresh_token) {
+      throw new BadRequestException(
+        'Conexao oauth sem refresh_token — reconecte em Configuracoes.',
+      );
+    }
+
+    const config = getOAuthProvider(credential.oauthProvider ?? '');
+    if (!config) {
+      throw new BadRequestException(
+        `Provedor OAuth "${credential.oauthProvider}" nao esta mais habilitado.`,
+      );
+    }
+
+    let tokens: Awaited<ReturnType<typeof exchangeRefreshToken>>;
+    try {
+      tokens = await exchangeRefreshToken(config, blob.refresh_token);
+    } catch (error) {
+      if (error instanceof OAuthInvalidGrantError) {
+        await this.prisma.credential.update({
+          where: { id: credential.id },
+          data: { oauthStatus: 'error', oauthLastError: error.message },
+        });
+        throw new BadRequestException(
+          'Conexao oauth expirada ou revogada — reconecte em Configuracoes.',
+        );
+      }
+      // Falha transitoria (rede, timeout, 5xx): nao marca a credencial como
+      // erro — um blip nao deveria exigir reconexao manual.
+      throw error;
+    }
+
+    const newBlob: OAuthBlob = {
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token ?? blob.refresh_token,
+      token_type: tokens.token_type ?? blob.token_type,
+    };
+    const encryptedData = this.crypto.encrypt(JSON.stringify(newBlob));
+    const oauthExpiresAt = tokens.expires_in
+      ? new Date(Date.now() + tokens.expires_in * 1000)
+      : null;
+
+    await this.prisma.credential.update({
+      where: { id: credential.id },
+      data: {
+        encryptedData,
+        oauthExpiresAt,
+        oauthStatus: 'active',
+        oauthLastError: null,
+      },
+    });
+
+    return newBlob.access_token;
   }
 
   async list(workspaceId: string) {
