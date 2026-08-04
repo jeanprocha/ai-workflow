@@ -12,7 +12,7 @@ import type {
 } from '@workflow/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExecutionEventsService } from '../execution-events/execution-events.service';
-import { CryptoService } from '../crypto/crypto.service';
+import { CredentialsService } from '../credentials/credentials.service';
 import { AgentsService } from '../agents/agents.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { McpService } from '../mcp/mcp.service';
@@ -180,7 +180,7 @@ export class EngineService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: ExecutionEventsService,
-    private readonly crypto: CryptoService,
+    private readonly credentials: CredentialsService,
     private readonly agents: AgentsService,
     private readonly knowledge: KnowledgeService,
     private readonly mcp: McpService,
@@ -955,7 +955,7 @@ export class EngineService {
           // via RPC (ver node-worker-entry.ts) e e reemitido aqui, no
           // processo principal, onde o handler real esta registrado.
           aiTelemetry: (event) => emitTelemetry(event),
-          getCredential: (name) => this.getCredential(workspaceId, name),
+          getCredential: (name) => this.credentials.resolve(workspaceId, name),
           callAgent: async (agentId, message) => {
             const agentResult = await this.agents.chat(
               workspaceId,
@@ -1163,19 +1163,6 @@ export class EngineService {
         data: { updatedAt: new Date() },
       }),
     ]);
-  }
-
-  private async getCredential(
-    workspaceId: string,
-    name: string,
-  ): Promise<string> {
-    const credential = await this.prisma.credential.findFirst({
-      where: { workspaceId, name },
-    });
-    if (!credential) {
-      throw new Error(`Credencial "${name}" nao encontrada neste workspace.`);
-    }
-    return this.crypto.decrypt(credential.encryptedData);
   }
 
   private async recordStep(params: {

@@ -8,7 +8,7 @@ import { NODE_CATALOG } from '@workflow/nodes/catalog';
 import type { WorkflowGraph } from '@workflow/shared';
 import { z } from 'zod';
 import { PrismaService } from '../prisma/prisma.service';
-import { CryptoService } from '../crypto/crypto.service';
+import { CredentialsService } from '../credentials/credentials.service';
 import { AiSuggestionsService } from '../ai-suggestions/ai-suggestions.service';
 import { workflowGraphSchema } from '../workflows/graph.schema';
 import { GenerateWorkflowDto } from './dto/generate-workflow.dto';
@@ -113,7 +113,7 @@ export interface GeneratedWorkflowResult {
 export class AutocompleteService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly crypto: CryptoService,
+    private readonly credentials: CredentialsService,
     private readonly suggestions: AiSuggestionsService,
   ) {}
 
@@ -134,7 +134,9 @@ export class AutocompleteService {
     const apiKey =
       dto.provider === 'ollama'
         ? ''
-        : await this.getCredential(workspaceId, dto.credential ?? '');
+        : await this.credentials.resolve(workspaceId, dto.credential ?? '', {
+            emptyNameMessage: 'Informe a credencial do provider de IA.',
+          });
     const provider = getProvider(dto.provider);
     const systemPrompt = buildSystemPrompt(locale);
 
@@ -207,24 +209,6 @@ export class AutocompleteService {
     });
 
     return { suggestionId: suggestion.id, graph };
-  }
-
-  private async getCredential(
-    workspaceId: string,
-    name: string,
-  ): Promise<string> {
-    if (!name) {
-      throw new BadRequestException('Informe a credencial do provider de IA.');
-    }
-    const credential = await this.prisma.credential.findFirst({
-      where: { workspaceId, name },
-    });
-    if (!credential) {
-      throw new NotFoundException(
-        `Credencial "${name}" nao encontrada neste workspace.`,
-      );
-    }
-    return this.crypto.decrypt(credential.encryptedData);
   }
 }
 

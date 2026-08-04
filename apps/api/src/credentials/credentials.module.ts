@@ -8,5 +8,6 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
   imports: [CryptoModule, WorkspacesModule],
   controllers: [CredentialsController],
   providers: [CredentialsService],
+  exports: [CredentialsService],
 })
 export class CredentialsModule {}

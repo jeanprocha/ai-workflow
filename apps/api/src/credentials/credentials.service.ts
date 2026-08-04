@@ -143,6 +143,38 @@ export class CredentialsService {
     };
   }
 
+  /**
+   * Ponto unico de resolucao de credencial por nome — substitui o decrypt
+   * que estava copiado em 7 lugares (engine, agents, agents/tools,
+   * autocomplete, debugger, copilot, knowledge). Devolve sempre uma string
+   * opaca (o contrato `getCredential(name): Promise<string>` de
+   * packages/nodes/src/types.ts nao muda por causa disto).
+   *
+   * `emptyNameMessage` existe porque os 7 call-sites tinham guardas
+   * diferentes pra nome vazio antes desta consolidacao — alguns nenhuma
+   * (deixam cair no NotFoundException generico), outros uma mensagem de
+   * dominio especifica (400). Preservado aqui pra nao mudar o contrato
+   * observavel de nenhum consumidor existente.
+   */
+  async resolve(
+    workspaceId: string,
+    name: string,
+    opts?: { emptyNameMessage?: string },
+  ): Promise<string> {
+    if (!name && opts?.emptyNameMessage) {
+      throw new BadRequestException(opts.emptyNameMessage);
+    }
+    const credential = await this.prisma.credential.findFirst({
+      where: { workspaceId, name },
+    });
+    if (!credential) {
+      throw new NotFoundException(
+        `Credencial "${name}" nao encontrada neste workspace.`,
+      );
+    }
+    return this.crypto.decrypt(credential.encryptedData);
+  }
+
   async list(workspaceId: string) {
     const credentials = await this.prisma.credential.findMany({
       where: { workspaceId },

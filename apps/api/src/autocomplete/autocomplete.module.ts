@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AutocompleteController } from './autocomplete.controller';
 import { AutocompleteService } from './autocomplete.service';
-import { CryptoModule } from '../crypto/crypto.module';
+import { CredentialsModule } from '../credentials/credentials.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { AiSuggestionsModule } from '../ai-suggestions/ai-suggestions.module';
 
 @Module({
-  imports: [CryptoModule, WorkspacesModule, AiSuggestionsModule],
+  imports: [CredentialsModule, WorkspacesModule, AiSuggestionsModule],
   controllers: [AutocompleteController],
   providers: [AutocompleteService],
 })

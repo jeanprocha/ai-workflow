@@ -7,7 +7,7 @@ import { getProvider, toStrictJsonSchema } from '@workflow/ai';
 import type { WorkflowGraph, WorkflowNode } from '@workflow/shared';
 import { z } from 'zod';
 import { PrismaService } from '../prisma/prisma.service';
-import { CryptoService } from '../crypto/crypto.service';
+import { CredentialsService } from '../credentials/credentials.service';
 import { WorkflowsService } from '../workflows/workflows.service';
 import { AiSuggestionsService } from '../ai-suggestions/ai-suggestions.service';
 import { DiagnoseExecutionDto } from './dto/diagnose-execution.dto';
@@ -72,7 +72,7 @@ export interface DiagnosisResult {
 export class DebuggerService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly crypto: CryptoService,
+    private readonly credentials: CredentialsService,
     private readonly workflows: WorkflowsService,
     private readonly suggestions: AiSuggestionsService,
   ) {}
@@ -127,7 +127,9 @@ export class DebuggerService {
     const apiKey =
       dto.provider === 'ollama'
         ? ''
-        : await this.getCredential(workspaceId, dto.credential ?? '');
+        : await this.credentials.resolve(workspaceId, dto.credential ?? '', {
+            emptyNameMessage: 'Informe a credencial do provider de IA.',
+          });
     const provider = getProvider(dto.provider);
 
     const languageInstruction =
@@ -266,24 +268,6 @@ Diga a causa provavel do erro em uma frase curta, e ate 3 sugestoes de correcao,
     await this.suggestions.resolve(workspaceId, suggestionId, 'accepted');
 
     return updated;
-  }
-
-  private async getCredential(
-    workspaceId: string,
-    name: string,
-  ): Promise<string> {
-    if (!name) {
-      throw new BadRequestException('Informe a credencial do provider de IA.');
-    }
-    const credential = await this.prisma.credential.findFirst({
-      where: { workspaceId, name },
-    });
-    if (!credential) {
-      throw new NotFoundException(
-        `Credencial "${name}" nao encontrada neste workspace.`,
-      );
-    }
-    return this.crypto.decrypt(credential.encryptedData);
   }
 }
 

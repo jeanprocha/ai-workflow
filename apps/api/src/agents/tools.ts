@@ -1,7 +1,6 @@
 import type { ToolDefinition } from '@workflow/ai';
 import { Client } from 'pg';
 import { evaluateMathExpression } from './calculator';
-import type { CryptoService } from '../crypto/crypto.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { KnowledgeService } from '../knowledge/knowledge.service';
 
@@ -14,24 +13,10 @@ function asString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
-async function getCredentialValue(
-  prisma: PrismaService,
-  crypto: CryptoService,
-  workspaceId: string,
-  name: string,
-): Promise<string> {
-  const credential = await prisma.credential.findFirst({
-    where: { workspaceId, name },
-  });
-  if (!credential) {
-    throw new Error(`Credencial "${name}" nao encontrada neste workspace.`);
-  }
-  return crypto.decrypt(credential.encryptedData);
-}
-
 export function buildAgentTools(deps: {
   prisma: PrismaService;
-  crypto: CryptoService;
+  /** Ponto unico de resolucao (CredentialsService.resolve, ver credentials.service.ts). */
+  resolveCredential: (name: string) => Promise<string>;
   workspaceId: string;
   agentId?: string;
   knowledge?: KnowledgeService;
@@ -111,10 +96,7 @@ export function buildAgentTools(deps: {
         },
       },
       execute: async (args) => {
-        const connectionString = await getCredentialValue(
-          deps.prisma,
-          deps.crypto,
-          deps.workspaceId,
+        const connectionString = await deps.resolveCredential(
           asString(args.credential),
         );
         const client = new Client({ connectionString });

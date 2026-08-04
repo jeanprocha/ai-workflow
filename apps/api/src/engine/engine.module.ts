@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { EngineService } from './engine.service';
 import { NodeSandboxRunner } from './sandbox/node-sandbox-runner';
-import { CryptoModule } from '../crypto/crypto.module';
+import { CredentialsModule } from '../credentials/credentials.module';
 import { AgentsModule } from '../agents/agents.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { McpModule } from '../mcp/mcp.module';
@@ -11,7 +11,7 @@ import { ApprovalsModule } from '../approvals/approvals.module';
 
 @Module({
   imports: [
-    CryptoModule,
+    CredentialsModule,
     AgentsModule,
     KnowledgeModule,
     McpModule,

@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { KnowledgeController } from './knowledge.controller';
 import { KnowledgeService } from './knowledge.service';
 import { QueueModule } from '../queue/queue.module';
-import { CryptoModule } from '../crypto/crypto.module';
+import { CredentialsModule } from '../credentials/credentials.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 
 /**
@@ -10,7 +10,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
  * ver IngestionProcessor, registrado em apps/api/src/worker/worker.module.ts.
  */
 @Module({
-  imports: [QueueModule, CryptoModule, WorkspacesModule],
+  imports: [QueueModule, CredentialsModule, WorkspacesModule],
   controllers: [KnowledgeController],
   providers: [KnowledgeService],
   exports: [KnowledgeService],

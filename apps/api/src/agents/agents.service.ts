@@ -6,7 +6,7 @@ import {
 import { getProvider, type ChatMessage } from '@workflow/ai';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CryptoService } from '../crypto/crypto.service';
+import { CredentialsService } from '../credentials/credentials.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { McpService } from '../mcp/mcp.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
@@ -29,7 +29,7 @@ export interface AgentChatResult {
 export class AgentsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly crypto: CryptoService,
+    private readonly credentials: CredentialsService,
     private readonly knowledge: KnowledgeService,
     private readonly mcp: McpService,
   ) {}
@@ -123,7 +123,7 @@ export class AgentsService {
     const apiKey =
       agent.provider === 'ollama'
         ? ''
-        : await this.getCredential(workspaceId, agent.credential);
+        : await this.credentials.resolve(workspaceId, agent.credential);
 
     const enabledToolNames = (agent.tools as string[]) ?? [];
     const nativeToolNames = enabledToolNames.filter(
@@ -135,7 +135,7 @@ export class AgentsService {
 
     const nativeToolset = buildAgentTools({
       prisma: this.prisma,
-      crypto: this.crypto,
+      resolveCredential: (name) => this.credentials.resolve(workspaceId, name),
       workspaceId,
       agentId: agent.id,
       knowledge: this.knowledge,
@@ -263,20 +263,5 @@ export class AgentsService {
     }
 
     return tools;
-  }
-
-  private async getCredential(
-    workspaceId: string,
-    name: string,
-  ): Promise<string> {
-    const credential = await this.prisma.credential.findFirst({
-      where: { workspaceId, name },
-    });
-    if (!credential) {
-      throw new NotFoundException(
-        `Credencial "${name}" nao encontrada neste workspace.`,
-      );
-    }
-    return this.crypto.decrypt(credential.encryptedData);
   }
 }

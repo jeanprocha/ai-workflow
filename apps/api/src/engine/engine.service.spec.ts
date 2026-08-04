@@ -168,7 +168,7 @@ function buildEngine(opts: BuildOpts) {
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
   const events = { emit: jest.fn() };
-  const crypto = { decrypt: jest.fn() };
+  const credentials = { resolve: jest.fn() };
   const agents = { chat: jest.fn() };
   const knowledge = { search: jest.fn() };
   const mcp = { callTool: jest.fn() };
@@ -213,7 +213,7 @@ function buildEngine(opts: BuildOpts) {
   const engine = new EngineService(
     prisma as never,
     events as never,
-    crypto as never,
+    credentials as never,
     agents as never,
     knowledge as never,
     mcp as never,
@@ -229,7 +229,7 @@ function buildEngine(opts: BuildOpts) {
     prisma,
     approvals,
     events,
-    crypto,
+    credentials,
     agents,
     knowledge,
     mcp,

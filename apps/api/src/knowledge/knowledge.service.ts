@@ -10,7 +10,7 @@ import type { Queue } from 'bullmq';
 import { getProvider } from '@workflow/ai';
 import { extractText, inferSourceType } from '@workflow/nodes';
 import { PrismaService } from '../prisma/prisma.service';
-import { CryptoService } from '../crypto/crypto.service';
+import { CredentialsService } from '../credentials/credentials.service';
 import { INGESTION_QUEUE } from '../queue/queue.module';
 import { withJobContext } from '../observability/request-context';
 import { CreateKnowledgeBaseDto } from './dto/create-knowledge-base.dto';
@@ -33,7 +33,7 @@ export class KnowledgeService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly crypto: CryptoService,
+    private readonly credentials: CredentialsService,
     @InjectQueue(INGESTION_QUEUE) private readonly queue: Queue,
   ) {}
 
@@ -169,7 +169,14 @@ export class KnowledgeService {
         throw new Error('Nenhum chunk gerado a partir do texto extraido.');
       }
 
-      const apiKey = await this.getCredential(kb.workspaceId, kb.credential);
+      const apiKey = await this.credentials.resolve(
+        kb.workspaceId,
+        kb.credential,
+        {
+          emptyNameMessage:
+            'Configure a credencial do provider de embeddings na base de conhecimento.',
+        },
+      );
       const provider = getProvider(kb.provider);
       const result = await provider.embed({
         apiKey,
@@ -226,7 +233,14 @@ export class KnowledgeService {
     },
     dto: SearchKnowledgeDto,
   ): Promise<SearchResult[]> {
-    const apiKey = await this.getCredential(kb.workspaceId, kb.credential);
+    const apiKey = await this.credentials.resolve(
+      kb.workspaceId,
+      kb.credential,
+      {
+        emptyNameMessage:
+          'Configure a credencial do provider de embeddings na base de conhecimento.',
+      },
+    );
     const provider = getProvider(kb.provider);
     const result = await provider.embed({
       apiKey,
@@ -278,25 +292,5 @@ export class KnowledgeService {
 
   async getKnowledgeBaseForAgent(workspaceId: string, id: string) {
     return this.findKnowledgeBase(workspaceId, id);
-  }
-
-  private async getCredential(
-    workspaceId: string,
-    name: string,
-  ): Promise<string> {
-    if (!name) {
-      throw new BadRequestException(
-        'Configure a credencial do provider de embeddings na base de conhecimento.',
-      );
-    }
-    const credential = await this.prisma.credential.findFirst({
-      where: { workspaceId, name },
-    });
-    if (!credential) {
-      throw new NotFoundException(
-        `Credencial "${name}" nao encontrada neste workspace.`,
-      );
-    }
-    return this.crypto.decrypt(credential.encryptedData);
   }
 }
