@@ -23,6 +23,7 @@ model User {
   memberships         WorkspaceMember[]
   createdVersions     WorkflowVersion[]
   passwordResetTokens PasswordResetToken[]
+  oauthStates         OAuthState[]
 
   @@map("users")
 }
@@ -47,6 +48,30 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+/**
+ * State do fluxo OAuth authorization-code (spec-oauth-credencial.md) — molde
+ * exato do PasswordResetToken acima: hash (nunca o valor bruto), TTL curto
+ * (10min, aplicado no service), single-use (usedAt). E o unico jeito de
+ * amarrar o callback publico (sem JWT) ao workspace/usuario certos.
+ */
+model OAuthState {
+  id             String    @id @default(uuid())
+  stateHash      String    @unique @map("state_hash")
+  workspaceId    String    @map("workspace_id")
+  userId         String    @map("user_id")
+  provider       String
+  credentialName String    @map("credential_name")
+  expiresAt      DateTime  @map("expires_at")
+  usedAt         DateTime? @map("used_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("oauth_states")
+}
+
 enum WorkspaceRole {
   owner
   admin
@@ -69,6 +94,7 @@ model Workspace {
   nodePresets    NodePreset[]
   alertSetting   WorkspaceAlertSetting?
   templates      Template[]
+  oauthStates    OAuthState[]
 
   @@map("workspaces")
 }
@@ -110,21 +136,27 @@ enum WorkflowStatus {
 }
 
 model Workflow {
-  id                String         @id @default(uuid())
-  workspaceId       String         @map("workspace_id")
-  name              String
-  description       String?
-  status            WorkflowStatus @default(draft)
-  currentVersionId  String?        @unique @map("current_version_id")
-  /** Sincronizado a cada save do grafo: id do node trigger.webhook, se houver. */
-  webhookId         String?        @unique @map("webhook_id")
-  /** Sincronizados a cada save do grafo: tokens do node trigger.chat, se houver. */
-  chatToken         String?        @unique @map("chat_token")
-  inboxToken        String?        @unique @map("inbox_token")
-  /** H2-05: fluxo disparado quando ESTE fluxo falha. onDelete:SetNull — apagar o tratador so degrada pra "sem error workflow", nunca bloqueia. */
-  errorWorkflowId   String?        @map("error_workflow_id")
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
+  id               String         @id @default(uuid())
+  workspaceId      String         @map("workspace_id")
+  name             String
+  description      String?
+  status           WorkflowStatus @default(draft)
+  currentVersionId String?        @unique @map("current_version_id")
+  /**
+   * Sincronizado a cada save do grafo: id do node trigger.webhook, se houver.
+   */
+  webhookId        String?        @unique @map("webhook_id")
+  /**
+   * Sincronizados a cada save do grafo: tokens do node trigger.chat, se houver.
+   */
+  chatToken        String?        @unique @map("chat_token")
+  inboxToken       String?        @unique @map("inbox_token")
+  /**
+   * H2-05: fluxo disparado quando ESTE fluxo falha. onDelete:SetNull — apagar o tratador so degrada pra "sem error workflow", nunca bloqueia.
+   */
+  errorWorkflowId  String?        @map("error_workflow_id")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
 
   workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   versions         WorkflowVersion[] @relation("WorkflowVersions")
@@ -173,10 +205,10 @@ model WorkflowVersion {
   createdById   String   @map("created_by")
   createdAt     DateTime @default(now()) @map("created_at")
 
-  workflow    Workflow    @relation("WorkflowVersions", fields: [workflowId], references: [id], onDelete: Cascade)
-  createdBy   User        @relation(fields: [createdById], references: [id])
-  currentOf   Workflow?   @relation("CurrentVersion")
-  executions  Execution[]
+  workflow   Workflow    @relation("WorkflowVersions", fields: [workflowId], references: [id], onDelete: Cascade)
+  createdBy  User        @relation(fields: [createdById], references: [id])
+  currentOf  Workflow?   @relation("CurrentVersion")
+  executions Execution[]
 
   @@unique([workflowId, versionNumber])
   @@map("workflow_versions")
@@ -204,6 +236,18 @@ model Credential {
   /// isso, editar rebaixaria silenciosamente um campo numerico pra texto.
   /// O VALOR de cada campo nunca mora aqui, so dentro de encryptedData.
   fieldsMeta Json? @map("fields_meta")
+
+  /// Colunas de kind = "oauth" (spec-oauth-credencial.md), em claro pelo
+  /// mesmo racional de fieldsMeta: a UI precisa saber "expirado?" sem nunca
+  /// descriptografar (ADR-007). O blob {access_token, refresh_token,
+  /// token_type} cifrado mora em encryptedData, como o kind "fields" ja faz.
+  /// Nulas para kind != "oauth".
+  oauthProvider  String?   @map("oauth_provider")
+  oauthExpiresAt DateTime? @map("oauth_expires_at")
+  oauthScopes    String[]  @default([]) @map("oauth_scopes")
+  /// "active" | "error" — nunca deriva do blob cifrado.
+  oauthStatus    String?   @map("oauth_status")
+  oauthLastError String?   @map("oauth_last_error")
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -262,7 +306,9 @@ model NodePreset {
 enum ExecutionStatus {
   queued
   running
-  /** H2-06: pausada num node de aprovacao humana, esperando decisao (ou timeout do sweeper). */
+  /**
+   * H2-06: pausada num node de aprovacao humana, esperando decisao (ou timeout do sweeper).
+   */
   waiting_approval
   success
   failed
@@ -278,41 +324,47 @@ enum TriggerType {
 }
 
 model Execution {
-  id                String          @id @default(uuid())
-  workflowId        String          @map("workflow_id")
-  versionId         String          @map("version_id")
-  status            ExecutionStatus @default(queued)
-  triggerType       TriggerType     @map("trigger_type")
-  inputPayload      Json?           @map("input_payload")
-  outputPayload     Json?           @map("output_payload")
-  durationMs        Int?            @map("duration_ms")
-  tokensTotal       Int             @default(0) @map("tokens_total")
-  costUsd           Float           @default(0) @map("cost_usd")
-  startedAt         DateTime        @default(now()) @map("started_at")
-  finishedAt        DateTime?       @map("finished_at")
-  error             String?
-  parentExecutionId String?         @map("parent_execution_id")
-  /** Agrupa uma execucao com todos os seus replays (Fase 6). Nula em execucoes anteriores a Fase 6. */
-  traceId           String?         @map("trace_id")
-  /** Node a partir do qual esta execucao foi um replay parcial, se houver. */
-  replayFromNodeId  String?         @map("replay_from_node_id")
+  id                   String          @id @default(uuid())
+  workflowId           String          @map("workflow_id")
+  versionId            String          @map("version_id")
+  status               ExecutionStatus @default(queued)
+  triggerType          TriggerType     @map("trigger_type")
+  inputPayload         Json?           @map("input_payload")
+  outputPayload        Json?           @map("output_payload")
+  durationMs           Int?            @map("duration_ms")
+  tokensTotal          Int             @default(0) @map("tokens_total")
+  costUsd              Float           @default(0) @map("cost_usd")
+  startedAt            DateTime        @default(now()) @map("started_at")
+  finishedAt           DateTime?       @map("finished_at")
+  error                String?
+  parentExecutionId    String?         @map("parent_execution_id")
+  /**
+   * Agrupa uma execucao com todos os seus replays (Fase 6). Nula em execucoes anteriores a Fase 6.
+   */
+  traceId              String?         @map("trace_id")
+  /**
+   * Node a partir do qual esta execucao foi um replay parcial, se houver.
+   */
+  replayFromNodeId     String?         @map("replay_from_node_id")
   /**
    * H2-06: gravado em TODO claim (enfileiramento inicial e cada retomada pos-
    * pausa) — e o que o orphan recovery usa pra decidir "travou" em vez de
    * `startedAt`, que nunca muda e faria uma execucao retomada virar elegivel
    * a ser morta no proximo boot de worker.
    */
-  runStartedAt          DateTime? @map("run_started_at")
-  suspendedAt           DateTime? @map("suspended_at")
-  /** Soma do tempo de execucao real (fora das pausas) — sem isso, durationMs contaria os dias parados. */
-  elapsedMsBeforePause  Int?      @map("elapsed_ms_before_pause")
+  runStartedAt         DateTime?       @map("run_started_at")
+  suspendedAt          DateTime?       @map("suspended_at")
+  /**
+   * Soma do tempo de execucao real (fora das pausas) — sem isso, durationMs contaria os dias parados.
+   */
+  elapsedMsBeforePause Int?            @map("elapsed_ms_before_pause")
 
-  workflow      Workflow             @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  version       WorkflowVersion      @relation(fields: [versionId], references: [id])
+  workflow      Workflow              @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  version       WorkflowVersion       @relation(fields: [versionId], references: [id])
   steps         ExecutionStep[]
   logs          ExecutionLog[]
-  parent        Execution?           @relation("Replay", fields: [parentExecutionId], references: [id])
-  replays       Execution[]          @relation("Replay")
+  parent        Execution?            @relation("Replay", fields: [parentExecutionId], references: [id])
+  replays       Execution[]           @relation("Replay")
   aiSuggestions AiSuggestion[]
   pausedState   ExecutionPausedState?
   approvals     Approval[]
@@ -340,14 +392,18 @@ model ExecutionPausedState {
   @@map("execution_paused_states")
 }
 
-/** O que de fato aconteceu — "void" e usado quando a execucao termina (por qualquer caminho) com a aprovacao ainda aberta. */
+/**
+ * O que de fato aconteceu — "void" e usado quando a execucao termina (por qualquer caminho) com a aprovacao ainda aberta.
+ */
 enum ApprovalDecisionValue {
   approved
   rejected
   void
 }
 
-/** O que fazer quando o prazo estoura sem decisao — subconjunto deliberado de ApprovalDecisionValue (nunca "void"). */
+/**
+ * O que fazer quando o prazo estoura sem decisao — subconjunto deliberado de ApprovalDecisionValue (nunca "void").
+ */
 enum ApprovalTimeoutAction {
   approve
   reject
@@ -362,24 +418,30 @@ enum ApprovalTimeoutAction {
  * aberta (previousTokenHashes) — ver ApprovalsService.create.
  */
 model Approval {
-  id          String    @id @default(uuid())
-  executionId String    @map("execution_id")
-  /** Denormalizado do Workflow — evita join pra listar/filtrar por workspace (GET /approvals). */
-  workspaceId String    @map("workspace_id")
-  nodeId      String    @map("node_id")
-  title       String
-  tokenHash   String    @unique @map("token_hash")
-  /** Hashes dos tokens de tentativas anteriores do MESMO ciclo — links ja enviados por e-mail que continuam valendo. Zerado quando a pendencia e reaberta depois de uma decisao (ApprovalsService.create). */
-  previousTokenHashes String[] @default([]) @map("previous_token_hashes")
-  expiresAt   DateTime  @map("expires_at")
-  onTimeout   ApprovalTimeoutAction @default(reject) @map("on_timeout")
+  id                  String                @id @default(uuid())
+  executionId         String                @map("execution_id")
+  /**
+   * Denormalizado do Workflow — evita join pra listar/filtrar por workspace (GET /approvals).
+   */
+  workspaceId         String                @map("workspace_id")
+  nodeId              String                @map("node_id")
+  title               String
+  tokenHash           String                @unique @map("token_hash")
+  /**
+   * Hashes dos tokens de tentativas anteriores do MESMO ciclo — links ja enviados por e-mail que continuam valendo. Zerado quando a pendencia e reaberta depois de uma decisao (ApprovalsService.create).
+   */
+  previousTokenHashes String[]              @default([]) @map("previous_token_hashes")
+  expiresAt           DateTime              @map("expires_at")
+  onTimeout           ApprovalTimeoutAction @default(reject) @map("on_timeout")
 
-  decidedAt  DateTime?              @map("decided_at")
-  decision   ApprovalDecisionValue?
-  decidedBy  String?                @map("decided_by")
-  comment    String?
+  decidedAt DateTime?              @map("decided_at")
+  decision  ApprovalDecisionValue?
+  decidedBy String?                @map("decided_by")
+  comment   String?
 
-  /** Preenchido so depois que executions.enqueueResume() de fato enfileirou — o sweeper reenfileira se ficar null (worker morreu entre decidir e enfileirar). */
+  /**
+   * Preenchido so depois que executions.enqueueResume() de fato enfileirou — o sweeper reenfileira se ficar null (worker morreu entre decidir e enfileirar).
+   */
   resumeEnqueuedAt DateTime? @map("resume_enqueued_at")
   resumeAttempts   Int       @default(0) @map("resume_attempts")
 
@@ -390,7 +452,9 @@ model Approval {
   @@unique([executionId, nodeId])
   @@index([workspaceId, decidedAt])
   @@index([decidedAt, expiresAt])
-  /** A busca por token bruto casa `tokenHash` (btree do @unique) OU um elemento deste array — sem GIN, o segundo lado do OR seria seq scan na tabela inteira a cada GET /approve/:token. */
+  /**
+   * A busca por token bruto casa `tokenHash` (btree do @unique) OU um elemento deste array — sem GIN, o segundo lado do OR seria seq scan na tabela inteira a cada GET /approve/:token.
+   */
   @@index([previousTokenHashes], type: Gin)
   @@map("approvals")
 }
@@ -408,7 +472,9 @@ model ExecutionStep {
   tokens      Int?
   model       String?
   costUsd     Float?          @map("cost_usd")
-  /** Heap usado pelo processo do worker logo apos o node terminar, em MB. */
+  /**
+   * Heap usado pelo processo do worker logo apos o node terminar, em MB.
+   */
   memoryMb    Float?          @map("memory_mb")
   /**
    * Patch de $vars produzido por este step (hoje so logic.setVariables) —
@@ -450,19 +516,23 @@ model ExecutionLog {
 }
 
 model Agent {
-  id           String   @id @default(uuid())
-  workspaceId  String   @map("workspace_id")
-  name         String
-  description  String?
-  systemPrompt String   @map("system_prompt")
-  provider     String   @default("anthropic")
-  model        String
-  credential   String   @default("")
-  temperature  Float    @default(0.7)
-  /** Nomes das tools habilitadas: ["http", "calculator", "sql", "knowledge_base"]. */
+  id              String   @id @default(uuid())
+  workspaceId     String   @map("workspace_id")
+  name            String
+  description     String?
+  systemPrompt    String   @map("system_prompt")
+  provider        String   @default("anthropic")
+  model           String
+  credential      String   @default("")
+  temperature     Float    @default(0.7)
+  /**
+   * Nomes das tools habilitadas: ["http", "calculator", "sql", "knowledge_base"].
+   */
   tools           Json     @default("[]")
   outputSchema    Json?    @map("output_schema")
-  /** Base de conhecimento usada pela tool "knowledge_base", se habilitada. */
+  /**
+   * Base de conhecimento usada pela tool "knowledge_base", se habilitada.
+   */
   knowledgeBaseId String?  @map("knowledge_base_id")
   createdAt       DateTime @default(now()) @map("created_at")
 
@@ -541,7 +611,9 @@ model Document {
   status          DocumentStatus @default(processing)
   error           String?
   chunkCount      Int            @default(0) @map("chunk_count")
-  /** Texto bruto extraido, mantido para reprocessamento/debug. */
+  /**
+   * Texto bruto extraido, mantido para reprocessamento/debug.
+   */
   rawText         String?        @map("raw_text")
   createdAt       DateTime       @default(now()) @map("created_at")
 
@@ -557,7 +629,9 @@ model Chunk {
   documentId String                       @map("document_id")
   content    String
   metadata   Json?
-  /** Vetor pgvector — manipulado via $queryRaw/$executeRaw (tipo Unsupported). */
+  /**
+   * Vetor pgvector — manipulado via $queryRaw/$executeRaw (tipo Unsupported).
+   */
   embedding  Unsupported("vector(1536)")?
   createdAt  DateTime                     @default(now()) @map("created_at")
 
@@ -598,10 +672,14 @@ model McpServer {
   workspaceId   String          @map("workspace_id")
   name          String
   transport     McpTransport
-  /** Comando do processo (transport stdio). */
+  /**
+   * Comando do processo (transport stdio).
+   */
   command       String?
   args          Json?
-  /** URL do servidor remoto (transport sse/http). */
+  /**
+   * URL do servidor remoto (transport sse/http).
+   */
   url           String?
   status        McpServerStatus @default(disconnected)
   lastError     String?         @map("last_error")
@@ -647,7 +725,9 @@ model McpTool {
   @@map("mcp_tools")
 }
 
-/** Fase 11: IA generativa de plataforma (Autocomplete, Copilot, Debugger, Cost Optimizer). */
+/**
+ * Fase 11: IA generativa de plataforma (Autocomplete, Copilot, Debugger, Cost Optimizer).
+ */
 enum AiSuggestionType {
   autocomplete
   copilot
@@ -667,21 +747,25 @@ enum AiSuggestionStatus {
  * prompts internos depois.
  */
 model AiSuggestion {
-  id          String             @id @default(uuid())
-  workspaceId String             @map("workspace_id")
-  workflowId  String?            @map("workflow_id")
-  executionId String?            @map("execution_id")
-  type        AiSuggestionType
-  /** Conteudo especifico do tipo: grafo gerado, causa+fixes, troca de modelo, diff proposto. */
-  payload     Json
-  status      AiSuggestionStatus @default(pending)
-  /** Ausentes quando o tipo nao chama LLM (ex.: cost_optimizer, heuristica sobre ExecutionStep). */
+  id           String             @id @default(uuid())
+  workspaceId  String             @map("workspace_id")
+  workflowId   String?            @map("workflow_id")
+  executionId  String?            @map("execution_id")
+  type         AiSuggestionType
+  /**
+   * Conteudo especifico do tipo: grafo gerado, causa+fixes, troca de modelo, diff proposto.
+   */
+  payload      Json
+  status       AiSuggestionStatus @default(pending)
+  /**
+   * Ausentes quando o tipo nao chama LLM (ex.: cost_optimizer, heuristica sobre ExecutionStep).
+   */
   model        String?
-  inputTokens  Int?              @map("input_tokens")
-  outputTokens Int?              @map("output_tokens")
-  costUsd      Float?            @map("cost_usd")
-  createdAt   DateTime           @default(now()) @map("created_at")
-  resolvedAt  DateTime?          @map("resolved_at")
+  inputTokens  Int?               @map("input_tokens")
+  outputTokens Int?               @map("output_tokens")
+  costUsd      Float?             @map("cost_usd")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  resolvedAt   DateTime?          @map("resolved_at")
 
   workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   workflow  Workflow?  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
@@ -706,7 +790,9 @@ model Conversation {
   workflowId  String   @map("workflow_id")
   channel     String   @default("web")
   externalKey String?  @map("external_key")
-  /** Espelha $vars da ultima execucao concluida com sucesso — carrinho, etapa etc. */
+  /**
+   * Espelha $vars da ultima execucao concluida com sucesso — carrinho, etapa etc.
+   */
   state       Json     @default("{}")
   status      String   @default("open")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -723,10 +809,14 @@ model Conversation {
 model ConversationMessage {
   id             String   @id @default(uuid())
   conversationId String   @map("conversation_id")
-  /** "user" (visitante) | "bot" (node chat.reply) | "operator" (inbox humano). */
+  /**
+   * "user" (visitante) | "bot" (node chat.reply) | "operator" (inbox humano).
+   */
   role           String
   content        String
-  /** Execucao que gerou esta mensagem, quando role = "bot". */
+  /**
+   * Execucao que gerou esta mensagem, quando role = "bot".
+   */
   executionId    String?  @map("execution_id")
   createdAt      DateTime @default(now()) @map("created_at")
 

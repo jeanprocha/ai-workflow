@@ -37,6 +37,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { FlowApiModule } from './flow-api/flow-api.module';
 import { ApprovalsModule } from './approvals/approvals.module';
+import { OAuthModule } from './oauth/oauth.module';
 
 /**
  * H1.1 (hardening): limite generoso por padrao (protege contra flood/DoS
@@ -90,6 +91,7 @@ function throttlerConfig() {
     TelemetryModule,
     FlowApiModule,
     ApprovalsModule,
+    OAuthModule,
   ],
   controllers: [AppController],
   providers: [
