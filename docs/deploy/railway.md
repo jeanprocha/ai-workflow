@@ -200,6 +200,28 @@ conhecida**: refresh tokens sao JWT stateless — um reset de senha NAO
 invalida sessoes (refresh tokens) ja emitidas antes dele. Revogacao de
 sessao fica pro RBAC (H3).
 
+### OAuth como metodo de credencial (v1: Google)
+
+Valem pros dois servicos (`api` gera a URL de autorizacao e recebe o
+callback; `worker` renova o token perto de expirar, dentro do resolve de
+credencial que a engine usa). **Sem `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET`, o
+provedor Google fica invisivel** em `GET /oauth/providers` — nao e erro de
+boot, o botao "Conectar" so nao aparece.
+
+| Variavel | Default | Efeito |
+|---|---|---|
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | *(nao setadas = provedor desabilitado)* | Credenciais do app OAuth no Google Cloud Console |
+| `API_PUBLIC_URL` | `http://localhost:3333` | Monta o `redirect_uri` (`{API_PUBLIC_URL}/oauth/callback`) — **precisa bater exatamente** com o registrado no console do provedor |
+
+O redirect URI a registrar no Google Cloud Console (OAuth consent screen →
+Credentials) e `https://api-production-cb36.up.railway.app/oauth/callback`.
+Sem isso o Google recusa a troca com `redirect_uri_mismatch`, mesmo com
+client_id/secret corretos.
+
+`invalid_grant` do provedor (token revogado, ou o usuario desconectou o app
+pelo lado do Google) marca a credencial como `oauthStatus: "error"` — exige
+reconectar pela UI, nao se recupera sozinho.
+
 ## Escalar
 
 Aumentar replicas do `worker` (Settings → Deploy → Replicas) conforme a

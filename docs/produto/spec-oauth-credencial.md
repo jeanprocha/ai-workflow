@@ -1,5 +1,14 @@
 # SPEC — OAuth como método de credencial (v1: Google)
 
+**Status: implementado (2026-08-04).** Quatro commits: consolidação do
+resolve de credencial (pré-requisito), fluxo authorization-code (start +
+callback), renovação sob demanda com lock, UI de conexão + e2e. O desenho
+descrito abaixo foi seguido como planejado — nenhuma decisão foi revisada
+durante a implementação, com uma exceção: `start()` permite reconectar a
+mesma credencial oauth/provider sem 409 (refinamento sobre a decisão 2, que
+não distinguia esse caso). Estado atual documentado em
+[`docs/sistema/12-auth-workspaces.md`](../sistema/12-auth-workspaces.md).
+
 Data: 2026-08-03. Origem: item 1 da ordem sugerida em
 [`discovery-lacunas-mercado.md`](discovery-lacunas-mercado.md) §1. Objetivo:
 hoje toda credencial é chave/senha colada num formulário — inviável para a
