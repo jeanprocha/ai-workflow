@@ -1,6 +1,6 @@
 # Visão geral
 
-> Última revisão: 2026-08-03 · commit `93468bf`
+> Última revisão: 2026-08-04 · commit `9a45fe6`
 
 ## O que faz
 
@@ -20,7 +20,7 @@ O monorepo é gerenciado por pnpm workspaces + Turborepo. Sete pacotes:
 | ------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@workflow/api`    | `apps/api`        | NestJS 11. Dois entrypoints: `src/main.ts` (API HTTP) e `src/worker.main.ts` (worker das filas). Prisma/Postgres, Redis/BullMQ, JWT, Sentry, Prometheus. |
 | `@workflow/web`    | `apps/web`        | Next.js 16 (App Router, React 19). Editor visual com `@xyflow/react`, dashboards, páginas públicas. Tailwind 4, React Query, i18n pt-BR.                 |
-| `@workflow/e2e`    | `apps/e2e`        | Playwright. 45 specs por feature; 13 marcadas `@smoke` (o recorte que o CI roda).                                                                        |
+| `@workflow/e2e`    | `apps/e2e`        | Playwright. 46 specs por feature; 13 marcadas `@smoke` (o recorte que o CI roda).                                                                        |
 | `@workflow/shared` | `packages/shared` | Tipos e lógica pura usados por API e web: formato do grafo, tipos de workflow, `EXECUTION_PHASE`, diff de grafos.                                        |
 | `@workflow/nodes`  | `packages/nodes`  | O catálogo de nodes (51 definições no registry) + o resolvedor de expressões `{{ }}` + extração de texto.                                                |
 | `@workflow/ai`     | `packages/ai`     | Abstração de providers de LLM (OpenAI, Anthropic, Gemini, Ollama), tabela de preço/capacidade por modelo, cliente MCP, rate limiter.                     |

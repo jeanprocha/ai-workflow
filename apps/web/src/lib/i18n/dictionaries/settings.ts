@@ -52,6 +52,17 @@ export const pt = {
     updateErrorFallback: "Não foi possível atualizar a conexão.",
     /** Sufixo da lista quando ha mais campos do que cabe mostrar: "clientId, database, +3". */
     moreFields: (count: number) => `+${count}`,
+    oauthSectionTitle: "Conectar via OAuth",
+    oauthConnectAria: "Conectar",
+    /** Rotulo na linha da conexao oauth, ex: "google · Conectado via OAuth". */
+    oauthConnectedLabel: "Conectado via OAuth",
+    oauthReconnectAria: "Reconectar",
+    oauthStartErrorFallback: "Não foi possível iniciar a conexão.",
+    oauthConnectedToast: (provider: string) => `Conectado a ${provider}.`,
+    oauthErrorToast: (provider: string) => `Não foi possível conectar a ${provider}.`,
+    oauthStatusActive: "Ativo",
+    oauthStatusExpired: "Expirado",
+    oauthStatusError: "Erro",
   },
   variables: {
     title: "Variáveis",
@@ -69,7 +80,8 @@ export const pt = {
     removedToast: "Variável removida.",
     removeErrorFallback: "Não foi possível remover a variável.",
     removeConfirmTitle: "Remover esta variável?",
-    removeConfirmDescription: "Fluxos que referenciam esta variável vão falhar até ela ser recriada.",
+    removeConfirmDescription:
+      "Fluxos que referenciam esta variável vão falhar até ela ser recriada.",
     /** Prefixo do aria-label do botao de lixeira — concatenado com a chave da variavel. */
     removeAria: "Remover variável",
   },
@@ -79,7 +91,7 @@ export const pt = {
       "Configurações de node salvas para reusar em qualquer fluxo — ex.: uma chamada HTTP assinada já pronta pra um ERP.",
     emptyTitle: "Nenhuma predefinição ainda",
     emptyDescription:
-      "Salve a configuração de um node pelo painel do editor (\"Salvar como predefinição\") ou crie uma aqui.",
+      'Salve a configuração de um node pelo painel do editor ("Salvar como predefinição") ou crie uma aqui.',
     add: "Nova predefinição",
     dialogTitle: "Nova predefinição",
     nodeTypeLabel: "Tipo de node",
@@ -170,6 +182,16 @@ export const en = {
     updatedToast: "Connection updated.",
     updateErrorFallback: "Could not update the connection.",
     moreFields: (count: number) => `+${count}`,
+    oauthSectionTitle: "Connect via OAuth",
+    oauthConnectAria: "Connect",
+    oauthConnectedLabel: "Connected via OAuth",
+    oauthReconnectAria: "Reconnect",
+    oauthStartErrorFallback: "Could not start the connection.",
+    oauthConnectedToast: (provider: string) => `Connected to ${provider}.`,
+    oauthErrorToast: (provider: string) => `Could not connect to ${provider}.`,
+    oauthStatusActive: "Active",
+    oauthStatusExpired: "Expired",
+    oauthStatusError: "Error",
   },
   variables: {
     title: "Variables",

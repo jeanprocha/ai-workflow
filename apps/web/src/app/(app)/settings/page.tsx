@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, Link2, Pencil, Plus, RotateCw, Trash2, X } from "lucide-react";
 import { EmptyState } from "@workflow/ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +38,7 @@ import {
   type CredentialFieldType,
   type CredentialSummary,
 } from "@/hooks/use-credentials";
+import { useOAuthProviders, useStartOAuth } from "@/hooks/use-oauth";
 import { useCreateVariable, useDeleteVariable, useVariables } from "@/hooks/use-variables";
 import { useCreateNodePreset, useDeleteNodePreset, useNodePresets } from "@/hooks/use-node-presets";
 import {
@@ -109,9 +112,7 @@ function CredentialFieldsEditor({
           <select
             aria-label={`${c.fieldTypeAria} ${field.key || index + 1}`}
             value={field.type}
-            onChange={(event) =>
-              update(index, { type: event.target.value as CredentialFieldType })
-            }
+            onChange={(event) => update(index, { type: event.target.value as CredentialFieldType })}
             className="h-8 shrink-0 rounded-md border border-border bg-background px-2 text-sm"
           >
             <option value="text">{c.fieldTypeText}</option>
@@ -151,7 +152,12 @@ function CredentialFieldsEditor({
 function credentialSummaryLine(
   credential: CredentialSummary,
   moreFields: (count: number) => string,
+  oauthConnectedLabel: string,
 ): string {
+  if (credential.kind === "oauth") {
+    // lastFour nunca e setado pro fluxo oauth (nao ha um "valor" pra mascarar).
+    return `${credential.provider} · ${oauthConnectedLabel}`;
+  }
   if (credential.kind !== "fields") {
     return `${credential.provider} · ••••${credential.lastFour ?? ""}`;
   }
@@ -161,6 +167,114 @@ function credentialSummaryLine(
   return `${credential.provider} · ${shown}${rest > 0 ? `, ${moreFields(rest)}` : ""}`;
 }
 
+type OAuthDisplayStatus = "active" | "expired" | "error";
+
+/** Deriva o badge de colunas em claro — nunca do blob cifrado. */
+function oauthDisplayStatus(credential: CredentialSummary): OAuthDisplayStatus {
+  if (credential.oauthStatus === "error") return "error";
+  if (credential.oauthExpiresAt && new Date(credential.oauthExpiresAt).getTime() < Date.now()) {
+    return "expired";
+  }
+  return "active";
+}
+
+const OAUTH_BADGE_STYLE: Record<OAuthDisplayStatus, string> = {
+  active: "bg-success-subtle text-success",
+  expired: "bg-warning-subtle text-warning",
+  error: "bg-danger-subtle text-danger",
+};
+
+function OAuthStatusBadge({ credential }: { credential: CredentialSummary }) {
+  const t = useDictionary();
+  const c = t.settings.connections;
+  const status = oauthDisplayStatus(credential);
+  const label =
+    status === "active"
+      ? c.oauthStatusActive
+      : status === "expired"
+        ? c.oauthStatusExpired
+        : c.oauthStatusError;
+  const Icon = status === "active" ? Check : status === "expired" ? RotateCw : X;
+  return (
+    <span
+      title={status === "error" ? (credential.oauthLastError ?? undefined) : undefined}
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs ${OAUTH_BADGE_STYLE[status]}`}
+    >
+      <Icon className="h-3 w-3" strokeWidth={2.5} />
+      {label}
+    </span>
+  );
+}
+
+/**
+ * Le `?oauth=ok|erro&provider=` do retorno do callback (apps/api/src/oauth/
+ * oauth.controller.ts). Dentro de um popup (window.opener existe), so avisa
+ * quem abriu via postMessage e fecha — quem trata o toast/invalidacao e a
+ * aba original (useOAuthPopupListener). Sem popup (bloqueado, ou o Google
+ * navegou a mesma aba), trata aqui mesmo.
+ *
+ * useSearchParams exige Suspense em build de producao (Next 16) — por isso
+ * este componente e isolado e so ele fica dentro do boundary.
+ */
+function OAuthReturnHandler() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const queryClient = useQueryClient();
+  const t = useDictionary();
+  const c = t.settings.connections;
+
+  useEffect(() => {
+    const status = searchParams.get("oauth");
+    if (!status) return;
+    const provider = searchParams.get("provider") ?? "";
+
+    if (typeof window !== "undefined" && window.opener && window.opener !== window) {
+      (window.opener as Window).postMessage(
+        { type: "oauth-callback", status, provider },
+        window.location.origin,
+      );
+      window.close();
+      return;
+    }
+
+    if (status === "ok") {
+      toast.success(c.oauthConnectedToast(provider));
+    } else {
+      toast.error(c.oauthErrorToast(provider));
+    }
+    queryClient.invalidateQueries({ queryKey: ["credentials"] });
+    router.replace(pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  return null;
+}
+
+/** Ouve o postMessage do popup (ver OAuthReturnHandler) na aba que iniciou a conexao. */
+function useOAuthPopupListener() {
+  const queryClient = useQueryClient();
+  const t = useDictionary();
+  const c = t.settings.connections;
+
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string; status?: string; provider?: string } | null;
+      if (data?.type !== "oauth-callback") return;
+      if (data.status === "ok") {
+        toast.success(c.oauthConnectedToast(data.provider ?? ""));
+      } else {
+        toast.error(c.oauthErrorToast(data.provider ?? ""));
+      }
+      queryClient.invalidateQueries({ queryKey: ["credentials"] });
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
+
 function ConnectionsSection() {
   const t = useDictionary();
   const c = t.settings.connections;
@@ -168,6 +282,16 @@ function ConnectionsSection() {
   const createCredential = useCreateCredential();
   const updateCredential = useUpdateCredential();
   const deleteCredential = useDeleteCredential();
+  const { data: oauthProviders } = useOAuthProviders();
+  const startOAuth = useStartOAuth();
+  useOAuthPopupListener();
+  // Popup bloqueado pelo navegador: cai pra navegacao na mesma aba. A
+  // mutacao de window.location fica isolada num efeito (react-hooks/
+  // immutability nao deixa atribuir fora de um efeito dentro de componente).
+  const [popupBlockedUrl, setPopupBlockedUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (popupBlockedUrl) window.location.href = popupBlockedUrl;
+  }, [popupBlockedUrl]);
   const [open, setOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   /** Conexao em edicao — `null` significa "criando uma nova". */
@@ -193,6 +317,8 @@ function ConnectionsSection() {
   }
 
   function openEdit(credential: CredentialSummary) {
+    // Conexao oauth nao passa por este form generico — usa "Reconectar".
+    if (credential.kind === "oauth") return;
     setEditing(credential);
     setProvider(credential.provider);
     setName(credential.name);
@@ -201,9 +327,7 @@ function ConnectionsSection() {
     // Chaves e TIPOS vem preenchidos; valores sempre em branco — o segredo
     // salvo nunca volta pro navegador. Sem carregar o tipo junto, editar
     // rebaixaria silenciosamente um campo numerico pra texto.
-    setFields(
-      (credential.fieldsMeta ?? []).map((field) => ({ ...field, value: "" })),
-    );
+    setFields((credential.fieldsMeta ?? []).map((field) => ({ ...field, value: "" })));
     setOpen(true);
   }
 
@@ -242,9 +366,7 @@ function ConnectionsSection() {
       resetForm();
       setOpen(false);
     } catch (error) {
-      toast.error(
-        errorMessage(error, editing ? c.updateErrorFallback : c.createErrorFallback),
-      );
+      toast.error(errorMessage(error, editing ? c.updateErrorFallback : c.createErrorFallback));
     }
   }
 
@@ -260,12 +382,53 @@ function ConnectionsSection() {
     }
   }
 
+  /**
+   * `name` presente = reconectar a MESMA credencial (token expirado/erro);
+   * ausente = conectar uma nova, com o nome default do backend (o proprio
+   * provider). O popup pode ser bloqueado pelo navegador — `window.open`
+   * devolve null nesse caso, e a navegacao cai pra mesma aba.
+   */
+  async function onConnect(provider: string, name?: string) {
+    try {
+      const { authorizeUrl } = await startOAuth.mutateAsync({ provider, name });
+      const popup = window.open(authorizeUrl, "oauth-connect", "width=520,height=680");
+      if (!popup) {
+        setPopupBlockedUrl(authorizeUrl);
+      }
+    } catch (error) {
+      toast.error(errorMessage(error, c.oauthStartErrorFallback));
+    }
+  }
+
   if (isLoading) return <Skeleton className="h-16 rounded-lg" />;
 
   const pending = createCredential.isPending || updateCredential.isPending;
 
   return (
     <>
+      <Suspense fallback={null}>
+        <OAuthReturnHandler />
+      </Suspense>
+
+      {!!oauthProviders?.length && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">{c.oauthSectionTitle}</span>
+          {oauthProviders.map((provider) => (
+            <Button
+              key={provider.provider}
+              size="sm"
+              variant="outline"
+              disabled={startOAuth.isPending}
+              aria-label={`${c.oauthConnectAria} ${provider.label}`}
+              onClick={() => onConnect(provider.provider)}
+            >
+              <Link2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+              {provider.label}
+            </Button>
+          ))}
+        </div>
+      )}
+
       {!credentials?.length ? (
         <EmptyState
           title={c.emptyTitle}
@@ -284,20 +447,37 @@ function ConnectionsSection() {
               className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{credential.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium text-foreground">{credential.name}</p>
+                  {credential.kind === "oauth" && <OAuthStatusBadge credential={credential} />}
+                </div>
                 <p className="truncate font-mono text-xs text-muted-foreground">
-                  {credentialSummaryLine(credential, c.moreFields)}
+                  {credentialSummaryLine(credential, c.moreFields, c.oauthConnectedLabel)}
                 </p>
               </div>
               <div className="flex shrink-0 items-center">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`${c.editAria} ${credential.name}`}
-                  onClick={() => openEdit(credential)}
-                >
-                  <Pencil className="h-4 w-4" strokeWidth={1.5} />
-                </Button>
+                {credential.kind === "oauth" ? (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`${c.oauthReconnectAria} ${credential.name}`}
+                    disabled={startOAuth.isPending}
+                    onClick={() =>
+                      onConnect(credential.oauthProvider ?? credential.provider, credential.name)
+                    }
+                  >
+                    <RotateCw className="h-4 w-4" strokeWidth={1.5} />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`${c.editAria} ${credential.name}`}
+                    onClick={() => openEdit(credential)}
+                  >
+                    <Pencil className="h-4 w-4" strokeWidth={1.5} />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -596,7 +776,12 @@ function NodePresetsSection() {
     if (!nodeType || !name.trim() || configError) return;
     try {
       const config = JSON.parse(configText) as Record<string, unknown>;
-      await createPreset.mutateAsync({ nodeType, name: name.trim(), description: description.trim(), config });
+      await createPreset.mutateAsync({
+        nodeType,
+        name: name.trim(),
+        description: description.trim(),
+        config,
+      });
       toast.success(t.settings.nodePresets.createdToast);
       setName("");
       setDescription("");

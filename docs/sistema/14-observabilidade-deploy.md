@@ -1,6 +1,6 @@
 # Observabilidade, testes e deploy
 
-> Última revisão: 2026-08-03 · commit `93468bf`
+> Última revisão: 2026-08-04 · commit `9a45fe6`
 
 ## O que faz
 
@@ -18,7 +18,9 @@ Do lado de deploy, a topologia é simples e vale entender antes de abrir os docs
 
 O CI roda em dois jobs paralelos. O primeiro é a cadeia estática — lint, typecheck, build, test (Jest via Turborepo). O segundo, `e2e-smoke` (H1.3), é independente porque precisa de um ambiente completo de pé: Postgres com pgvector e Redis como service containers, migrações aplicadas, seed rodado, API, worker e web buildados e iniciados, e então o subconjunto de specs marcado `@smoke`. Quando falha, anexa o report do Playwright e os logs dos três processos como artefatos. Deliberadamente **não** define `NODE_ENV=production`, para que os limites do throttler fiquem no default folgado e o próprio CI não se auto-rate-limite fazendo login em sequência.
 
-A suíte E2E completa (45 specs em `apps/e2e/tests/`, dos quais 13 marcados `@smoke`) fica fora do `pnpm test` e nunca roda inteira no CI — o job `e2e-smoke` executa só o recorte `@smoke`. Rodar tudo exige serviços reais e é sempre um comando explícito e local. O plano de testes tem duas frentes deliberadas: o automatizado cobre o que dá para afirmar com certeza, e roteiros manuais em `docs/testing/manual/` cobrem o que exige julgamento humano.
+A suíte E2E completa (46 specs em `apps/e2e/tests/`, dos quais 13 marcados `@smoke`) fica fora do `pnpm test` e nunca roda inteira no CI — o job `e2e-smoke` executa só o recorte `@smoke`. Rodar tudo exige serviços reais e é sempre um comando explícito e local. O plano de testes tem duas frentes deliberadas: o automatizado cobre o que dá para afirmar com certeza, e roteiros manuais em `docs/testing/manual/` cobrem o que exige julgamento humano.
+
+O spec de OAuth (`apps/e2e/tests/settings/oauth-credential.spec.ts`) é o único que depende de um serviço externo ao stack padrão: o fixture HTTP `apps/e2e/fixtures/oauth-fake-provider.mjs` precisa estar de pé **antes** da API subir, porque `OAUTH_TEST_AUTHORIZE_URL`/`OAUTH_TEST_TOKEN_URL` são lidas do `.env` só no boot do processo — editar o `.env` com a API já rodando não tem efeito até reiniciar. Por isso não está marcado `@smoke` nem roda no CI padrão.
 
 ## Onde vive
 

@@ -48,6 +48,10 @@ function toPublic(credential: {
   lastFour: string | null;
   createdAt: Date;
   updatedAt: Date;
+  oauthProvider: string | null;
+  oauthExpiresAt: Date | null;
+  oauthStatus: string | null;
+  oauthLastError: string | null;
 }) {
   return {
     id: credential.id,
@@ -59,6 +63,12 @@ function toPublic(credential: {
     lastFour: credential.lastFour,
     createdAt: credential.createdAt,
     updatedAt: credential.updatedAt,
+    // Colunas em claro de kind = "oauth" (null pras demais) — nunca o blob
+    // cifrado. A UI deriva o badge "ativo/expirado/erro" disto.
+    oauthProvider: credential.oauthProvider,
+    oauthExpiresAt: credential.oauthExpiresAt,
+    oauthStatus: credential.oauthStatus,
+    oauthLastError: credential.oauthLastError,
   };
 }
 
