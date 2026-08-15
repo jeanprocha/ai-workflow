@@ -1,8 +1,73 @@
-# Workflow AI Platform
+<h1 align="center">Workflow AI Platform</h1>
 
-Plataforma "AI First" para criação de automações inteligentes com IA, agentes, MCP e integrações.
+<p align="center">
+  Plataforma <strong>AI-first</strong> para criação de automações inteligentes —
+  workflows visuais, agentes, RAG, MCP e integrações.<br>
+  Multi-tenant, orientada a eventos, em produção.
+</p>
 
-**A documentação começa em [docs/README.md](docs/README.md)** — de lá saem o estado atual do sistema (um doc por domínio em [docs/sistema/](docs/sistema/00-visao-geral.md)), as decisões arquiteturais e o histórico de produto.
+<p align="center">
+  <a href="https://github.com/jeanprocha/ai-workflow/actions/workflows/ci.yml">
+    <img alt="CI" src="https://github.com/jeanprocha/ai-workflow/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-62k%20linhas-3178c6">
+  <img alt="ADRs" src="https://img.shields.io/badge/ADRs-11%20registrados-8b5cf6">
+  <img alt="Licença" src="https://img.shields.io/badge/licen%C3%A7a-Sustainable%20Use-blue">
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-web-black">
+  <img alt="NestJS" src="https://img.shields.io/badge/NestJS-API%20%2B%20worker-e0234e">
+</p>
+
+<p align="center">
+  <img src="docs/img/editor.png" alt="Editor de workflows com nodes de IA, condições e integrações" width="900">
+  <br><sub><b>Editor de workflows</b> — triggers, nodes de IA (classificação, extração), condições, integrações HTTP e canais de resposta</sub>
+</p>
+
+<p align="center">
+  <img src="docs/img/execucoes.png" alt="Histórico de execuções com tokens e custo por execução" width="900">
+  <br><sub><b>Execuções</b> — cada run com duração, <b>tokens consumidos e custo em dólar</b>, e reexecução das que falharam</sub>
+</p>
+
+## Para quem vai ler o código
+
+| | |
+|---|---|
+| **Tamanho** | ~62.000 linhas de TypeScript em 814 arquivos (monorepo Turborepo) |
+| **Testes** | 71 suítes — unit (Jest/Vitest) e E2E (Playwright) no CI |
+| **Apps** | `web` (Next.js) · `api` (NestJS, dois entrypoints: HTTP e worker de filas) |
+| **Dados** | PostgreSQL (Prisma) · pgvector para RAG · Redis para filas |
+| **Deploy** | Railway (API + worker) · Vercel (web) |
+| **Observabilidade de IA** | Tokens e custo em dólar por execução, com otimizador de custo |
+
+O que faz este projeto valer a leitura não é o tamanho — são as **decisões
+registradas**. Cada escolha estrutural tem um ADR com contexto, alternativas
+consideradas e consequências assumidas, em [docs/adr/](docs/adr/):
+
+- **[ADR-011 — Pausa durável](docs/adr/011-pausa-duravel.md)**: como um fluxo para no
+  meio da execução, espera uma aprovação humana por horas ou dias e retoma exatamente
+  de onde parou — num engine cujo estado vivia todo em memória, com nodes isolados em
+  `worker_thread` e um recovery que mata execuções órfãs. O ADR mais denso do projeto.
+- **[ADR-006 — Multi-tenancy desde a fundação](docs/adr/006-multi-tenancy.md)**: por que
+  todo recurso nasce escopado por `workspace_id` desde a fase 2 — retrofitar depois
+  custa migração de dados e risco de vazamento entre tenants.
+- **[ADR-005 — Isolamento de execução](docs/adr/005-isolamento-execucao-nodes.md)**:
+  cada node roda num `worker_thread` com timeout duro; o grafo avança em ondas.
+- **[ADR-007 — Criptografia de secrets](docs/adr/007-criptografia-secrets.md)** ·
+  **[ADR-009 — Saída estruturada de LLM](docs/adr/009-saida-estruturada-llm.md)** ·
+  **[ADR-010 — Observabilidade](docs/adr/010-observabilidade.md)** — e os demais no
+  [índice](docs/adr/).
+
+Além dos ADRs, o estado de cada domínio está documentado em
+[docs/sistema/](docs/sistema/00-visao-geral.md) — um doc por área (engine, versionamento
+de workflows, aprovação humana, triggers e scheduler, agents, RAG, MCP, auth,
+observabilidade…).
+
+### Sobre o processo
+
+Construído com **desenvolvimento assistido por IA**, declarado de propósito. A
+ferramenta acelera a escrita; as decisões — o que os ADRs registram, com alternativas
+descartadas e trade-offs assumidos — são o trabalho de engenharia. Quem quiser conferir
+se elas se sustentam tem 11 documentos por onde começar.
+
+**A documentação completa começa em [docs/README.md](docs/README.md)** — de lá saem o estado atual do sistema (um doc por domínio em [docs/sistema/](docs/sistema/00-visao-geral.md)), as decisões arquiteturais e o histórico de produto.
 
 Os arquivos [spec.md](spec.md), [plan.md](plan.md) e [style.md](style.md) na raiz estão congelados desde 2026-07-23 e são material histórico.
 
