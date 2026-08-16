@@ -23,6 +23,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Sem o client gerado, `this.prisma.<model>` e `any` e todas as regras
+      # type-aware do ESLint (no-unsafe-call/-return/-member-access) estouram
+      # em codigo de producao correto. Lint e typecheck dependem disto.
+      - name: Prisma generate
+        run: pnpm --filter @workflow/api exec prisma generate
+
       - name: Lint
         run: pnpm lint
 
@@ -63,6 +69,15 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # O node approval.human envia e-mail de verdade; o teste @smoke de
+      # aprovacao le a caixa via API do Mailpit (helpers/mailpit.ts) para
+      # extrair o token do link. Sem este servico o teste espera 20s por um
+      # e-mail que nunca chega e estoura o timeout de 30s do Playwright.
+      mailpit:
+        image: axllent/mailpit:v1.20
+        ports:
+          - 1025:1025
+          - 8025:8025
     env:
       DATABASE_URL: postgresql://workflow:workflow@localhost:5432/workflow
       REDIS_URL: redis://localhost:6379
@@ -122,10 +137,11 @@ jobs:
         working-directory: apps/web
         run: nohup pnpm start > /tmp/web.log 2>&1 &
 
-      - name: Esperar API e web ficarem prontos
+      - name: Esperar API, web e Mailpit ficarem prontos
         run: |
           timeout 60 bash -c 'until curl -sf http://localhost:3333/health >/dev/null; do sleep 1; done'
           timeout 60 bash -c 'until curl -sf http://localhost:3000/login >/dev/null; do sleep 1; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8025/api/v1/info >/dev/null; do sleep 1; done'
 
       - name: Rodar subconjunto smoke do E2E
         working-directory: apps/e2e
