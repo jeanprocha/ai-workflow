@@ -17,13 +17,23 @@
 </p>
 
 <p align="center">
-  <img src="docs/img/editor.png" alt="Editor de workflows com nodes de IA, condições e integrações" width="900">
+  <img src="docs/img/editor.png" alt="Editor de workflows" width="900">
   <br><sub><b>Editor de workflows</b> — triggers, nodes de IA (classificação, extração), condições, integrações HTTP e canais de resposta</sub>
 </p>
 
 <p align="center">
-  <img src="docs/img/execucoes.png" alt="Histórico de execuções com tokens e custo por execução" width="900">
+  <img src="docs/img/cost-optimizer.png" alt="Otimizador de custo sugerindo troca de modelo" width="900">
+  <br><sub><b>Otimizador de custo</b> — analisa o histórico real de execuções e sugere trocar de modelo quando isso não compromete a tarefa. Multi-provider, com aplicação em um clique</sub>
+</p>
+
+<p align="center">
+  <img src="docs/img/execucoes.png" alt="Histórico de execuções com tokens e custo" width="900">
   <br><sub><b>Execuções</b> — cada run com duração, <b>tokens consumidos e custo em dólar</b>, e reexecução das que falharam</sub>
+</p>
+
+<p align="center">
+  <img src="docs/img/mcp.png" alt="Servidores MCP conectados" width="900">
+  <br><sub><b>MCP</b> — servidores Model Context Protocol conectados ao workspace, com as tools descobertas e disponíveis para os agentes</sub>
 </p>
 
 ## Para quem vai ler o código

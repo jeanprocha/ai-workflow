@@ -20,6 +20,13 @@ export default function CostOptimizerPage() {
   const locale = useLocale();
   const [analyzed, setAnalyzed] = useState(false);
   const { data: suggestions, isLoading, refetch, isFetching } = useCostOptimizerSuggestions(analyzed);
+  const hasSuggestions = !!suggestions?.length;
+  // `analyzed` e estado local: zera a cada remount da rota. Ja o cache do React
+  // Query (KEY ["cost-optimizer"]) sobrevive. Voltar para a tela depois de uma
+  // analise renderizava o EmptyState "ainda nao analisado" JUNTO com a lista de
+  // sugestoes, e ainda escondia o "Analisar" do header. O estado de "ja analisou"
+  // tem que considerar os dados em cache, nao so o flag local.
+  const alreadyAnalyzed = analyzed || hasSuggestions;
   const applySuggestion = useApplyCostSuggestion();
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
 
@@ -49,7 +56,7 @@ export default function CostOptimizerPage() {
             unico "Analisar" da tela (mesmo padrao de Agents/Knowledge/MCP:
             botao do header ausente ate haver conteudo). Sem isso, o estado
             inicial tinha DOIS botoes "Analisar" visiveis ao mesmo tempo. */}
-        {analyzed && (
+        {alreadyAnalyzed && (
           <Button onClick={onAnalyze} disabled={isFetching}>
             <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
             {isFetching ? t.costOptimizer.analyzing : t.costOptimizer.analyze}
@@ -57,7 +64,7 @@ export default function CostOptimizerPage() {
         )}
       </div>
 
-      {!analyzed && (
+      {!alreadyAnalyzed && (
         <EmptyState
           title={t.costOptimizer.emptyNotAnalyzed.title}
           description={t.costOptimizer.emptyNotAnalyzed.description}
@@ -65,7 +72,7 @@ export default function CostOptimizerPage() {
         />
       )}
 
-      {analyzed && isLoading && (
+      {alreadyAnalyzed && isLoading && (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <Skeleton key={index} className="h-20 rounded-lg" />
@@ -73,14 +80,14 @@ export default function CostOptimizerPage() {
         </div>
       )}
 
-      {analyzed && !isLoading && !suggestions?.length && (
+      {alreadyAnalyzed && !isLoading && !hasSuggestions && (
         <EmptyState
           title={t.costOptimizer.emptyNoOpportunities.title}
           description={t.costOptimizer.emptyNoOpportunities.description}
         />
       )}
 
-      {!!suggestions?.length && (
+      {hasSuggestions && (
         <div className="space-y-3">
           {suggestions.map((suggestion) => {
             const applied = appliedIds.has(suggestion.suggestionId);

@@ -26,3 +26,4 @@ apps/e2e/.cache
 # Tooling de IA local (skills de sessão) — não é código do projeto
 .claude/
 .github/skills/
+/img/
