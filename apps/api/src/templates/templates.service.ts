@@ -14,7 +14,10 @@ import {
 } from '../workflows/workflows.service';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
-import { sanitizeTemplateGraph, stripInheritedTokens } from './template-sanitizer';
+import {
+  sanitizeTemplateGraph,
+  stripInheritedTokens,
+} from './template-sanitizer';
 
 @Injectable()
 export class TemplatesService {

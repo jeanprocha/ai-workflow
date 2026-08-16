@@ -48,11 +48,13 @@ function noopHandlers(): SandboxCtxHandlers {
 }
 
 /** Molde padrao pros testes que so variam handlers/options. */
-function runParams(overrides: {
-  handlers?: SandboxCtxHandlers;
-  options?: SandboxOptions;
-  resumeData?: unknown;
-} = {}) {
+function runParams(
+  overrides: {
+    handlers?: SandboxCtxHandlers;
+    options?: SandboxOptions;
+    resumeData?: unknown;
+  } = {},
+) {
   return {
     nodeType: 'test.node',
     resolvedConfig: {},

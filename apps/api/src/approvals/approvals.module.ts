@@ -30,10 +30,6 @@ export class ApprovalsModule implements OnModuleInit {
   constructor(@InjectQueue(APPROVALS_QUEUE) private readonly queue: Queue) {}
 
   async onModuleInit(): Promise<void> {
-    await this.queue.add(
-      'sweep',
-      {},
-      { repeat: { every: SWEEP_INTERVAL_MS } },
-    );
+    await this.queue.add('sweep', {}, { repeat: { every: SWEEP_INTERVAL_MS } });
   }
 }

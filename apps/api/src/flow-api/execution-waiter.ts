@@ -35,7 +35,7 @@ export function clampTimeoutMs(raw: string | undefined): number {
 export function nextDelayMs(attempt: number, elapsedMs: number): number {
   const base =
     attempt < 3
-      ? [30, 60, 120][attempt]!
+      ? [30, 60, 120][attempt]
       : elapsedMs < 3_000
         ? 150
         : elapsedMs < 12_000

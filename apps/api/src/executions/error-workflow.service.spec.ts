@@ -20,7 +20,10 @@ function buildService(opts: {
   const executions = {
     triggerErrorWorkflow: jest.fn().mockResolvedValue(undefined),
   };
-  const service = new ErrorWorkflowService(prisma as never, executions as never);
+  const service = new ErrorWorkflowService(
+    prisma as never,
+    executions as never,
+  );
   return { service, prisma, executions };
 }
 
@@ -179,13 +182,20 @@ describe('ErrorWorkflowService', () => {
 
   it('erro interno (banco fora do ar) nunca propaga pro chamador', async () => {
     const prisma = {
-      execution: { findUnique: jest.fn().mockRejectedValue(new Error('DB fora do ar')) },
+      execution: {
+        findUnique: jest.fn().mockRejectedValue(new Error('DB fora do ar')),
+      },
       workflow: { findUnique: jest.fn() },
     };
     const executions = { triggerErrorWorkflow: jest.fn() };
-    const service = new ErrorWorkflowService(prisma as never, executions as never);
+    const service = new ErrorWorkflowService(
+      prisma as never,
+      executions as never,
+    );
 
-    await expect(service.dispatchForFailedExecution('exec-1')).resolves.toBeUndefined();
+    await expect(
+      service.dispatchForFailedExecution('exec-1'),
+    ).resolves.toBeUndefined();
     expect(executions.triggerErrorWorkflow).not.toHaveBeenCalled();
   });
 

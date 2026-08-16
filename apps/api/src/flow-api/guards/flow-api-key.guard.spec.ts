@@ -10,10 +10,12 @@ jest.mock('../flow-api-rate-limit', () => ({
   isFlowApiRateLimited: jest.fn().mockReturnValue(false),
 }));
 
-function buildGuard(overrides: {
-  resolveRawKey?: jest.Mock;
-  touchLastUsed?: jest.Mock;
-} = {}) {
+function buildGuard(
+  overrides: {
+    resolveRawKey?: jest.Mock;
+    touchLastUsed?: jest.Mock;
+  } = {},
+) {
   const apiKeys = {
     resolveRawKey: overrides.resolveRawKey ?? jest.fn().mockResolvedValue(null),
     touchLastUsed: overrides.touchLastUsed ?? jest.fn(),
@@ -22,7 +24,10 @@ function buildGuard(overrides: {
   return { guard, apiKeys };
 }
 
-function buildContext(headers: Record<string, string>, params: Record<string, string>) {
+function buildContext(
+  headers: Record<string, string>,
+  params: Record<string, string>,
+) {
   const request: Record<string, unknown> = { headers, params };
   const context = {
     switchToHttp: () => ({ getRequest: () => request }),
@@ -39,7 +44,9 @@ describe('FlowApiKeyGuard', () => {
     const { guard } = buildGuard();
     const { context } = buildContext({}, { workflowId: 'wf-1' });
 
-    await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('header sem "Bearer ": UnauthorizedException', async () => {
@@ -49,7 +56,9 @@ describe('FlowApiKeyGuard', () => {
       { workflowId: 'wf-1' },
     );
 
-    await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('chave nao resolvida (inexistente/revogada/prefixo errado): mesma mensagem do caso ausente', async () => {
@@ -66,19 +75,25 @@ describe('FlowApiKeyGuard', () => {
   });
 
   it('chave valida mas de OUTRO fluxo: UnauthorizedException, request.flowApiKey fica undefined', async () => {
-    const resolveRawKey = jest.fn().mockResolvedValue({ id: 'key-1', workflowId: 'wf-OUTRO' });
+    const resolveRawKey = jest
+      .fn()
+      .mockResolvedValue({ id: 'key-1', workflowId: 'wf-OUTRO' });
     const { guard } = buildGuard({ resolveRawKey });
     const { context, request } = buildContext(
       { authorization: 'Bearer wfk_valida' },
       { workflowId: 'wf-1' },
     );
 
-    await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      UnauthorizedException,
+    );
     expect(request.flowApiKey).toBeUndefined();
   });
 
   it('chave valida do proprio fluxo: true, request.flowApiKey populado, touchLastUsed chamado', async () => {
-    const resolveRawKey = jest.fn().mockResolvedValue({ id: 'key-1', workflowId: 'wf-1' });
+    const resolveRawKey = jest
+      .fn()
+      .mockResolvedValue({ id: 'key-1', workflowId: 'wf-1' });
     const touchLastUsed = jest.fn();
     const { guard } = buildGuard({ resolveRawKey, touchLastUsed });
     const { context, request } = buildContext(
@@ -95,7 +110,9 @@ describe('FlowApiKeyGuard', () => {
 
   it('rate limit estourado: HttpException 429, request.flowApiKey nunca populado', async () => {
     (isFlowApiRateLimited as jest.Mock).mockReturnValue(true);
-    const resolveRawKey = jest.fn().mockResolvedValue({ id: 'key-1', workflowId: 'wf-1' });
+    const resolveRawKey = jest
+      .fn()
+      .mockResolvedValue({ id: 'key-1', workflowId: 'wf-1' });
     const touchLastUsed = jest.fn();
     const { guard } = buildGuard({ resolveRawKey, touchLastUsed });
     const { context, request } = buildContext(

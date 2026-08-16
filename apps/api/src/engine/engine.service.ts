@@ -55,8 +55,11 @@ function sandboxTimeoutFor(nodeType: string, resolvedConfig: unknown): number {
     const raw = Number(
       (resolvedConfig as { timeoutMs?: unknown } | null | undefined)?.timeoutMs,
     );
-    const timeoutMs = Number.isFinite(raw) && raw > 0 ? raw : CODE_DEFAULT_TIMEOUT_MS;
-    return Math.min(Math.max(timeoutMs, 100), CODE_MAX_TIMEOUT_MS) + NODE_TIMEOUT_MS;
+    const timeoutMs =
+      Number.isFinite(raw) && raw > 0 ? raw : CODE_DEFAULT_TIMEOUT_MS;
+    return (
+      Math.min(Math.max(timeoutMs, 100), CODE_MAX_TIMEOUT_MS) + NODE_TIMEOUT_MS
+    );
   }
   if (nodeType !== 'logic.delay') return NODE_TIMEOUT_MS;
   // Number(): `ms` pode chegar como string quando vem de uma expressao
@@ -64,7 +67,9 @@ function sandboxTimeoutFor(nodeType: string, resolvedConfig: unknown): number {
   const raw = Number(
     (resolvedConfig as { ms?: unknown } | null | undefined)?.ms,
   );
-  const ms = Number.isFinite(raw) ? Math.min(Math.max(raw, 0), DELAY_MAX_MS) : 0;
+  const ms = Number.isFinite(raw)
+    ? Math.min(Math.max(raw, 0), DELAY_MAX_MS)
+    : 0;
   return ms + NODE_TIMEOUT_MS;
 }
 
@@ -209,7 +214,10 @@ export class EngineService {
     // reentregue, ou o sweeper e uma decisao humana corrida entre si).
     const runStartedAt = new Date();
     const { count: claimed } = await this.prisma.execution.updateMany({
-      where: { id: executionId, status: { in: ['queued', 'waiting_approval'] } },
+      where: {
+        id: executionId,
+        status: { in: ['queued', 'waiting_approval'] },
+      },
       data: { status: 'running', runStartedAt },
     });
     if (claimed === 0) {
@@ -396,7 +404,11 @@ export class EngineService {
       // aqui — nao tem varsPatch por definicao (o execute() nao retornou) e
       // seu output tambem nao e reaproveitado. Replay de um replay so enxerga
       // o pai imediato (parentExecutionId), nao a cadeia inteira.
-      if (!options?.resume && options?.replayFromNodeId && execution.parentExecutionId) {
+      if (
+        !options?.resume &&
+        options?.replayFromNodeId &&
+        execution.parentExecutionId
+      ) {
         const ancestors = this.computeAncestors(
           options.replayFromNodeId,
           incoming,
@@ -896,7 +908,7 @@ export class EngineService {
         node.config &&
         typeof node.config === 'object'
       ) {
-        const { code, ...rest } = node.config as Record<string, unknown>;
+        const { code, ...rest } = node.config;
         const resolvedRest = resolveExpressions(rest, exprCtx) as Record<
           string,
           unknown
@@ -1013,7 +1025,10 @@ export class EngineService {
               onTimeout: params.onTimeout,
             }),
         },
-        options: { timeoutMs: sandboxTimeoutMs, memoryLimitMb: NODE_MEMORY_LIMIT_MB },
+        options: {
+          timeoutMs: sandboxTimeoutMs,
+          memoryLimitMb: NODE_MEMORY_LIMIT_MB,
+        },
       });
 
       const durationMs = Date.now() - startedAt;

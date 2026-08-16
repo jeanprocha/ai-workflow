@@ -1,4 +1,8 @@
-import type { WorkflowEdge, WorkflowGraph, WorkflowNode } from '@workflow/shared';
+import type {
+  WorkflowEdge,
+  WorkflowGraph,
+  WorkflowNode,
+} from '@workflow/shared';
 
 /**
  * @workflow/nodes/catalog e @workflow/shared resolvem pro dist ESM puro dos
@@ -24,7 +28,11 @@ jest.mock('@workflow/shared', () => ({
 
 import { workflowGraphSchema } from './graph.schema';
 
-function node(id: string, type: string, overrides: Partial<WorkflowNode> = {}): WorkflowNode {
+function node(
+  id: string,
+  type: string,
+  overrides: Partial<WorkflowNode> = {},
+): WorkflowNode {
   return {
     id,
     type,
@@ -36,7 +44,11 @@ function node(id: string, type: string, overrides: Partial<WorkflowNode> = {}): 
   };
 }
 
-function edge(source: string, target: string, sourceHandle?: string): WorkflowEdge {
+function edge(
+  source: string,
+  target: string,
+  sourceHandle?: string,
+): WorkflowEdge {
   return {
     id: `${source}->${target}${sourceHandle ? `:${sourceHandle}` : ''}`,
     source,
@@ -60,7 +72,11 @@ describe('workflowGraphSchema (H2-05: edge de erro orfa)', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0]?.path).toEqual(['edges', 0, 'sourceHandle']);
+      expect(result.error.issues[0]?.path).toEqual([
+        'edges',
+        0,
+        'sourceHandle',
+      ]);
       expect(result.error.issues[0]?.message).toContain('Caminho de erro');
     }
   });
@@ -79,7 +95,10 @@ describe('workflowGraphSchema (H2-05: edge de erro orfa)', () => {
   it('aceita onError:"continue" sem nenhuma edge de erro', () => {
     const result = workflowGraphSchema.safeParse(
       graph(
-        [node('A', 'logic.log', { onError: 'continue' }), node('B', 'logic.log')],
+        [
+          node('A', 'logic.log', { onError: 'continue' }),
+          node('B', 'logic.log'),
+        ],
         [edge('A', 'B')],
       ),
     );
@@ -90,7 +109,10 @@ describe('workflowGraphSchema (H2-05: edge de erro orfa)', () => {
   it('rejeita edge sourceHandle:"error" num node com onError:"continue" (continue nao usa edge dedicada)', () => {
     const result = workflowGraphSchema.safeParse(
       graph(
-        [node('A', 'logic.log', { onError: 'continue' }), node('B', 'logic.log')],
+        [
+          node('A', 'logic.log', { onError: 'continue' }),
+          node('B', 'logic.log'),
+        ],
         [edge('A', 'B', 'error')],
       ),
     );

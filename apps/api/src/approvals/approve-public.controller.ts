@@ -62,7 +62,10 @@ export class ApprovePublicController {
     try {
       await this.approvals.decideByToken(token, dto.decision, dto.comment);
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof ConflictException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ConflictException
+      ) {
         throw new ConflictException(
           'Este link de aprovacao e invalido, ja foi decidido ou expirou.',
         );

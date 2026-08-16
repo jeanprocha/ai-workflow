@@ -76,9 +76,7 @@ function sanitizeRecord(value: unknown): unknown {
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(record)) {
     out[key] =
-      RECORD_POLICY === 'all' || SENSITIVE_KEY_RE.test(key)
-        ? ''
-        : record[key];
+      RECORD_POLICY === 'all' || SENSITIVE_KEY_RE.test(key) ? '' : record[key];
   }
   return out;
 }
@@ -98,7 +96,10 @@ function sanitizeNodeConfig(node: WorkflowNode): Record<string, unknown> {
 
   const signature = config.signature;
   if (signature && typeof signature === 'object' && !Array.isArray(signature)) {
-    config.signature = { ...(signature as Record<string, unknown>), secret: '' };
+    config.signature = {
+      ...(signature as Record<string, unknown>),
+      secret: '',
+    };
   }
 
   return config;

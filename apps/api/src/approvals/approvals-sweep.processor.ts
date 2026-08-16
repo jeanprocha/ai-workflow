@@ -71,9 +71,8 @@ export class ApprovalsSweepProcessor extends WorkerHost {
    * nunca chegou a existir nunca e retentado por conta propria.
    */
   private async sweepStuckResumes(): Promise<void> {
-    const stuck = await this.approvals.findDecidedNotEnqueued(
-      MAX_RESUME_ATTEMPTS,
-    );
+    const stuck =
+      await this.approvals.findDecidedNotEnqueued(MAX_RESUME_ATTEMPTS);
     for (const approval of stuck) {
       this.logger.warn(
         `Reenfileirando retomada da aprovacao ${approval.id} (decidida, nunca chegou a enfileirar).`,
@@ -86,9 +85,8 @@ export class ApprovalsSweepProcessor extends WorkerHost {
       });
     }
 
-    const exhausted = await this.approvals.findExhaustedResumes(
-      MAX_RESUME_ATTEMPTS,
-    );
+    const exhausted =
+      await this.approvals.findExhaustedResumes(MAX_RESUME_ATTEMPTS);
     for (const approval of exhausted) {
       await this.failExecutionAfterExhaustedResume(
         approval.executionId,

@@ -12,7 +12,14 @@ import {
 // Mirror manual de ExecutionStatus (@workflow/shared) — literal, nao import,
 // pra nao exigir mock de @workflow/shared nos specs que passam por aqui
 // (ver H2-06 e a familia de jest.mock ESM ja usada no engine/graph.schema).
-const STATUSES = ['queued', 'running', 'waiting_approval', 'success', 'failed', 'canceled'];
+const STATUSES = [
+  'queued',
+  'running',
+  'waiting_approval',
+  'success',
+  'failed',
+  'canceled',
+];
 
 export class ListExecutionsQueryDto {
   @IsOptional()

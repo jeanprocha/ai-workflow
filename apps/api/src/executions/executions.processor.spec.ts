@@ -31,7 +31,9 @@ function buildProcessor(opts: {
   updateManyCount?: number;
   updateManyImpl?: jest.Mock;
 }) {
-  const engine = { run: opts.engineRun ?? jest.fn().mockResolvedValue(undefined) };
+  const engine = {
+    run: opts.engineRun ?? jest.fn().mockResolvedValue(undefined),
+  };
   const metrics = {};
   const prisma = {
     execution: {
@@ -74,10 +76,11 @@ describe('ExecutionsProcessor — rede de seguranca (H2-04)', () => {
 
   it('engine.run lanca: marca a execucao como failed, emite execution.completed, e RE-LANCA o erro original', async () => {
     const engineRun = jest.fn().mockRejectedValue(new Error('versao apagada'));
-    const { processor, prisma, events, errorWorkflows, approvals } = buildProcessor({
-      engineRun,
-      updateManyCount: 1,
-    });
+    const { processor, prisma, events, errorWorkflows, approvals } =
+      buildProcessor({
+        engineRun,
+        updateManyCount: 1,
+      });
 
     await expect(processor.process(buildJob('exec-1'))).rejects.toThrow(
       'versao apagada',
@@ -85,7 +88,10 @@ describe('ExecutionsProcessor — rede de seguranca (H2-04)', () => {
 
     expect(prisma.execution.updateMany).toHaveBeenCalledWith({
       where: { id: 'exec-1', status: { in: ['queued', 'running'] } },
-      data: expect.objectContaining({ status: 'failed', error: 'versao apagada' }),
+      data: expect.objectContaining({
+        status: 'failed',
+        error: 'versao apagada',
+      }),
     });
     expect(events.emit).toHaveBeenCalledWith({
       type: 'execution.completed',
@@ -93,7 +99,9 @@ describe('ExecutionsProcessor — rede de seguranca (H2-04)', () => {
       status: 'failed',
     });
     // H2-05: mesmo ponto de extensao do engine.
-    expect(errorWorkflows.dispatchForFailedExecution).toHaveBeenCalledWith('exec-1');
+    expect(errorWorkflows.dispatchForFailedExecution).toHaveBeenCalledWith(
+      'exec-1',
+    );
     // H2-06: fecha qualquer Approval que o RPC tenha criado antes do crash.
     expect(approvals.voidOpenApprovals).toHaveBeenCalledWith('exec-1');
   });
@@ -113,8 +121,12 @@ describe('ExecutionsProcessor — rede de seguranca (H2-04)', () => {
   });
 
   it('ate o updateMany de emergencia falha (banco fora do ar): ainda assim re-lanca o erro ORIGINAL, sem travar', async () => {
-    const engineRun = jest.fn().mockRejectedValue(new Error('erro original da engine'));
-    const updateManyImpl = jest.fn().mockRejectedValue(new Error('DB fora do ar'));
+    const engineRun = jest
+      .fn()
+      .mockRejectedValue(new Error('erro original da engine'));
+    const updateManyImpl = jest
+      .fn()
+      .mockRejectedValue(new Error('DB fora do ar'));
     const { processor } = buildProcessor({ engineRun, updateManyImpl });
 
     await expect(processor.process(buildJob())).rejects.toThrow(

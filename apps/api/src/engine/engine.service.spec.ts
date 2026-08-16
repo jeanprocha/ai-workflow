@@ -148,9 +148,7 @@ function buildEngine(opts: BuildOpts) {
       findUniqueOrThrow: jest.fn().mockResolvedValue(opts.execution),
       update: jest.fn().mockResolvedValue(undefined),
       // H2-06: claim atomico no inicio de run() — default sempre "ganha" a corrida.
-      updateMany: jest
-        .fn()
-        .mockResolvedValue({ count: opts.claimCount ?? 1 }),
+      updateMany: jest.fn().mockResolvedValue({ count: opts.claimCount ?? 1 }),
     },
     executionStep: {
       create: jest.fn().mockResolvedValue(undefined),
@@ -352,8 +350,7 @@ describe('EngineService', () => {
     });
     const { engine, errorWorkflows } = buildEngine({
       execution,
-      runImpl: (nodeType) =>
-        nodeType === 'test.a' ? fail('tratado') : ok({}),
+      runImpl: (nodeType) => (nodeType === 'test.a' ? fail('tratado') : ok({})),
     });
 
     await engine.run('exec-1');
@@ -568,7 +565,9 @@ describe('EngineService', () => {
       call: unknown,
     ): { timeoutMs: number; memoryLimitMb: number } | undefined {
       return (
-        call as [{ options: { timeoutMs: number; memoryLimitMb: number } }] | undefined
+        call as
+          | [{ options: { timeoutMs: number; memoryLimitMb: number } }]
+          | undefined
       )?.[0]?.options;
     }
 
@@ -615,7 +614,10 @@ describe('EngineService', () => {
           ),
         },
       });
-      const { engine, sandbox } = buildEngine({ execution, runImpl: () => ok({}) });
+      const { engine, sandbox } = buildEngine({
+        execution,
+        runImpl: () => ok({}),
+      });
 
       await engine.run('exec-1');
 
@@ -704,7 +706,10 @@ describe('EngineService', () => {
           ),
         },
       });
-      const { engine, sandbox } = buildEngine({ execution, runImpl: () => ok({}) });
+      const { engine, sandbox } = buildEngine({
+        execution,
+        runImpl: () => ok({}),
+      });
 
       await engine.run('exec-1');
 
@@ -735,7 +740,7 @@ describe('EngineService', () => {
 
   describe('api.respond: determina o outputPayload da execucao (H2-04)', () => {
     function lastUpdateData(prisma: ReturnType<typeof buildEngine>['prisma']) {
-      const calls = (prisma.execution.update as jest.Mock).mock.calls;
+      const calls = prisma.execution.update.mock.calls;
       return calls[calls.length - 1]?.[0]?.data as Record<string, unknown>;
     }
 
@@ -777,7 +782,9 @@ describe('EngineService', () => {
       const { engine, prisma } = buildEngine({
         execution,
         runImpl: (nodeType) =>
-          nodeType === 'api.respond' ? ok({ from: 'respond' }) : ok({ from: 'log-depois' }),
+          nodeType === 'api.respond'
+            ? ok({ from: 'respond' })
+            : ok({ from: 'log-depois' }),
       });
 
       await engine.run('exec-1');
@@ -801,7 +808,9 @@ describe('EngineService', () => {
       const { engine, prisma } = buildEngine({
         execution,
         runImpl: (nodeType) =>
-          nodeType === 'api.respond' ? ok({ from: 'respond' }) : ok({ from: 'log-paralelo' }),
+          nodeType === 'api.respond'
+            ? ok({ from: 'respond' })
+            : ok({ from: 'log-paralelo' }),
       });
 
       await engine.run('exec-1');
@@ -895,7 +904,8 @@ describe('EngineService', () => {
         execution,
         runImpl: (nodeType) => {
           if (nodeType === 'logic.if') return ok({}, { branches: ['false'] });
-          if (nodeType === 'api.respond') return ok({ from: 'respond-nao-deveria-rodar' });
+          if (nodeType === 'api.respond')
+            return ok({ from: 'respond-nao-deveria-rodar' });
           return ok({ from: 'log' });
         },
       });
@@ -1079,8 +1089,8 @@ describe('EngineService', () => {
       // que tambem fica curto (so a edge vinda de MergeA chega) e flusha por
       // sua vez (recebe [{merged: true}]) — os dois rodam, nenhum trava.
       expect(mergeCalls).toHaveLength(2);
-      expect(mergeCalls[0]![0].input).toEqual([{}]);
-      expect(mergeCalls[1]![0].input).toEqual([{ merged: true }]);
+      expect(mergeCalls[0][0].input).toEqual([{}]);
+      expect(mergeCalls[1][0].input).toEqual([{ merged: true }]);
       expect(prisma.execution.update).toHaveBeenLastCalledWith({
         where: { id: 'exec-1' },
         data: expect.objectContaining({ status: 'success' }),
@@ -1304,8 +1314,7 @@ describe('EngineService', () => {
       expect(approvalCall).toBeDefined();
       expect(approvalCall![0].input).toEqual({ triggered: true });
 
-      const upsertCall = (prisma.executionPausedState.upsert as jest.Mock)
-        .mock.calls[0][0];
+      const upsertCall = prisma.executionPausedState.upsert.mock.calls[0][0];
       expect(upsertCall.create.version).toBe(1);
       const persisted = upsertCall.create.state;
       expect(persisted.suspended).toEqual([
@@ -1433,14 +1442,13 @@ describe('EngineService', () => {
 
       expect(sandbox.run.mock.calls).toHaveLength(3); // trigger, A, B
 
-      const upsertCall = (prisma.executionPausedState.upsert as jest.Mock)
-        .mock.calls[0][0];
+      const upsertCall = prisma.executionPausedState.upsert.mock.calls[0][0];
       const persisted = upsertCall.create.state;
       expect(
         persisted.suspended.map((s: { nodeId: string }) => s.nodeId).sort(),
       ).toEqual(['A', 'B']);
 
-      const suspendedEvent = (events.emit as jest.Mock).mock.calls
+      const suspendedEvent = events.emit.mock.calls
         .map((call) => call[0])
         .find((event) => event.type === 'execution.suspended');
       expect(suspendedEvent?.nodeIds.slice().sort()).toEqual(['A', 'B']);
@@ -1495,8 +1503,7 @@ describe('EngineService', () => {
         }),
       );
 
-      const upsertCall = (prisma.executionPausedState.upsert as jest.Mock)
-        .mock.calls[0][0];
+      const upsertCall = prisma.executionPausedState.upsert.mock.calls[0][0];
       const persisted = upsertCall.create.state;
       expect(persisted.suspended).toEqual([
         expect.objectContaining({ nodeId: 'A', ref: 'approval-1' }),

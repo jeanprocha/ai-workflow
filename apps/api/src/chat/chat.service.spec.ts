@@ -18,7 +18,9 @@ function buildService(workflowByChatToken: Record<string, unknown> | null) {
     },
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
-  const executions = { triggerChat: jest.fn().mockResolvedValue({ id: 'exec-1' }) };
+  const executions = {
+    triggerChat: jest.fn().mockResolvedValue({ id: 'exec-1' }),
+  };
   const service = new ChatService(prisma as never, executions as never);
   return { service, prisma, executions };
 }
@@ -59,9 +61,9 @@ describe('ChatService — gate de fluxo arquivado (visitante)', () => {
   it('listMessages: 404 quando o workflow esta archived (nao so escrita — leitura tambem gateia)', async () => {
     const { service } = buildService(ARCHIVED_WORKFLOW);
 
-    await expect(
-      service.listMessages('chat-tok', 'conv-1'),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.listMessages('chat-tok', 'conv-1')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('createConversation: funciona normalmente com workflow em draft', async () => {

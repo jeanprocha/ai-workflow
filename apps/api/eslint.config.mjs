@@ -41,6 +41,17 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
+      // Mesma razao, para os demais dublês de teste:
+      // - require-await: `jest.fn(async () => valor)` e a forma canonica de
+      //   mockar funcao assincrona; nao ha o que aguardar dentro do mock.
+      // - no-unsafe-call / no-unsafe-return: chamar e retornar a partir de
+      //   mocks tipados como `any` (jest.Mock, objetos parciais de Prisma).
+      // - unbound-method: passar `service.metodo` para `expect`/spy sem
+      //   vincular `this` e intencional em asserts.
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/unbound-method': 'off',
     },
   },
 );

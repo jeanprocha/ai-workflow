@@ -46,8 +46,12 @@ describe('ExecutionWaiter', () => {
   it('poll varias vezes ate a execucao terminar', async () => {
     const findUnique = jest
       .fn()
-      .mockResolvedValueOnce(terminal({ status: 'running', outputPayload: null }))
-      .mockResolvedValueOnce(terminal({ status: 'running', outputPayload: null }))
+      .mockResolvedValueOnce(
+        terminal({ status: 'running', outputPayload: null }),
+      )
+      .mockResolvedValueOnce(
+        terminal({ status: 'running', outputPayload: null }),
+      )
       .mockResolvedValueOnce(terminal());
     const waiter = buildWaiter(findUnique);
 

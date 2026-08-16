@@ -191,7 +191,13 @@ export class ApprovalsService {
     if (!approval) {
       throw new NotFoundException('Link de aprovacao invalido.');
     }
-    await this.consumeDecision(approval.id, decision, comment, null, 'not-expired');
+    await this.consumeDecision(
+      approval.id,
+      decision,
+      comment,
+      null,
+      'not-expired',
+    );
   }
 
   /** POST /approvals/:id/approve|reject — autenticado, escopado ao workspace. */
@@ -209,7 +215,13 @@ export class ApprovalsService {
     if (!approval) {
       throw new NotFoundException('Aprovacao nao encontrada.');
     }
-    await this.consumeDecision(approval.id, decision, comment, decidedBy, 'not-expired');
+    await this.consumeDecision(
+      approval.id,
+      decision,
+      comment,
+      decidedBy,
+      'not-expired',
+    );
   }
 
   /**
@@ -267,7 +279,9 @@ export class ApprovalsService {
         id: approvalId,
         decidedAt: null,
         expiresAt:
-          expiryGuard === 'not-expired' ? { gt: decidedAt } : { lte: decidedAt },
+          expiryGuard === 'not-expired'
+            ? { gt: decidedAt }
+            : { lte: decidedAt },
       },
       data: {
         decidedAt,
@@ -277,9 +291,7 @@ export class ApprovalsService {
       },
     });
     if (count === 0) {
-      throw new ConflictException(
-        'Esta aprovacao ja foi decidida ou expirou.',
-      );
+      throw new ConflictException('Esta aprovacao ja foi decidida ou expirou.');
     }
     await this.enqueueResume(approvalId, {
       approved: decision === 'approved',

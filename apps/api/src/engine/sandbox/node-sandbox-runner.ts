@@ -102,10 +102,24 @@ export class NodeSandboxRunner {
     handlers: SandboxCtxHandlers;
     options: SandboxOptions;
   }): Promise<SandboxResult> {
-    const { nodeType, resolvedConfig, input, vars, resumeData, handlers, options } = params;
+    const {
+      nodeType,
+      resolvedConfig,
+      input,
+      vars,
+      resumeData,
+      handlers,
+      options,
+    } = params;
     return new Promise((resolve) => {
       const worker = new Worker(ENTRY_PATH, {
-        workerData: { nodeType, config: resolvedConfig, input, vars, resumeData },
+        workerData: {
+          nodeType,
+          config: resolvedConfig,
+          input,
+          vars,
+          resumeData,
+        },
         env: sandboxEnv(),
         resourceLimits: {
           maxOldGenerationSizeMb: options.memoryLimitMb,

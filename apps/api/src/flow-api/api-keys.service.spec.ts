@@ -24,9 +24,11 @@ function buildService(opts: { workflowExists?: boolean } = {}) {
 
   const prisma = {
     workflow: {
-      findFirst: jest.fn().mockResolvedValue(
-        opts.workflowExists === false ? null : { id: 'wf-1' },
-      ),
+      findFirst: jest
+        .fn()
+        .mockResolvedValue(
+          opts.workflowExists === false ? null : { id: 'wf-1' },
+        ),
     },
     workflowApiKey: {
       findMany: jest.fn(
@@ -52,8 +54,9 @@ function buildService(opts: { workflowExists?: boolean } = {}) {
           return project(full, select);
         },
       ),
-      findUnique: jest.fn(async ({ where }: { where: { keyHash: string } }) =>
-        stored.find((row) => row.keyHash === where.keyHash) ?? null,
+      findUnique: jest.fn(
+        async ({ where }: { where: { keyHash: string } }) =>
+          stored.find((row) => row.keyHash === where.keyHash) ?? null,
       ),
       updateMany: jest.fn(
         async ({
@@ -107,9 +110,9 @@ describe('ApiKeysService.create', () => {
   it('fluxo de outro workspace (ou inexistente): NotFoundException, nada gravado', async () => {
     const { service, prisma } = buildService({ workflowExists: false });
 
-    await expect(
-      service.create('ws-1', 'wf-1', { name: 'X' }),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.create('ws-1', 'wf-1', { name: 'X' })).rejects.toThrow(
+      NotFoundException,
+    );
     expect(prisma.workflowApiKey.create).not.toHaveBeenCalled();
   });
 });
@@ -191,7 +194,7 @@ describe('ApiKeysService.touchLastUsed', () => {
 
   it('rejeicao do update nao propaga (sem isso, unhandled rejection derruba o processo)', async () => {
     const { service, prisma } = buildService();
-    (prisma.workflowApiKey.update as jest.Mock).mockRejectedValueOnce(
+    prisma.workflowApiKey.update.mockRejectedValueOnce(
       new Error('conexao caiu'),
     );
 

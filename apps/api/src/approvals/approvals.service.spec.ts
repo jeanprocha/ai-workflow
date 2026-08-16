@@ -17,7 +17,8 @@ function buildService(opts: {
       findUnique: opts.findUniqueImpl ?? jest.fn().mockResolvedValue(null),
       findFirst: opts.findFirstImpl ?? jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
-      updateMany: opts.updateManyImpl ?? jest.fn().mockResolvedValue({ count: 1 }),
+      updateMany:
+        opts.updateManyImpl ?? jest.fn().mockResolvedValue({ count: 1 }),
       update: jest.fn().mockResolvedValue(undefined),
       findUniqueOrThrow:
         opts.findUniqueOrThrowImpl ??
@@ -282,9 +283,7 @@ describe('ApprovalsService — consumo atomico da decisao (H2-06)', () => {
     const updateManyImpl = jest.fn().mockResolvedValue({ count: 0 });
     const { service } = buildService({ updateManyImpl });
 
-    await expect(service.applyTimeout('appr-1', 'reject')).resolves.toBe(
-      false,
-    );
+    await expect(service.applyTimeout('appr-1', 'reject')).resolves.toBe(false);
   });
 });
 

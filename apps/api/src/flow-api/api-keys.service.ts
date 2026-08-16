@@ -27,7 +27,10 @@ const SUMMARY_SELECT = {
 export class ApiKeysService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async assertWorkflowInWorkspace(workspaceId: string, workflowId: string) {
+  private async assertWorkflowInWorkspace(
+    workspaceId: string,
+    workflowId: string,
+  ) {
     const workflow = await this.prisma.workflow.findFirst({
       where: { id: workflowId, workspaceId },
       select: { id: true },
@@ -81,7 +84,9 @@ export class ApiKeysService {
    * (prefixo errado, nao encontrada, revogada) — quem usa nao deve
    * diferenciar o motivo, pra nao virar oraculo de enumeracao.
    */
-  async resolveRawKey(raw: string): Promise<{ id: string; workflowId: string } | null> {
+  async resolveRawKey(
+    raw: string,
+  ): Promise<{ id: string; workflowId: string } | null> {
     if (!raw.startsWith(KEY_PREFIX)) return null;
     const key = await this.prisma.workflowApiKey.findUnique({
       where: { keyHash: hashKey(raw) },

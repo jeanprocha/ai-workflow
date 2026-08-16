@@ -3,7 +3,11 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import type { WorkflowEdge, WorkflowGraph, WorkflowNode } from '@workflow/shared';
+import type {
+  WorkflowEdge,
+  WorkflowGraph,
+  WorkflowNode,
+} from '@workflow/shared';
 import { TemplatesService } from './templates.service';
 import { CREDENTIAL_POLICY, RECORD_POLICY } from './template-sanitizer';
 
@@ -57,33 +61,30 @@ function edge(source: string, target: string): WorkflowEdge {
   return { id: `${source}->${target}`, source, target };
 }
 
-function graph(nodes: WorkflowNode[], edges: WorkflowEdge[] = []): WorkflowGraph {
+function graph(
+  nodes: WorkflowNode[],
+  edges: WorkflowEdge[] = [],
+): WorkflowGraph {
   return { nodes, edges, viewport: { x: 0, y: 0, zoom: 1 } };
 }
 
 function buildService(templateGraph: unknown) {
   const tx = {
     workflow: {
-      create: jest.fn(
-        async ({ data }: { data: Record<string, unknown> }) => ({
-          id: 'wf-1',
-          ...data,
-        }),
-      ),
-      update: jest.fn(
-        async ({ data }: { data: Record<string, unknown> }) => ({
-          id: 'wf-1',
-          ...data,
-        }),
-      ),
+      create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: 'wf-1',
+        ...data,
+      })),
+      update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: 'wf-1',
+        ...data,
+      })),
     },
     workflowVersion: {
-      create: jest.fn(
-        async ({ data }: { data: Record<string, unknown> }) => ({
-          id: 'ver-1',
-          ...data,
-        }),
-      ),
+      create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: 'ver-1',
+        ...data,
+      })),
     },
   };
   const prisma = {
@@ -123,9 +124,9 @@ describe('TemplatesService.use', () => {
     const invalidGraph = graph([node('n1', 'tipo.inexistente')]);
     const { service, prisma } = buildService(invalidGraph);
 
-    await expect(
-      service.use('ws-1', 'user-1', 'tpl-1'),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.use('ws-1', 'user-1', 'tpl-1')).rejects.toThrow(
+      BadRequestException,
+    );
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -138,15 +139,13 @@ describe('TemplatesService.use', () => {
 
     await service.use('ws-1', 'user-1', 'tpl-1');
 
-    const createData = tx.workflow.create.mock.calls[0][0].data as Record<
-      string,
-      unknown
-    >;
+    const createData = tx.workflow.create.mock.calls[0][0].data;
     expect(createData.chatToken).toEqual(expect.any(String));
     expect(createData.inboxToken).toEqual(expect.any(String));
 
-    const versionData = tx.workflowVersion.create.mock.calls[0][0]
-      .data as { graph: WorkflowGraph };
+    const versionData = tx.workflowVersion.create.mock.calls[0][0].data as {
+      graph: WorkflowGraph;
+    };
     const chatNode = versionData.graph.nodes.find((n) => n.id === 'n1');
     expect(chatNode?.config.chatToken).toBe(createData.chatToken);
     expect(chatNode?.config.inboxToken).toBe(createData.inboxToken);
@@ -163,10 +162,7 @@ describe('TemplatesService.use', () => {
 
     await service.use('ws-1', 'user-1', 'tpl-1');
 
-    const createData = tx.workflow.create.mock.calls[0][0].data as Record<
-      string,
-      unknown
-    >;
+    const createData = tx.workflow.create.mock.calls[0][0].data;
     expect(createData.chatToken).not.toBe('herdado-chat');
     expect(createData.inboxToken).not.toBe('herdado-inbox');
   });
@@ -179,8 +175,8 @@ describe('TemplatesService.use', () => {
     await service.use('ws-1', 'user-2', 'tpl-1');
 
     const [firstCall, secondCall] = tx.workflow.create.mock.calls;
-    const firstData = firstCall[0].data as Record<string, unknown>;
-    const secondData = secondCall[0].data as Record<string, unknown>;
+    const firstData = firstCall[0].data;
+    const secondData = secondCall[0].data;
     expect(firstData.chatToken).not.toBe(secondData.chatToken);
   });
 
@@ -192,10 +188,7 @@ describe('TemplatesService.use', () => {
 
     await service.use('ws-1', 'user-1', 'tpl-1');
 
-    const createData = tx.workflow.create.mock.calls[0][0].data as Record<
-      string,
-      unknown
-    >;
+    const createData = tx.workflow.create.mock.calls[0][0].data;
     expect(createData.webhookId).toEqual(expect.any(String));
     expect(createData.webhookId).not.toBe('');
     expect(createData.chatToken).toBeUndefined();
@@ -203,7 +196,9 @@ describe('TemplatesService.use', () => {
   });
 
   it('escopo: busca com OR (global OU do workspace), nunca so pelo id', async () => {
-    const { service, prisma } = buildService(graph([node('n1', 'trigger.manual')]));
+    const { service, prisma } = buildService(
+      graph([node('n1', 'trigger.manual')]),
+    );
 
     await service.use('ws-1', 'user-1', 'tpl-1');
 
@@ -279,17 +274,15 @@ function buildCrudService(seed: {
           templates.find((t) => matchesWhere(t, where)) ?? null,
       ),
       findMany: jest.fn(async () => templates),
-      create: jest.fn(
-        async ({ data }: { data: Record<string, unknown> }) => {
-          const created = {
-            id: `tpl-${templates.length + 1}`,
-            createdAt: new Date(),
-            ...data,
-          };
-          templates.push(created);
-          return created;
-        },
-      ),
+      create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        const created = {
+          id: `tpl-${templates.length + 1}`,
+          createdAt: new Date(),
+          ...data,
+        };
+        templates.push(created);
+        return created;
+      }),
       update: jest.fn(
         async ({
           where,
@@ -310,11 +303,7 @@ function buildCrudService(seed: {
     },
     workflow: {
       findFirst: jest.fn(
-        async ({
-          where,
-        }: {
-          where: { id: string; workspaceId: string };
-        }) =>
+        async ({ where }: { where: { id: string; workspaceId: string } }) =>
           workflows.find(
             (w) => w.id === where.id && w.workspaceId === where.workspaceId,
           ) ?? null,
@@ -322,11 +311,7 @@ function buildCrudService(seed: {
     },
     workflowVersion: {
       findFirst: jest.fn(
-        async ({
-          where,
-        }: {
-          where: { id: string; workflowId: string };
-        }) =>
+        async ({ where }: { where: { id: string; workflowId: string } }) =>
           versions.find(
             (v) => v.id === where.id && v.workflowId === where.workflowId,
           ) ?? null,
@@ -434,7 +419,11 @@ describe('TemplatesService.create', () => {
   it('fluxo de outro workspace (ou inexistente): NotFoundException', async () => {
     const { service } = buildCrudService({
       workflows: [
-        { id: 'wf-1', workspaceId: 'ws-2', currentVersion: { graph: graph([]) } },
+        {
+          id: 'wf-1',
+          workspaceId: 'ws-2',
+          currentVersion: { graph: graph([]) },
+        },
       ],
     });
 
@@ -464,7 +453,11 @@ describe('TemplatesService.create', () => {
   it('versionId que nao pertence ao fluxo: NotFoundException "Versao nao encontrada."', async () => {
     const { service } = buildCrudService({
       workflows: [
-        { id: 'wf-1', workspaceId: 'ws-1', currentVersion: { graph: graph([]) } },
+        {
+          id: 'wf-1',
+          workspaceId: 'ws-1',
+          currentVersion: { graph: graph([]) },
+        },
       ],
       versions: [],
     });

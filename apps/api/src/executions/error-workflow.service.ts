@@ -63,7 +63,11 @@ export class ErrorWorkflowService {
         where: { id: execution.workflow.errorWorkflowId },
         select: { id: true, status: true, currentVersionId: true },
       });
-      if (!handler || handler.status === 'archived' || !handler.currentVersionId) {
+      if (
+        !handler ||
+        handler.status === 'archived' ||
+        !handler.currentVersionId
+      ) {
         return;
       }
 
